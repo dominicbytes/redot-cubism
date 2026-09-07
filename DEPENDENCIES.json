@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "addon_version": "0.1.0-dev",
-  "redot": {"version": "26.2.stable.official.4f5b14aba", "commit": "4f5b14abade2239104847d03d8f9056e4467cfcd", "precision": "single"},
+  "redot": {"version": "26.2.stable.official.4f5b14aba", "commit": "4f5b14abade2239104847d03d8f9056e4467cfcd", "precision": "single", "api_sha256": "177e7796166929b2193c9cce2fd32f59601a0147d0d1e7fe904b94e8f69f6577"},
   "redot_cpp": {"url": "https://github.com/Redot-Engine/redot-cpp.git", "commit": "598ec78e86b2c240a023f6de13daba70f7de8610"},
   "gd_cubism": {"url": "https://github.com/MizunagiKB/gd_cubism.git", "commit": "3aaa3c9001808732c40aa3fa07460a95125d9ccc", "v0_9_1_tag_commit": "60e9c61ed20d08ec19b2cb80fb492ce6344927c6"},
-  "cubism_framework": {"url": "https://github.com/Live2D/CubismNativeFramework.git", "commit": "145155d2c5bdd8d23475cef9cc3ab46d3220190c", "version": "5-r.5"},
-  "cubism_sdk": {"version": "5-r.5", "archive_sha256": null, "core_version": null, "core_library_sha256": {}},
+  "cubism_framework": {"url": "https://github.com/Live2D/CubismNativeFramework.git", "commit": "145155d2c5bdd8d23475cef9cc3ab46d3220190c", "version": "5-r.5", "source_sha256": "06adacbdbdbb25362ec095e22c88b5abe172093164b3376d56eaaa12555d6e7b"},
+  "cubism_sdk": {"version": "5-r.5", "archive_sha256": null, "core_header_sha256": null, "core_version": null, "core_library_sha256": {}},
   "toolchain": {"python": "3.14.7", "scons": "4.11.1", "cpp_standard": "c++17", "linux_compiler": "GCC 16.2.1 20260810", "linux_linker": "GNU ld 2.47", "windows_compiler": null}
 }
