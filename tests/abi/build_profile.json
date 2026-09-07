@@ -1,0 +1,3 @@
+{
+  "enabled_classes": ["Node2D", "Resource", "EditorPlugin", "OS"]
+}

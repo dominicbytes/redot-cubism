@@ -34,14 +34,14 @@ Keep the existing native GDExtension approach. The source review found no demons
 | Imported paths could indirectly load scripts | Restrict manifest texture/audio paths before ResourceLoader | Script-bearing resources rejected before load |
 | Optional work was a dependency of desktop release | Split native playback from P1 timeline work; move export earlier | P0 release graph excludes macOS, C#, mobile and timeline conversion |
 
-The user has now requested implementation, testing, creation of the `dominicbytes/redot-cubism` fork and saving the source port there. Continue that authorized work without repeated approval. Proprietary SDK auto-download, restricted asset redistribution and binary-publication decisions remain governed by Section 4.
+The user has now requested implementation, testing, creation of the `dominicbytes/redot-cubism` fork and saving the source port there. Continue that authorized work without repeated approval. On 2026-09-07 the user also authorized downloading the SDK from Live2D's official website, superseding the earlier manual-provisioning restriction. Restricted asset redistribution and binary-publication decisions remain governed by Section 4.
 
 Implement the work as a sequence of small, reviewable pull requests. Keep every merged PR buildable. Do not combine the initial Redot port, renderer redesign, model importer, high-level gameplay API, and mobile support into one PR.
 
 ## Non-negotiable rules
 
 1. **Do not commit any proprietary Live2D Cubism Core binary, header bundle, SDK archive, sample model, or other file whose redistribution has not been explicitly approved.**
-2. **Do not automatically download the proprietary Cubism SDK.**
+2. **Obtain the pinned Cubism SDK only from Live2D's official download page, as authorized by the user.** Accepting the page's license agreements through browser automation requires explicit action-time confirmation. Keep the package local and record its identity before use.
 3. Preserve the original GDCubism copyright and MIT attribution for all derived code.
 4. Pin all initial dependencies to the versions and commits in this document. Do not silently upgrade them.
 5. Use Redot's `redot-cpp` binding, not upstream `godot-cpp`, for production builds.

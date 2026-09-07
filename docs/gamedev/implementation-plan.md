@@ -10,8 +10,13 @@ Source publication to that fork is authorized. It does not assert approval to
 redistribute proprietary Core, SDK packages, private models, or binary releases.
 
 PR 0/1 and the Linux portion of SDK-free PR 2A are READY_FOR_IMPLEMENTATION.
-The full native stage remains conditional on a manually provisioned matched R5
-SDK and permitted model fixture. Windows build/runtime qualification remains
+Current checkpoint: [PR 0/1 report](pr-01-report.md) and
+[Linux PR 2A report](pr-02a-report.md). Linux debug/release SDK-free import,
+restart, internal-process and actual exported-template checks now pass.
+The user also authorized the official SDK download on 2026-09-07. The download
+page requires acceptance of both Live2D license agreements; action-time consent
+has been requested before checking that box. The full native stage requires
+the matched R5 SDK and permitted model fixture. Windows build/runtime qualification remains
 required. Later feature stages retain the canonical plan's dependency gates.
 
 Baseline: Redot 26.2 commit 4f5b14abade2239104847d03d8f9056e4467cfcd,
@@ -27,6 +32,7 @@ The first checks are provenance/restricted-file auditing, public tool tests,
 exact engine/API fingerprints, and SDK-free native class registration and
 internal-process tests. Passing them does not establish Cubism model playback.
 
-Open access: the connector identifies dominicbytes but exposes no fork operation;
-the shell and Codex browser are not authenticated. User input has been requested
-for a signed-in route and SDK/model paths while independent local work proceeds.
+Open access: the connector identifies dominicbytes but exposes no fork operation.
+The user reports signing into Chrome, but the browser tool currently exposes only
+the unauthenticated Codex browser. A connected route or the user-created fork is
+pending while independent local work proceeds.
