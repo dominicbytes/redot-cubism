@@ -13,3 +13,4 @@
 
 # for Godot Engine 4.1
 godot.project   merge=godot4.1
+*.md whitespace=-blank-at-eol
