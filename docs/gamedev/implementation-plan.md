@@ -8,6 +8,8 @@ forking MizunagiKB/gd_cubism as dominicbytes/redot-cubism, and saving the port t
 This overrides the earlier planning-only boundary and proposed organization remote.
 Source publication to that fork is authorized. It does not assert approval to
 redistribute proprietary Core, SDK packages, private models, or binary releases.
+The user subsequently created `dominicbytes/redot_cubism` (underscore) and asked
+this task to use it. That verified fork is now the destination and local `origin`.
 
 PR 0/1 and the Linux portion of SDK-free PR 2A are READY_FOR_IMPLEMENTATION.
 Current checkpoint: [PR 0/1 report](pr-01-report.md) and
@@ -36,7 +38,10 @@ The first checks are provenance/restricted-file auditing, public tool tests,
 exact engine/API fingerprints, and SDK-free native class registration and
 internal-process tests. Passing them does not establish Cubism model playback.
 
-Open access: the connector identifies dominicbytes but exposes no fork operation.
-The user reports signing into Chrome, but the browser tool currently exposes only
-the unauthenticated Codex browser. A connected route or the user-created fork is
-pending while independent local work proceeds.
+The fork exists at the selected upstream commit and the in-app browser is signed
+in as dominicbytes. Publication is still pending: the GitHub integration returns
+403 for Git tree creation, and the CLI device authorization page keeps its
+Authorize button disabled. The project workbook upload was separately rejected
+by automatic approval review; specific public-disclosure approval is pending.
+Do not upload that workbook through another route without resolving the rejection.
+See [publication status](publication-status.md) for the current checkpoint.

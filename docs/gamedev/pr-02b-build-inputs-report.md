@@ -38,4 +38,19 @@ a separate commit; replace Windows Core-folder derivation with the actual SDK
 toolset/CRT mapping; add build information and native runtime smoke tests; qualify
 debug/release on Windows and Linux and the licensed CI/model/export gates. The
 SCons native object/link path is not yet exercised because Core is unavailable.
-The GitHub fork still returns 404 and Chrome is not connected to computer use.
+The user-created destination is now `dominicbytes/redot_cubism`; see the
+[publication status](publication-status.md) for the remaining write-access issue.
+
+## R5 working changes after the input checkpoint
+
+Build-input checkpoint: `51a3bf0`. A separate working diff now updates motion loop
+setters, expression playback and all three legacy shader-selection branches.
+The model loader rejects R5 offscreen compositing and unsupported blend pairs
+before creating its renderer. The owner already clears the model on a failed
+`model_load`, as verified in `GDCubismUserModel::load_model`.
+See the [SDK matrix](../compatibility/cubism_sdk_matrix.md).
+
+The method names, blend-mode object accessors and Core enum symbols were checked
+against the pinned Framework headers and its official OpenGL shader-selection
+source. This diff has not been compiled or run: Core is still unavailable.
+Do not promote it to a native-build PASS or start later feature stages yet.

@@ -7,7 +7,7 @@
 **Secondary target:** Redot Engine LTS 26.2, Linux x86_64  
 **Implementation form:** External C++ GDExtension/addon, not an engine-core module  
 **Working directory:** `plugins/redot-cubism`  
-**Authorized remote:** `dominicbytes/redot-cubism` (user authorized fork and source publication on 2026-09-07)  
+**Authorized remote:** `dominicbytes/redot_cubism` (user-created fork, verified 2026-09-07; supersedes the proposed hyphenated name)  
 **Upstream starting point:** `MizunagiKB/gd_cubism`  
 **Intended users:** Visual-novel, 2D RPG, dialogue, portrait, and character-driven Redot projects
 
@@ -35,6 +35,10 @@ Keep the existing native GDExtension approach. The source review found no demons
 | Optional work was a dependency of desktop release | Split native playback from P1 timeline work; move export earlier | P0 release graph excludes macOS, C#, mobile and timeline conversion |
 
 The user has now requested implementation, testing, creation of the `dominicbytes/redot-cubism` fork and saving the source port there. Continue that authorized work without repeated approval. On 2026-09-07 the user also authorized downloading the SDK from Live2D's official website, superseding the earlier manual-provisioning restriction. Restricted asset redistribution and binary-publication decisions remain governed by Section 4.
+
+The user subsequently created `dominicbytes/redot_cubism` and selected that
+existing fork as the destination. Use its underscore spelling for Git remotes
+and publication; keep the local plugin directory name unchanged.
 
 Implement the work as a sequence of small, reviewable pull requests. Keep every merged PR buildable. Do not combine the initial Redot port, renderer redesign, model importer, high-level gameplay API, and mobile support into one PR.
 
@@ -1078,7 +1082,7 @@ The pinned source and R5 headers establish these migrations:
 | `CubismMotion::IsLoop(bool)` / `IsLoop()` | `ACubismMotion::SetLoop(bool)` / `GetLoop()` |
 | `IsLoopFadeIn(bool)` / `IsLoopFadeIn()` | `SetLoopFadeIn(bool)` / `GetLoopFadeIn()` |
 | Expression manager `StartMotionPriority(motion, false, priority)` | Inherited `StartMotion(motion, false)`; expression playback has no motion-priority reservation |
-| `GetDrawableBlendMode(index)` | `GetDrawableBlendModeType(index)`; map only supported modes and diagnose unsupported model features |
+| `GetDrawableBlendMode(index)` | `GetDrawableBlendModeType(index)` returns `csmBlendMode`, not the old enum. Read `GetColorBlendType()` and `GetAlphaBlendType()`; map Normal/Over, AddCompatible and MultiplyCompatible to legacy shaders. Reject unsupported blend pairs and offscreen compositing before rendering. |
 | Deprecated drawable texture/culling/color helpers | Map each actual call to the pinned header, not release-note spelling; preserve model and drawable color overrides |
 | Finished-motion custom data feature guard | R5 contains handler/custom-data accessors; use one defined callback ownership contract and test replay/interruption |
 
