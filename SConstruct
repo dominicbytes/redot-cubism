@@ -2,60 +2,34 @@
 # SPDX-FileCopyrightText: 2023 MizunagiKB <mizukb@live.jp>
 import sys
 import os
+import json
 from glob import glob
 from pathlib import Path
 
 
-env = SConscript("godot-cpp/SConstruct")
+root = Path(Dir("#").abspath)
+sys.path.insert(0, str(root / "tools"))
+from build_inputs import binding_root, core_library, sdk_roots
 
-print("")
-print("--- GDCubism ---")
-print("")
+pins = json.loads((root / "DEPENDENCIES.json").read_text())
+options = dict(os.environ)
+options.update(ARGUMENTS)
+try:
+    core, framework = sdk_roots(options, pins)
+    cpp = binding_root(root, options, pins, ARGUMENTS.get("custom_api_file"), ARGUMENTS.get("precision", "single"))
+except (OSError, ValueError) as exc:
+    print(f"Redot Cubism build input error: {exc}")
+    Exit(1)
 
-
-# ------------------------------------------------------ get CubismSdkForNative
-def get_cubism_sdk(dirname):
-    list_path: list[Path] = [
-        o_path for o_path in Path("thirdparty").glob(dirname) if o_path.is_dir()
-    ]
-
-    o_path = max(list_path)
-
-    tpl_path = (o_path.joinpath("Core"), o_path.joinpath("Framework"))
-    if all(map(lambda o: o.is_dir(), tpl_path)) is True:
-        print("     CUBISM_NATIVE_CORE_DIR = {:s}".format(str(tpl_path[0])))
-        print("CUBISM_NATIVE_FRAMEWORK_DIR = {:s}".format(str(tpl_path[1])))
-
-        # ------------------------------------------------ Compile parameter(s)
-        dict_CPPDEFINES = {}
-        for param_n, param_v in (
-            ("CUBISM_MOTION_CUSTOMDATA", "1"),
-            ("COUNTERMEASURES_90017_90030", "1"),
-        ):
-            v = ARGUMENTS.get(param_n, param_v)
-            print("{:>27s} = {:s}".format(param_n, v))
-            if v == "1":
-                dict_CPPDEFINES[param_n] = v
-
-        env.Append(CPPDEFINES=dict_CPPDEFINES)
-        return str(tpl_path[0]), str(tpl_path[1])
-
-    print("*** Directory not found, 'CubismSdkForNative' ***")
-    sys.exit(1)
-
-
-CUBISM_NATIVE_CORE_DIR, CUBISM_NATIVE_FRAMEWORK_DIR = get_cubism_sdk(
-    "CubismSdkForNative*"
-)
-
-# ------------------------------------------------------- check for experimenal
-CHECK_PATH = "thirdparty/CubismNativeFramework"
-if os.path.isdir(CHECK_PATH) is True:
-    print("*** You are using a custom native framework that you prepared yourself. ***")
-    CHECK_FILE = os.path.join(CHECK_PATH, "src", "Motion", "ACubismMotion.hpp")
-    if os.path.isfile(CHECK_FILE) is True:
-        print("CUBISM_NATIVE_FRAMEWORK_DIR = {:s}".format(CHECK_PATH))
-        CUBISM_NATIVE_FRAMEWORK_DIR = CHECK_PATH
+build_dir = Path(options.get("CUBISM_BUILD_DIR", root / ".local-build/native")).resolve()
+build_dir.mkdir(parents=True, exist_ok=True)
+SConsignFile(str(build_dir / ".sconsign.dblite"))
+env = SConscript(str(cpp / "SConstruct"))
+CUBISM_NATIVE_CORE_DIR = str(core)
+CUBISM_NATIVE_FRAMEWORK_DIR = str(framework)
+for name in ("CUBISM_MOTION_CUSTOMDATA", "COUNTERMEASURES_90017_90030"):
+    if ARGUMENTS.get(name, "1") == "1":
+        env.Append(CPPDEFINES={name: "1"})
 
 
 # Add source files.
@@ -195,6 +169,12 @@ else:
 
 print("")
 
+try:
+    core_library(o_cubism_lib, core, pins)
+except (OSError, ValueError) as exc:
+    print(f"Redot Cubism build input error: {exc}")
+    Exit(1)
+
 sources = glob("src/*.cpp")
 sources += glob("src/private/*.cpp")
 sources += glob("src/loaders/*.cpp")
@@ -226,12 +206,25 @@ sources += sources_cubism
 if env["target"] in ["editor", "template_debug"]:
     try:
         doc_data = env.GodotCPPDocData(
-            "src/gen/doc_data.gen.cpp", source=glob("doc_classes/*.xml")
+            str(build_dir / "gen/doc_data.gen.cpp"), source=glob("doc_classes/*.xml")
         )
-        sources.append(doc_data)
+        sources += list(doc_data)
     except AttributeError:
         print("Not including class reference as we're targeting a pre-4.3 baseline.")
 
+
+# Keep objects outside both pinned dependency trees.
+objects = []
+for source in sources:
+    path = Path(str(source)).resolve()
+    if path.is_relative_to(framework):
+        key = Path("framework") / path.relative_to(framework)
+    elif path.is_relative_to(build_dir):
+        key = Path("generated") / path.relative_to(build_dir)
+    else:
+        key = Path("addon") / path.relative_to(root)
+    objects += env.SharedObject(str(build_dir / "obj" / (str(key) + env["suffix"])), source)
+sources = objects
 
 (extension_path,) = glob("demo/addons/*/*.gdextension")
 

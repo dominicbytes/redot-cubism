@@ -19,6 +19,10 @@ has been requested before checking that box. The full native stage requires
 the matched R5 SDK and permitted model fixture. Windows build/runtime qualification remains
 required. Later feature stages retain the canonical plan's dependency gates.
 
+PR 2B [build-input preparation](pr-02b-build-inputs-report.md) now selects the
+pinned Redot submodule and validates explicit dependencies. Its rejection cases
+pass, but native compilation and the full PR 2B acceptance gates remain open.
+
 Baseline: Redot 26.2 commit 4f5b14abade2239104847d03d8f9056e4467cfcd,
 redot-cpp 598ec78e86b2c240a023f6de13daba70f7de8610, GDCubism
 3aaa3c9001808732c40aa3fa07460a95125d9ccc, Framework
