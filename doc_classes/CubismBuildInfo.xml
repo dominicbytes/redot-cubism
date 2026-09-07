@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismBuildInfo" inherits="RefCounted" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../doc/class.xsd">
+	<brief_description>
+		Reports the native plugin's build and runtime versions.
+	</brief_description>
+	<description>
+		Use these diagnostics when reporting compatibility problems. The build metadata records the selected SDK, Framework, Redot API, binding revision, platform, architecture, precision, and build target. Runtime values report the loaded Redot and Cubism Core versions.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="get_versions" qualifiers="static">
+			<return type="Dictionary" />
+			<description>
+				Returns build metadata plus [code]runtime_redot[/code], [code]runtime_core_packed[/code], and [code]latest_moc_version[/code]. [code]addon_dirty[/code] indicates that the source checkout had local changes at build time. Dependency hashes identify the selected bytes; they do not certify platform or rendering compatibility.
+			</description>
+		</method>
+	</methods>
+</class>

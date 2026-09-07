@@ -1,0 +1,15 @@
+config_version=5
+
+[application]
+config/name="Cubism native smoke"
+run/main_scene="res://main.tscn"
+
+[display]
+window/size/viewport_width=960
+window/size/viewport_height=720
+
+[editor_plugins]
+enabled=PackedStringArray("res://addons/editor_probe/plugin.cfg")
+
+[rendering]
+renderer/rendering_method="gl_compatibility"

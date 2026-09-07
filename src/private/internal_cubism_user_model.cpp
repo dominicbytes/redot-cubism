@@ -7,6 +7,7 @@
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/image.hpp>
+#include <godot_cpp/core/error_macros.hpp>
 
 #ifdef GD_CUBISM_USE_RENDERER_2D
     #include <private/internal_cubism_renderer_2d.hpp>
@@ -73,6 +74,27 @@ bool InternalCubismUserModel::model_load(
         this->_moc3_file_format_version = static_cast<GDCubismUserModel::moc3FileFormatVersion>(version);
     }
 
+    if (this->_model == nullptr) {
+        ERR_PRINT("Cubism model could not be loaded.");
+        return false;
+    }
+    if (this->_model->GetOffscreenCount() != 0) {
+        ERR_PRINT("This Cubism model requires offscreen compositing, which the Redot canvas renderer does not support.");
+        return false;
+    }
+    for (Csm::csmInt32 i = 0; i < this->_model->GetDrawableCount(); ++i) {
+        const auto blend = this->_model->GetDrawableBlendModeType(i);
+        const auto color = blend.GetColorBlendType();
+        const bool compatible = color == Live2D::Cubism::Core::csmColorBlendType_AddCompatible
+            || color == Live2D::Cubism::Core::csmColorBlendType_MultiplyCompatible
+            || (color == Live2D::Cubism::Core::csmColorBlendType_Normal
+                && blend.GetAlphaBlendType() == Live2D::Cubism::Core::csmAlphaBlendType_Over);
+        if (!compatible) {
+            ERR_PRINT("This Cubism model uses a blend mode unsupported by the Redot canvas renderer.");
+            return false;
+        }
+    }
+
     // Expression
     if(this->_owner_viewport->enable_load_expressions == true) {
         this->expression_load();
@@ -115,7 +137,9 @@ bool InternalCubismUserModel::model_load(
         this->motion_load();
     }
 
-    this->CreateRenderer();
+    this->CreateRenderer(
+        static_cast<Csm::csmUint32>(this->_model->GetCanvasWidthPixel()),
+        static_cast<Csm::csmUint32>(this->_model->GetCanvasHeightPixel()));
 
     // Resource(Texture)
     this->model_load_resource();
@@ -288,10 +312,9 @@ void InternalCubismUserModel::expression_set(const char* expression_id) {
     ACubismMotion* motion = this->_map_expression[csmString(expression_id)];
 
     if(motion != nullptr) {
-        this->_expressionManager->StartMotionPriority(
+        this->_expressionManager->StartMotion(
             motion,
-            false,
-            GDCubismUserModel::Priority::PRIORITY_FORCE
+            false
         );
     }
 }
@@ -317,8 +340,8 @@ CubismMotionQueueEntryHandle InternalCubismUserModel::motion_start(const char* g
 
     if(motion == nullptr ) return InvalidMotionQueueEntryHandleValue;
 
-    motion->IsLoop(loop);
-    motion->IsLoopFadeIn(loop_fade_in);
+    motion->SetLoop(loop);
+    motion->SetLoopFadeIn(loop_fade_in);
     motion->SetFinishedMotionHandler(GDCubismUserModel::on_motion_finished);
     #ifdef CUBISM_MOTION_CUSTOMDATA
     motion->SetFinishedMotionCustomData(custom_data);

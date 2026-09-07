@@ -3,13 +3,14 @@
 import sys
 import os
 import json
+import subprocess
 from glob import glob
 from pathlib import Path
 
 
 root = Path(Dir("#").abspath)
 sys.path.insert(0, str(root / "tools"))
-from build_inputs import binding_root, core_library, sdk_roots
+from build_inputs import binding_root, core_library, sdk_roots, windows_core_library
 
 pins = json.loads((root / "DEPENDENCIES.json").read_text())
 options = dict(os.environ)
@@ -25,6 +26,36 @@ build_dir = Path(options.get("CUBISM_BUILD_DIR", root / ".local-build/native")).
 build_dir.mkdir(parents=True, exist_ok=True)
 SConsignFile(str(build_dir / ".sconsign.dblite"))
 env = SConscript(str(cpp / "SConstruct"))
+if ARGUMENTS.get("build_profile"):
+    # The pinned binding generator omits the profile from its input dependencies.
+    env.Depends(str(cpp / "gen/include/godot_cpp/core/ext_wrappers.gen.inc"),
+        str(Path(ARGUMENTS["build_profile"]).resolve()))
+generated_dir = build_dir / "gen"
+generated_dir.mkdir(parents=True, exist_ok=True)
+build_info = {
+    "addon_version": pins["addon_version"],
+    "addon_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(),
+    "redot_version": pins["redot"]["version"],
+    "redot_api_sha256": pins["redot"]["api_sha256"],
+    "redot_cpp_commit": pins["redot_cpp"]["commit"],
+    "framework_version": pins["cubism_framework"]["version"],
+    "framework_commit": pins["cubism_framework"]["commit"],
+    "sdk_version": pins["cubism_sdk"]["version"],
+    "sdk_archive_sha256": pins["cubism_sdk"]["archive_sha256"],
+    "core_version": pins["cubism_sdk"]["core_version"],
+    "platform": env["platform"],
+    "arch": env["arch"],
+    "target": env["target"],
+    "precision": env["precision"],
+    "compiler": env.subst("$CXX"),
+}
+build_info["addon_dirty"] = bool(subprocess.check_output(
+    ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=normal"], text=True).strip())
+info_header = generated_dir / "cubism_build_info.gen.h"
+header_text = "#define CUBISM_BUILD_INFO_JSON " + json.dumps(json.dumps(build_info, sort_keys=True)) + "\n"
+if not info_header.exists() or info_header.read_text() != header_text:
+    info_header.write_text(header_text)
+env.Append(CPPPATH=[str(generated_dir)])
 CUBISM_NATIVE_CORE_DIR = str(core)
 CUBISM_NATIVE_FRAMEWORK_DIR = str(framework)
 for name in ("CUBISM_MOTION_CUSTOMDATA", "COUNTERMEASURES_90017_90030"):
@@ -47,32 +78,14 @@ if env["platform"] == "windows":
             env.get("MSVC_VERSION", "(undefined)")
         )
     )
-    arch = env["arch"]
-    if arch == "x86_32":
-        arch = "x86"
-
-    o_cubism_lib = (
-        Path(CUBISM_NATIVE_CORE_DIR)
-        .joinpath("lib")
-        .joinpath(env["platform"])
-        .joinpath(arch)
-        .joinpath(env["MSVC_VERSION"].replace(".", ""))
-        .joinpath("Live2DCubismCore_MT.lib")
-    )
-    env.Append(
-        LIBPATH=[
-            os.path.join(
-                CUBISM_NATIVE_CORE_DIR,
-                "lib",
-                "windows",
-                arch,
-                env["MSVC_VERSION"].replace(".", ""),
-            ),
-        ]
-    )
-
+    try:
+        o_cubism_lib = windows_core_library(core, env)
+    except ValueError as exc:
+        print(f"Redot Cubism build input error: {exc}")
+        Exit(1)
+    env.Append(LIBPATH=[str(o_cubism_lib.parent)])
     print("                       libs = {:s}".format(str(o_cubism_lib)))
-    env.Append(LIBS=["Live2DCubismCore_MT"])
+    env.Append(LIBS=[o_cubism_lib.stem])
 
 elif env["platform"] == "macos":
     o_cubism_lib = (
@@ -121,6 +134,7 @@ elif env["platform"] == "ios":
     env.Append(LIBS=["Live2DCubismCore"])
 
 elif env["platform"] == "linux":
+    env.Append(LINKFLAGS=["-Wl,--no-undefined"])
     o_cubism_lib = (
         Path(CUBISM_NATIVE_CORE_DIR)
         .joinpath("lib")

@@ -35,7 +35,8 @@ const Vector4 make_vector4(const Live2D::Cubism::Core::csmVector4 &src_vec4);
 
 // ----------------------------------------------------------- class:forward(s)
 // ------------------------------------------------------------------- class(s)
-InternalCubismRenderer2D::InternalCubismRenderer2D()
+InternalCubismRenderer2D::InternalCubismRenderer2D(Csm::csmUint32 width, Csm::csmUint32 height)
+    : CubismRenderer(width, height)
 {
 }
 
@@ -163,7 +164,7 @@ float InternalCubismRenderer2D::get_ppunit(const Csm::CubismModel *model) const
 void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32_t mask_viewport_size)
 {
     const CubismModel *model = this->GetModel();
-    const Csm::csmInt32 *renderOrder = model->GetDrawableRenderOrders();
+    const Csm::csmInt32 *renderOrder = model->GetRenderOrders();
     const Csm::csmInt32 *maskCount = model->GetDrawableMaskCounts();
 
     this->make_ArrayMesh_prepare(
@@ -277,7 +278,7 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
 void InternalCubismRenderer2D::build_model(InternalCubismRendererResource &res, Node* target_node)
 {
     const CubismModel *model = this->GetModel();
-    const Csm::csmInt32 *renderOrder = model->GetDrawableRenderOrders();
+    const Csm::csmInt32 *renderOrder = model->GetRenderOrders();
     const Csm::csmInt32 *maskCount = model->GetDrawableMaskCounts();
 
     this->make_ArrayMesh_prepare(
@@ -392,7 +393,7 @@ void InternalCubismRenderer2D::build_model(InternalCubismRendererResource &res, 
                 mat->set_shader_parameter("channel", Vector4(0.0, 0.0, 0.0, 1.0));
                 mat->set_shader_parameter("tex_main", res.ary_texture[model->GetDrawableTextureIndex(index)]);
 
-                node->set_z_index(model->GetDrawableRenderOrders()[index]);
+                node->set_z_index(model->GetRenderOrders()[index]);
                 node->set_visible(true);
 
                 viewport->add_child(node);
@@ -427,6 +428,10 @@ void InternalCubismRenderer2D::Initialize(Csm::CubismModel *model, Csm::csmInt32
 void InternalCubismRenderer2D::DoDrawModel() {}
 void InternalCubismRenderer2D::SaveProfile() {}
 void InternalCubismRenderer2D::RestoreProfile() {}
+
+// Redot owns canvas draw submission; this renderer has no Cubism render target.
+void InternalCubismRenderer2D::BeforeDrawModelRenderTarget() {}
+void InternalCubismRenderer2D::AfterDrawModelRenderTarget() {}
 
 // ------------------------------------------------------------------ method(s)
 PackedInt32Array make_Indices(const csmUint16 *ptr, const int32_t &size)
