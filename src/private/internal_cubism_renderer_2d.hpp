@@ -34,7 +34,7 @@ class InternalCubismRenderer2D : public CubismRenderer
     friend class CubismRenderer;
 
 public:
-    InternalCubismRenderer2D();
+    InternalCubismRenderer2D(Csm::csmUint32 width, Csm::csmUint32 height);
     virtual ~InternalCubismRenderer2D();
 
 private:
@@ -64,6 +64,8 @@ public:
     void DoDrawModel();
     void SaveProfile();
     void RestoreProfile();
+    void BeforeDrawModelRenderTarget() override;
+    void AfterDrawModelRenderTarget() override;
 };
 
 // ------------------------------------------------------------------ method(s)

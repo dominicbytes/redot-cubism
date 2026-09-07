@@ -1,10 +1,46 @@
 {
   "schema_version": 1,
   "addon_version": "0.1.0-dev",
-  "redot": {"version": "26.2.stable.official.4f5b14aba", "commit": "4f5b14abade2239104847d03d8f9056e4467cfcd", "precision": "single", "api_sha256": "177e7796166929b2193c9cce2fd32f59601a0147d0d1e7fe904b94e8f69f6577"},
-  "redot_cpp": {"url": "https://github.com/Redot-Engine/redot-cpp.git", "commit": "598ec78e86b2c240a023f6de13daba70f7de8610"},
-  "gd_cubism": {"url": "https://github.com/MizunagiKB/gd_cubism.git", "commit": "3aaa3c9001808732c40aa3fa07460a95125d9ccc", "v0_9_1_tag_commit": "60e9c61ed20d08ec19b2cb80fb492ce6344927c6"},
-  "cubism_framework": {"url": "https://github.com/Live2D/CubismNativeFramework.git", "commit": "145155d2c5bdd8d23475cef9cc3ab46d3220190c", "version": "5-r.5", "source_sha256": "06adacbdbdbb25362ec095e22c88b5abe172093164b3376d56eaaa12555d6e7b"},
-  "cubism_sdk": {"version": "5-r.5", "archive_sha256": null, "core_header_sha256": null, "core_version": null, "core_library_sha256": {}},
-  "toolchain": {"python": "3.14.7", "scons": "4.11.1", "cpp_standard": "c++17", "linux_compiler": "GCC 16.2.1 20260810", "linux_linker": "GNU ld 2.47", "windows_compiler": null}
+  "redot": {
+    "version": "26.2.stable.official.4f5b14aba",
+    "commit": "4f5b14abade2239104847d03d8f9056e4467cfcd",
+    "precision": "single",
+    "api_sha256": "177e7796166929b2193c9cce2fd32f59601a0147d0d1e7fe904b94e8f69f6577"
+  },
+  "redot_cpp": {
+    "url": "https://github.com/Redot-Engine/redot-cpp.git",
+    "commit": "598ec78e86b2c240a023f6de13daba70f7de8610"
+  },
+  "gd_cubism": {
+    "url": "https://github.com/MizunagiKB/gd_cubism.git",
+    "commit": "3aaa3c9001808732c40aa3fa07460a95125d9ccc",
+    "v0_9_1_tag_commit": "60e9c61ed20d08ec19b2cb80fb492ce6344927c6"
+  },
+  "cubism_framework": {
+    "url": "https://github.com/Live2D/CubismNativeFramework.git",
+    "commit": "145155d2c5bdd8d23475cef9cc3ab46d3220190c",
+    "version": "5-r.5",
+    "source_sha256": "06adacbdbdbb25362ec095e22c88b5abe172093164b3376d56eaaa12555d6e7b"
+  },
+  "cubism_sdk": {
+    "version": "5-r.5",
+    "archive_sha256": "7ff3a4bbc19c0a8728965aa522ab77eb11b252916453e68a8a78d3b71188bb12",
+    "core_header_sha256": "6f1802780d1eb36ff39705e0764f9eeed9b41c313a13ac155270c6f4ad51d53f",
+    "core_version": "6.0.1",
+    "core_library_sha256": {
+      "lib/linux/x86_64/libLive2DCubismCore.a": "56f20259bd6b552eacce75fbfb623e2678565287c8ccf1f6700678ecf0b044e0",
+      "lib/windows/x86_64/143/Live2DCubismCore_MD.lib": "f8f63bbda72106cae2aab735e54ff2a2d76cbdb0adc1123c4764d9109f11c46d",
+      "lib/windows/x86_64/143/Live2DCubismCore_MDd.lib": "cdb38c1b52bfb49695f9e78a41ac33467e32faf808039f50b799acd10b7ae412",
+      "lib/windows/x86_64/143/Live2DCubismCore_MT.lib": "177c0c58b5d8ee5992d578d9ac19decad04e2fb87a0a5a4ad4bcb6d601e52d56",
+      "lib/windows/x86_64/143/Live2DCubismCore_MTd.lib": "a385ae264e36f7f83fc711f8d2e891a8703c770e00e7f6d29d78261a20f9d5b7"
+    }
+  },
+  "toolchain": {
+    "python": "3.14.7",
+    "scons": "4.11.1",
+    "cpp_standard": "c++17",
+    "linux_compiler": "GCC 16.2.1 20260810",
+    "linux_linker": "GNU ld 2.47",
+    "windows_compiler": null
+  }
 }

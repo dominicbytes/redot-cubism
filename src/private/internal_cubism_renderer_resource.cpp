@@ -80,15 +80,15 @@ ShaderMaterial* InternalCubismRendererResource::request_shader_material(const Cs
     GDCubismShader e = GD_CUBISM_SHADER_NORM_MIX;
     if (model->GetDrawableMaskCounts()[index] == 0)
     {
-        switch (model->GetDrawableBlendMode(index))
+        switch (model->GetDrawableBlendModeType(index).GetColorBlendType())
         {
-        case CubismRenderer::CubismBlendMode_Additive:
+        case Live2D::Cubism::Core::csmColorBlendType_AddCompatible:
             e = GD_CUBISM_SHADER_NORM_ADD;
             break;
-        case CubismRenderer::CubismBlendMode_Normal:
+        case Live2D::Cubism::Core::csmColorBlendType_Normal:
             e = GD_CUBISM_SHADER_NORM_MIX;
             break;
-        case CubismRenderer::CubismBlendMode_Multiplicative:
+        case Live2D::Cubism::Core::csmColorBlendType_MultiplyCompatible:
             e = GD_CUBISM_SHADER_NORM_MUL;
             break;
         default:
@@ -98,15 +98,15 @@ ShaderMaterial* InternalCubismRendererResource::request_shader_material(const Cs
     }
     else if (model->GetDrawableInvertedMask(index) == false)
     {
-        switch (model->GetDrawableBlendMode(index))
+        switch (model->GetDrawableBlendModeType(index).GetColorBlendType())
         {
-        case CubismRenderer::CubismBlendMode_Additive:
+        case Live2D::Cubism::Core::csmColorBlendType_AddCompatible:
             e = GD_CUBISM_SHADER_MASK_ADD;
             break;
-        case CubismRenderer::CubismBlendMode_Normal:
+        case Live2D::Cubism::Core::csmColorBlendType_Normal:
             e = GD_CUBISM_SHADER_MASK_MIX;
             break;
-        case CubismRenderer::CubismBlendMode_Multiplicative:
+        case Live2D::Cubism::Core::csmColorBlendType_MultiplyCompatible:
             e = GD_CUBISM_SHADER_MASK_MUL;
             break;
         default:
@@ -116,15 +116,15 @@ ShaderMaterial* InternalCubismRendererResource::request_shader_material(const Cs
     }
     else
     {
-        switch (model->GetDrawableBlendMode(index))
+        switch (model->GetDrawableBlendModeType(index).GetColorBlendType())
         {
-        case CubismRenderer::CubismBlendMode_Additive:
+        case Live2D::Cubism::Core::csmColorBlendType_AddCompatible:
             e = GD_CUBISM_SHADER_MASK_ADD_INV;
             break;
-        case CubismRenderer::CubismBlendMode_Normal:
+        case Live2D::Cubism::Core::csmColorBlendType_Normal:
             e = GD_CUBISM_SHADER_MASK_MIX_INV;
             break;
-        case CubismRenderer::CubismBlendMode_Multiplicative:
+        case Live2D::Cubism::Core::csmColorBlendType_MultiplyCompatible:
             e = GD_CUBISM_SHADER_MASK_MUL_INV;
             break;
         default:

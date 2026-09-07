@@ -1,7 +1,7 @@
 # Redot Live2D Cubism Importer and Runtime
 ## Codex Implementation Plan
 
-**Status:** Implementation authorized; native compatibility spike in progress, SDK provisioning outstanding  
+**Status:** Implementation authorized; matched SDK provisioned, native compatibility tests in progress  
 **Research snapshot:** 2026-09-07  
 **Primary target:** Redot Engine LTS 26.2, Windows x86_64  
 **Secondary target:** Redot Engine LTS 26.2, Linux x86_64  

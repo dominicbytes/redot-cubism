@@ -4,6 +4,7 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/editor_plugin_registration.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 #include <gdextension_interface.h>
 
 #include <CubismFramework.hpp>
@@ -23,6 +24,7 @@
 #include <gd_cubism_user_model.hpp>
 #include <register_types.hpp>
 #include <plugin.hpp>
+#include <cubism_build_info.hpp>
 
 // --------------------------------------------------------------- namespace(s)
 using namespace godot;
@@ -39,7 +41,14 @@ static Ref<GDCubismMotionLoader> motionLoader;
 // ------------------------------------------------------------------ method(s)
 void output(const char *message) {
     #ifdef DEBUG_ENABLED
-    WARN_PRINT(message);
+    const String text = String::utf8(message).strip_edges();
+    if (text.begins_with("[CSM][E]")) {
+        ERR_PRINT(text);
+    } else if (text.begins_with("[CSM][W]")) {
+        WARN_PRINT(text);
+    } else {
+        UtilityFunctions::print(text);
+    }
     #endif // DEBUG_ENABLED
 }
 
@@ -62,6 +71,8 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
 
     Csm::CubismFramework::StartUp(&allocator, &option);
     Csm::CubismFramework::Initialize();
+
+    GDREGISTER_CLASS(CubismBuildInfo);
 
     GDREGISTER_VIRTUAL_CLASS(GDCubismEffect);
     GDREGISTER_CLASS(GDCubismEffectBreath);

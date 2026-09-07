@@ -1,5 +1,8 @@
 # PR 2B build-input preparation
 
+This report records preparation before SDK provisioning. Current native build
+and model-test results are in [the native report](pr-02b-native-report.md).
+
 Status: input validation tested; full PR 2B is incomplete. The prior SDK-free
 checkpoint is `581f6ed`. No matched Cubism native compile or model test has run.
 

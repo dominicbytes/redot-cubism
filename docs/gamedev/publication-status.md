@@ -18,10 +18,19 @@ Before publication, all 22 public tests passed again; the tracked-file audit
 checked 212 files and the history audit checked 1,134 file versions without
 restricted content. This establishes source-check coverage, not Cubism playback.
 
-No port commits have been uploaded yet. The GitHub integration reads the fork
-but Git tree creation returns HTTP 403, `Resource not accessible by integration`.
-The signed-in browser's GitHub CLI authorization form remains disabled.
-There was no successful write, branch creation, or remote CI run.
+The user completed GitHub CLI authorization, resolving the write-access blocker.
+The source checkpoints above are published on
+[`port/redot-26.2`](https://github.com/dominicbytes/redot_cubism/tree/port/redot-26.2)
+at `196a4727bd7f85603db8e26cd53ee6a95318b9f8`.
+[Public source CI passed](https://github.com/dominicbytes/redot_cubism/actions/runs/34166650887).
+Each uploaded commit excludes the workbook, so the public commit IDs differ:
+
+| Local | Public |
+| --- | --- |
+| `9f33623` | `aa6688f` |
+| `581f6ed` | `91cc780` |
+| `51a3bf0` | `b4bfda4` |
+| `3e76058` | `196a472` |
 
 Automatic approval review also rejected public upload of
 `source-of-truth.xlsx`, citing local paths and internal status records. Specific
@@ -29,6 +38,6 @@ user approval was requested. Until resolved, any public checkpoint must omit
 this workbook from every uploaded commit, not merely delete it at the tip.
 The workbook remains in local history and must not be pushed indirectly.
 
-Uncompiled R5 adaptations remain a separate working diff. The matched SDK/Core
-and model fixture are still unavailable. Native compilation, playback, graphics,
-Windows qualification, and later feature stages remain incomplete.
+The user has now provisioned the matched SDK. R5 adaptations and a private native
+test harness remain a separate working diff under validation. Graphics, Windows
+qualification and later feature stages remain incomplete.

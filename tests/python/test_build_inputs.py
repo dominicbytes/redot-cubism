@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
-from build_inputs import binding_root, core_library, sdk_roots, sha256, source_hash
+from build_inputs import binding_root, core_library, sdk_roots, sha256, source_hash, windows_core_library
 
 
 class BuildInputsTest(unittest.TestCase):
@@ -109,6 +109,19 @@ class BuildInputsTest(unittest.TestCase):
         self.pins["redot_cpp"]["commit"] = "0" * 40
         with self.assertRaisesRegex(ValueError, "pinned redot-cpp commit"):
             binding_root(self.root, options, self.pins, str(api), "single")
+
+    def test_windows_library_matches_binding_crt(self):
+        env = {"is_msvc": True, "MSVC_VERSION": "14.3", "arch": "x86_64"}
+        for debug, static, suffix in ((False, True, "MT"), (False, False, "MD"), (True, True, "MDd"), (True, False, "MDd")):
+            with self.subTest(debug_crt=debug, use_static_cpp=static):
+                path = windows_core_library(self.core, dict(env, debug_crt=debug, use_static_cpp=static))
+                self.assertEqual(path.relative_to(self.core).as_posix(), f"lib/windows/x86_64/143/Live2DCubismCore_{suffix}.lib")
+
+    def test_windows_unqualified_toolchains_rejected(self):
+        env = {"is_msvc": True, "MSVC_VERSION": "14.3", "arch": "x86_64", "debug_crt": False, "use_static_cpp": True}
+        for key, value in (("is_msvc", False), ("MSVC_VERSION", "14.2"), ("MSVC_VERSION", None), ("arch", "arm64")):
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, "Windows baseline requires"):
+                windows_core_library(self.core, dict(env, **{key: value}))
 
 
 if __name__ == "__main__":
