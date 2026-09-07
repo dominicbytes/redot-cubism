@@ -5,6 +5,9 @@ Implementation is in progress. Repository source checks and Linux SDK-free nativ
 binding/import/export tests pass; Cubism playback is not yet qualified on Windows or Linux.
 The SDK and test models are not bundled.
 
+Source destination: [dominicbytes/redot_cubism](https://github.com/dominicbytes/redot_cubism).
+See [publication status](docs/gamedev/publication-status.md) for the current upload checkpoint.
+
 Current evidence: [bootstrap](docs/gamedev/pr-01-report.md) and
 [Linux compatibility spike](docs/gamedev/pr-02a-report.md).
 
