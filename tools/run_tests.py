@@ -17,6 +17,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--suite", required=True, choices=["public", "abi", "licensed-desktop", "editor", "visual", "export", "benchmark"])
     parser.add_argument("--output", type=Path, default=Path(os.environ.get("TEST_OUTPUT_DIR", ROOT / ".local-build/test-results")))
+    parser.add_argument("--template", type=Path, help="Matching template for the SDK-free ABI suite")
+    parser.add_argument("--export-mode", choices=["debug", "release"], default="debug")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     if args.suite == "public":
@@ -24,6 +26,8 @@ def main():
                     [sys.executable, "tools/check_restricted_files.py"], ["git", "diff", "--check"]]
     elif args.suite == "abi":
         commands = [[sys.executable, "tools/run_abi_tests.py", "--output", str(args.output)]]
+        if args.template:
+            commands[0] += ["--template", str(args.template), "--export-mode", args.export_mode]
     else:
         print(f"BLOCKED: {args.suite} is not qualified at this stage. It requires the matched SDK, fixture and target runner.", file=sys.stderr)
         return 2
