@@ -266,7 +266,8 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
                 || viewport_bounds.encloses(bounds_in_viewport)
             );
 
-        const bool render_mask = !is_culled && res._owner_viewport->is_visible_in_tree();
+        const bool render_mask = viewport_transform.determinant() != 0.0
+            && !is_culled && res._owner_viewport->is_visible_in_tree();
         mask->set_update_mode(render_mask ? SubViewport::UPDATE_ALWAYS : SubViewport::UPDATE_DISABLED);
         if (!render_mask) {
             continue;
