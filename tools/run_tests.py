@@ -21,6 +21,7 @@ def main():
     parser.add_argument("--export-mode", choices=["debug", "release"], default="debug")
     parser.add_argument("--model", type=Path, help="Private model3.json for native smoke")
     parser.add_argument("--expression", help="Known non-neutral fixture expression for native smoke")
+    parser.add_argument("--mask-compositions", type=Path, help="Private expected mask-source compositions for native smoke")
     parser.add_argument("--graphics", choices=["gl_compatibility", "forward_plus"], help="Render private native smoke captures")
     parser.add_argument("--library", type=Path, help="Built addon library for native smoke")
     parser.add_argument("--sanitizer-runtime", type=Path)
@@ -41,6 +42,8 @@ def main():
                      "--model", str(args.model.resolve()), "--library", str(args.library.resolve()), "--expression", args.expression]]
         if args.graphics:
             commands[0] += ["--graphics", args.graphics]
+        if args.mask_compositions:
+            commands[0] += ["--mask-compositions", str(args.mask_compositions.resolve())]
         if args.template:
             commands[0] += ["--template", str(args.template.resolve()), "--export-mode", args.export_mode]
         if args.sanitizer_runtime and args.sanitizer_library:

@@ -57,6 +57,26 @@ The harness rejects a silent fallback to a different rendering backend. It also
 cycles model visibility and requests window minimization, checking owned node
 counts. `minimize_observed=false` means the compositor did not minimize the test
 window; that platform gate remains untested even when rendering smoke passes.
+Graphics runs also check three model layers and model-level reordering. Every
+visible drawable must stay at its owning model's depth. This test requires a
+visible graphics window because the legacy renderer skips updates in headless
+mode; a headless result cannot qualify drawable ordering. Internal draw-order
+and image parity remain separate checks.
+The bounds check compares custom AABBs with actual mesh vertex buffers and
+requires the fixture to exercise all-negative coordinates. It runs in both
+native and exported graphics modes. Zero-area and extreme-transform coverage
+remain additional renderer gates.
+
+Add `--mask-compositions /private/masks.json` to compare generated mask viewports
+with an independently obtained list of unique source-ID groups, in both native
+and exported runs. For the pinned Haru fixture this is
+`[["D_PSD_04"], ["D_PSD_35"], ["D_PSD_36"]]`.
+The collision regression uses a private copy with the equal-length drawable IDs
+`D_PSD_35` and `D_PSD_36` changed to `D_PSD_Ab` and `D_PSD_BA`. Those distinct
+strings have the same Redot String hash. Supply the corresponding renamed groups
+as the oracle; all three masks must still exist. Keep the modified MOC private.
+This checks resource identity at load time and can run headlessly; it does not
+establish mask image parity.
 
 ## AddressSanitizer
 

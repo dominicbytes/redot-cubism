@@ -22,8 +22,8 @@ restricted content. This establishes source-check coverage, not Cubism playback.
 The user completed GitHub CLI authorization, resolving the write-access blocker.
 The source checkpoints above are published on
 [`port/redot-26.2`](https://github.com/dominicbytes/redot_cubism/tree/port/redot-26.2)
-at `eec01e1e152edf9b980b97b977d873ac0d73b7d0`.
-[Public source CI passed](https://github.com/dominicbytes/redot_cubism/actions/runs/34168700703).
+at `2572e1f2108e0c0430c967f0e3d396dffa0a2329`.
+[Public source CI passed](https://github.com/dominicbytes/redot_cubism/actions/runs/34400285433).
 Each uploaded commit excludes the workbook, so the public commit IDs differ:
 
 | Local | Public |
@@ -33,6 +33,7 @@ Each uploaded commit excludes the workbook, so the public commit IDs differ:
 | `51a3bf0` | `b4bfda4` |
 | `3e76058` | `196a472` |
 | `1ca0e16` | `eec01e1` |
+| `e414595` | `2572e1f` |
 
 Automatic approval review also rejected public upload of
 `source-of-truth.xlsx`, citing local paths and internal status records. Specific
@@ -40,6 +41,11 @@ user approval was requested. Until resolved, any public checkpoint must omit
 this workbook from every uploaded commit, not merely delete it at the tip.
 The workbook remains in local history and must not be pushed indirectly.
 
-The SDK-backed mechanical port is published. Lifecycle hardening is the next
-working checkpoint. Windows qualification, measured renderer parity, importer,
+The mechanical port and Linux-tested lifecycle checkpoint are published. Clean
+public-commit debug and release builds each passed 19 checks. Source-identical
+lifecycle code passed 250 ASan cycles, handles and loading-removal tests. The
+renderer stage is in progress locally; drawable-layer and bounds regressions
+now pass in debug/release, and mask identity is being qualified. These renderer
+changes are not in the published checkpoint above. Windows qualification,
+measured renderer parity, importer,
 controller/audio and later feature stages remain incomplete.

@@ -1894,6 +1894,16 @@ Make `model3.json` a first-class Redot-imported model asset.
 13. Add Unicode, traversal, malformed-data, and reimport tests.
 14. Add custom icon and inspector summary. Support node creation plus model assignment; direct scene-viewport drop handling is separate work.
 15. Record ADR-002 and ADR-004.
+16. Include texture sampling requirements in the import contract. The default
+    `filter_linear_mipmap` samplers require generated texture mipmaps. Validate
+    and provision that dependency deterministically, including reimport and
+    exported builds; do not silently change unrelated consumers of a shared
+    texture. Record mipmap, alpha and color-space settings with visual fixtures.
+    A matched-state Haru comparison on Linux showed that missing mipmaps caused
+    visible minification speckling; enabling only mipmap generation reduced
+    foreground mean RGB error against the pinned SDK from 6.10 to 0.38 out of
+    255. This evidence establishes the sampling prerequisite, not full renderer
+    parity or a universal acceptance tolerance.
 
 ### Suggested commits
 

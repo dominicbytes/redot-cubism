@@ -92,10 +92,13 @@ behavior.
 
 ## Remaining acceptance gates
 
-- Validate final committed binaries; working-tree debug and release tests pass.
 - Obtain actual minimized-window and Windows editor/runtime evidence.
-- Revalidate the final committed build, update local records, audit all staged
-  files and filtered publication history, then publish source and verify CI.
+
+The Linux source checkpoint is now published as `2572e1f`. Clean public-commit
+debug and release builds each passed all 19 checks; the source/history audits
+and public CI passed. See [publication status](publication-status.md) for the
+public branch and CI evidence. Earlier working-tree hashes above remain
+historical evidence, not the final published binary identities.
 
 Renderer ordering/masks, the importer, checked export, full animation/controller
 and audio contracts, editor tooling and release qualification remain subsequent
