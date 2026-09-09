@@ -23,6 +23,7 @@
     "Node",
     "Node2D",
     "OS",
+    "ProjectSettings",
     "RenderingServer",
     "Resource",
     "ResourceFormatLoader",

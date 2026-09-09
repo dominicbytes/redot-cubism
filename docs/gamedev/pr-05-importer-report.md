@@ -1,7 +1,7 @@
 # PR5 importer progress
 
-Status: in progress. The pure native manifest parser is implemented; model
-resources, the editor importer, physical path validation, runtime resource
+Status: in progress. The pure native manifest parser and physical path helper
+are implemented; model resources, the editor importer, runtime resource
 loading and dependency invalidation are not yet implemented. PR4 visual parity
 remains open while this independently testable parser layer proceeds.
 
@@ -41,3 +41,31 @@ previous library control, corrected-test retry and fresh integrated imports
 succeeded, but the cause has not been established. Retain this as an open
 editor qualification issue rather than claiming a crash fix. Initial logs are
 preserved in `manifest-parser-isolated/import.log`.
+
+## Physical project containment
+
+The native `validate_project_file` helper now resolves the actual project root
+through Redot ProjectSettings and inspects physical filesystem paths. It
+distinguishes contained regular files, contained missing files, unsafe paths
+and inspection errors. Path-component comparison rejects similarly named
+siblings. Dangling or looping symlinks fail closed rather than becoming
+optional-file warnings. It does not load resources or read asset contents.
+
+Eighteen real-filesystem cases pass in both Linux debug and release builds,
+including Unicode, contained/external links, a missing child under an external
+directory link, dangling links, a loop and lexical escapes. The test process
+runs outside the project directory, exercising independence from the current
+working directory. The focused runner retains its symlink fixtures and logs in
+the persistent output directory; it creates links after editor import so the
+test does not claim EditorFileSystem symlink traversal coverage.
+
+The updated debug and release builds each pass all 41 integrated native/export checks.
+Current working-tree library hashes:
+
+- Debug: `d43ceda94c3e49980c287b5727c3d1b8c6655cd333f55dd857538996edff966c`.
+- Release: `4d17472b5b0ef3123666167e0390a99fd44cebdc1c1e9b38e5ca33799e7eb033`.
+
+The public suite passes 24 tests; the staged source audit passes 255 files.
+Evidence is retained under `.local-build/evidence/physical-path-*`. Windows,
+concurrent filesystem replacement, virtual exported resources and actual
+importer integration remain outside this helper's qualified coverage.
