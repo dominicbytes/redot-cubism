@@ -127,3 +127,25 @@ Private reports, logs and actual/reference images are retained in
 `renderer-order-overlap-release`; the failing baseline is retained in
 `renderer-overlap-before`. This oracle does not qualify overlapping characters
 with destination-dependent additive/multiply effects or other graphics backends.
+
+## Offscreen mask suspension
+
+The baseline shrank offscreen mask viewports to 2x2 but left them rendering.
+The regression reproduces that behavior. Mask updates now stop when culled or
+hidden, preserve their allocated resources, and resume with current bounds when
+visible. Model animation continues while mask rendering is suspended.
+
+Debug and release each pass 31 native/export checks. The five-cycle test checks
+offscreen suspension, continued motion, inherited hiding, recovery and stable
+node counts. The release suite additionally includes camera-follow recovery at
+distant world coordinates with camera zoom/rotation and a flipped, nonuniformly
+scaled model; the same extended case passes in a focused debug run. This is a
+bounded camera/culling regression, not exhaustive transform image parity.
+
+Working-tree libraries based on `89e39b4`:
+
+- Debug: `df7467790dc77da9cbb40b3a57fdee4e7d9857ddb553d118ff9f43d7c1b0cd12`.
+- Release: `f65bae0afe7aa225bf1ce98ac4f1f68e7da9ac27fe5a9a56336433d3a61eed46`.
+
+Evidence is retained under `.local-build/evidence/renderer-offscreen-debug`,
+`renderer-offscreen-release`, and `renderer-offscreen-camera-debug.log`.

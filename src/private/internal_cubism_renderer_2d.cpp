@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------- include(s)
 #include <gd_cubism.hpp>
 #ifdef GD_CUBISM_USE_RENDERER_2D
+#include <gd_cubism_user_model.hpp>
 
 #include <godot_cpp/classes/shader_material.hpp>
 #include <godot_cpp/classes/viewport_texture.hpp>
@@ -265,8 +266,9 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
                 || viewport_bounds.encloses(bounds_in_viewport)
             );
 
-        if (is_culled){
-            mask->set_size(Vector2i(2,2));
+        const bool render_mask = !is_culled && res._owner_viewport->is_visible_in_tree();
+        mask->set_update_mode(render_mask ? SubViewport::UPDATE_ALWAYS : SubViewport::UPDATE_DISABLED);
+        if (!render_mask) {
             continue;
         }
 
