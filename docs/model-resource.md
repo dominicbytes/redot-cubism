@@ -25,7 +25,8 @@ The stored properties follow the implementation plan:
 Every property has a corresponding native `set_<name>` and `get_<name>` method.
 Setters emit `changed`. Schema version defaults to 1; other fields start empty
 or zero. `metadata` retains unknown JSON metadata when the importer populates
-it. Motion/expression descriptor resources will be added in the next layer.
+it. [Motion/expression descriptors](descriptors.md) provide native resources
+for the animation catalogs; importer population remains pending.
 
 Texture arrays preserve index order and carry real Redot resource references;
 path arrays alone do not establish engine dependencies. Shared references stay

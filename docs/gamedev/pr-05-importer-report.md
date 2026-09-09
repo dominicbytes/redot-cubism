@@ -1,7 +1,7 @@
 # PR5 importer progress
 
 Status: in progress. The pure native manifest parser, physical path helper and
-model resource container are implemented; typed motion/expression descriptors,
+model resource container and typed motion/expression descriptors are implemented;
 the editor importer, runtime resource
 loading and dependency invalidation are not yet implemented. PR4 visual parity
 remains open while this independently testable parser layer proceeds.
@@ -98,3 +98,31 @@ Evidence is retained in `.local-build/evidence/model-resource-*` and the
 persistent VM results with matching names. This proves resource serialization,
 not first-class model importing, a complete descriptor schema, reimport
 tracking or runtime loading from these resources.
+
+## Typed motion and expression descriptors
+
+Native `CubismMotionDescriptor`, `CubismMotionEvent`,
+`CubismExpressionDescriptor` and `CubismExpressionParameter` resources now
+provide the planned data fields, typed nested arrays, real AudioStream and
+optional Animation references, and ADD/MULTIPLY/OVERWRITE operation constants.
+The [descriptor contract](../descriptors.md) distinguishes storage from the
+still-pending importer and playback implementation.
+
+Thirty assertions verify defaults, all motion scalar metadata, Unicode event
+payloads and expression identities, all three parameter operations, typed
+nested-resource restoration, optional Animation storage, audio duration and an
+external audio dependency visible through ResourceLoader. The runner generates
+its own 10 ms silent PCM WAV before import; no third-party audio is committed.
+Audio is not played in these tests, and no synchronization claim is made.
+The existing harness exports all resources; selective dependency reachability
+and the checked-export pipeline remain separate unfinished requirements.
+
+Debug and release each pass all 45 integrated checks, including descriptor tests
+in both source and exported execution. The working-tree debug library SHA-256 is
+`3d23f8f713155e4f3e72e69bf7606e8e6d7998510311db100a47c851200a95d3`.
+The release library SHA-256 is
+`cb07bc0a78a64525676c16fbb648431326a7d02e1e512949d39d9da54abb6f60`.
+The public suite passes 24 tests and the staged source audit passes 263 files.
+Private reports and logs are retained under `.local-build/evidence/descriptors-*`
+and matching persistent VM result directories. Descriptor source parsing,
+stable-ID generation/validation and runtime consumption remain pending.
