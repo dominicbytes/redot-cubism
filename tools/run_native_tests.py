@@ -141,6 +141,8 @@ def main():
     if success:
         success = run("manifest-parser", ["--script", "res://manifest_checks.gd", "--quit-after", "2"], "CUBISM_MANIFEST_PASS cases=49")
     if success:
+        success = run("model-resource", ["--script", "res://resource_checks.gd", "--quit-after", "2"], "CUBISM_RESOURCE_PASS")
+    if success:
         success = run("runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS")
     if success:
         success = run("native-processing", ["--fixed-fps", "60", "--quit-after", "600", "--", "--process-checks"], "CUBISM_PROCESS_PASS")
@@ -214,6 +216,8 @@ def main():
             success = run("exported-empty-runtime", ["--script", "res://empty_runtime.gd", "--quit-after", "2"], "CUBISM_EMPTY_PASS", game)
         if success:
             success = run("exported-manifest-parser", ["--script", "res://manifest_checks.gd", "--quit-after", "2"], "CUBISM_MANIFEST_PASS cases=49", game)
+        if success:
+            success = run("exported-model-resource", ["--script", "res://resource_checks.gd", "--quit-after", "2"], "CUBISM_RESOURCE_PASS", game)
         if success:
             success = run("exported-runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS", game)
             if success and args.mask_compositions:

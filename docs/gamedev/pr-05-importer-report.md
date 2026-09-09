@@ -1,7 +1,8 @@
 # PR5 importer progress
 
-Status: in progress. The pure native manifest parser and physical path helper
-are implemented; model resources, the editor importer, runtime resource
+Status: in progress. The pure native manifest parser, physical path helper and
+model resource container are implemented; typed motion/expression descriptors,
+the editor importer, runtime resource
 loading and dependency invalidation are not yet implemented. PR4 visual parity
 remains open while this independently testable parser layer proceeds.
 
@@ -69,3 +70,31 @@ The public suite passes 24 tests; the staged source audit passes 255 files.
 Evidence is retained under `.local-build/evidence/physical-path-*`. Windows,
 concurrent filesystem replacement, virtual exported resources and actual
 importer integration remain outside this helper's qualified coverage.
+
+## Serializable model data
+
+`CubismModelResource` now stores the plan's model metadata, ordered texture
+references, typed hit-area dictionaries and dependency/import metadata as a
+native Redot Resource. It contains no dedicated runtime handles or renderer
+state. The [resource contract](../model-resource.md) describes the API and its
+limits. The class does not itself validate that a manually constructed model
+resource is safe or complete; importer/runtime validation remains required.
+
+The resource test verifies 36 conditions: defaults, all stored fields, Unicode,
+repeat-save determinism, a fresh ResourceLoader round trip, shared texture
+identity, pixel payload and an external texture visible through the engine's
+dependency API. The initial test incorrectly expected a texture saved under
+`user://` to remain an external dependency. Redot embedded it. The corrected
+test uses an actual imported project texture, matching the required import
+contract; production code did not change to accommodate that test correction.
+
+Debug and release each pass all 43 integrated checks, including resource tests
+in the source project and exported game. The working-tree debug library SHA-256 is
+`1aac2dcf03832cbdff448cd6e72812627d75c3d52f50ec64f76c0c8c2ef206bc`.
+The release library SHA-256 is
+`ff288d994099d56682a654da5575a121ab4db728076363b7594e54c92b3cb837`.
+The public suite passes 24 tests and the staged source audit passes 259 files.
+Evidence is retained in `.local-build/evidence/model-resource-*` and the
+persistent VM results with matching names. This proves resource serialization,
+not first-class model importing, a complete descriptor schema, reimport
+tracking or runtime loading from these resources.
