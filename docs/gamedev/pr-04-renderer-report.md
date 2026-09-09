@@ -196,3 +196,21 @@ are recorded in their reports. Private evidence is retained under
 
 Fallback experiments, stronger mask/model parity, deterministic texture sampling,
 platform qualification and later product stages remain unfinished.
+
+## Explicit fallback experiments
+
+[ADR-003](../architecture/ADR-003-direct-rendering.md) retains direct rendering
+and records opt-in CanvasGroup/SubViewport experiments. Each compares a tinted
+Haru at opacity 1.0 and 0.65 against direct rendering, within a fixed 3/255
+tolerance. CanvasGroup differs by at most 1/255; the correctly premultiplied
+SubViewport output matches exactly. A default Sprite2D material fails the
+negative control with 2,119 mismatched pixels and maximum error 0.1843.
+
+Debug and release each pass all 39 checks, including both fallback comparisons
+in exported games. Captures were inspected; these wrappers preserve the current
+image, including known missing-mipmap speckling. Native binaries are unchanged.
+Private evidence is retained under `.local-build/evidence/renderer-fallback-*`.
+
+These are explicit test-harness settings. Public `CubismModel2D.rendering_mode`
+integration, multi-character/destination-dependent fallback composition,
+visibility/resource policy and broader platform qualification remain pending.

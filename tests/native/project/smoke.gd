@@ -76,6 +76,15 @@ func _capture(model: GDCubismUserModel, path: String) -> bool:
 
 func _run() -> void:
 	var fixture: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://fixture.json"))
+	var fallback_capture: String = ""
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--fallback-capture-dir="):
+			fallback_capture = argument.trim_prefix("--fallback-capture-dir=")
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--fallback-checks="):
+			var passed: bool = await preload("res://renderer_fallback_checks.gd").run(self, fixture, argument.trim_prefix("--fallback-checks="), fallback_capture)
+			get_tree().quit(0 if passed else 1)
+			return
 	if "--overlay-checks" in OS.get_cmdline_user_args():
 		var passed: bool = await preload("res://renderer_overlay_checks.gd").run(self, fixture)
 		get_tree().quit(0 if passed else 1)

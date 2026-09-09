@@ -135,6 +135,14 @@ drawable bounds, mask bounds, order labels, and combined flags. The graphics
 test verifies visible changes, exact ID filtering, pixel restoration on disable,
 and safe model unload. Native and exported captures are retained for inspection.
 
+Fallback experiments are opt-in: add `--fallback-mode canvas_group` and/or
+`--fallback-mode subviewport` alongside `--graphics`. Each compares its wrapper
+with direct rendering at opacity 1.0 and 0.65, with color modulation and a fixed
+3/255 tolerance. The SubViewport sprite uses premultiplied-alpha composition;
+the default sprite material fails the negative control. These are normal-blend,
+single-model experiments, not the public model's future rendering-mode setting.
+See [ADR-003](../../docs/architecture/ADR-003-direct-rendering.md) for limitations.
+
 ## AddressSanitizer
 
 Build the addon with the usual pinned inputs and `sanitize=address`, using a

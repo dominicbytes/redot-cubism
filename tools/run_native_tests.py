@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--mask-compositions", type=Path, help="Private JSON array of expected unique mask-source ID arrays")
     parser.add_argument("--draw-order-oracle", type=Path, help="Private Core-derived default and parameter-driven drawable orders")
     parser.add_argument("--normal-blend-overlap", action="store_true", help="Test overlap using a fixture independently verified to contain only normal-blend drawables")
+    parser.add_argument("--fallback-mode", action="append", default=[], choices=["canvas_group", "subviewport"], help="Explicit fallback composition experiment; repeat for both")
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--template", type=Path)
     parser.add_argument("--export-mode", choices=["debug", "release"], default="debug")
@@ -42,6 +43,8 @@ def main():
     args = parser.parse_args()
     if args.normal_blend_overlap and not args.graphics:
         parser.error("Normal-blend overlap requires graphics")
+    if args.fallback_mode and not args.graphics:
+        parser.error("Fallback experiments require graphics")
     binary = os.environ.get("REDOT_BIN", "")
     if not Path(binary).is_file() or not args.library.is_file() or not args.model.is_file():
         parser.error("Set REDOT_BIN and supply existing library/model files")
@@ -186,6 +189,9 @@ def main():
             success = run("renderer-overlay", ["--quit-after", "600", "--", "--overlay-checks", f"--overlay-capture={run_root / 'overlay.png'}"], "CUBISM_OVERLAY_PASS flags=4 restored_pixels=true", graphics=True)
         if success and args.normal_blend_overlap:
             success = run("renderer-overlap", ["--quit-after", "600", "--", "--overlap-checks", f"--overlap-capture={run_root / 'overlap.png'}"], "CUBISM_OVERLAP_PASS orders=4", graphics=True)
+        for mode in args.fallback_mode:
+            if success:
+                success = run("fallback-" + mode, ["--quit-after", "600", "--", "--fallback-checks=" + mode, f"--fallback-capture-dir={run_root}"], "CUBISM_FALLBACK_PASS mode=" + mode + " cases=2", graphics=True)
     exported = False
     if success and args.template:
         template = args.template.resolve()
@@ -228,6 +234,9 @@ def main():
                     success = run("exported-renderer-overlay", ["--quit-after", "600", "--", "--overlay-checks", f"--overlay-capture={run_root / 'exported-overlay.png'}"], "CUBISM_OVERLAY_PASS flags=4 restored_pixels=true", game, graphics=True)
                 if success and args.normal_blend_overlap:
                     success = run("exported-renderer-overlap", ["--quit-after", "600", "--", "--overlap-checks", f"--overlap-capture={run_root / 'exported-overlap.png'}"], "CUBISM_OVERLAP_PASS orders=4", game, graphics=True)
+                for mode in args.fallback_mode:
+                    if success:
+                        success = run("exported-fallback-" + mode, ["--quit-after", "600", "--", "--fallback-checks=" + mode], "CUBISM_FALLBACK_PASS mode=" + mode + " cases=2", game, graphics=True)
             exported = success
     report = {"status": "PASS" if success else "FAIL", "engine_version": version, "library_sha256": sha256(args.library),
               "fixture_manifest_sha256": sha256(args.model), "fixture_moc_sha256": sha256(args.model.parent / refs["Moc"]),

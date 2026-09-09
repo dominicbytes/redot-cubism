@@ -24,6 +24,7 @@ def main():
     parser.add_argument("--mask-compositions", type=Path, help="Private expected mask-source compositions for native smoke")
     parser.add_argument("--draw-order-oracle", type=Path, help="Private Core-derived dynamic drawable orders")
     parser.add_argument("--normal-blend-overlap", action="store_true", help="Enable overlap oracle for a verified normal-blend fixture")
+    parser.add_argument("--fallback-mode", action="append", default=[], choices=["canvas_group", "subviewport"], help="Explicit composition experiment")
     parser.add_argument("--graphics", choices=["gl_compatibility", "forward_plus"], help="Render private native smoke captures")
     parser.add_argument("--library", type=Path, help="Built addon library for native smoke")
     parser.add_argument("--sanitizer-runtime", type=Path)
@@ -50,6 +51,8 @@ def main():
             commands[0] += ["--draw-order-oracle", str(args.draw_order_oracle.resolve())]
         if args.normal_blend_overlap:
             commands[0] += ["--normal-blend-overlap"]
+        for mode in args.fallback_mode:
+            commands[0] += ["--fallback-mode", mode]
         if args.template:
             commands[0] += ["--template", str(args.template.resolve()), "--export-mode", args.export_mode]
         if args.sanitizer_runtime and args.sanitizer_library:
