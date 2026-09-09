@@ -130,6 +130,11 @@ caps mask dimensions at 128, requires stable node counts, and compares the
 restored model image byte-for-byte with its original image. This checks
 transform recovery, not malformed or empty MOC geometry.
 
+The optional [debug overlay](../../docs/debug-overlay.md) is exercised with
+drawable bounds, mask bounds, order labels, and combined flags. The graphics
+test verifies visible changes, exact ID filtering, pixel restoration on disable,
+and safe model unload. Native and exported captures are retained for inspection.
+
 ## AddressSanitizer
 
 Build the addon with the usual pinned inputs and `sanitize=address`, using a

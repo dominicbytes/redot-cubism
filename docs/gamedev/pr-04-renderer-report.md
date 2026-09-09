@@ -175,3 +175,24 @@ Evidence is retained in `.local-build/evidence/renderer-transform-debug-final`
 and `renderer-transform-release-final`. The corrected before/after probes are
 `renderer-singular-baseline.log` and `renderer-singular-fixed.log`. The earlier
 failed scale-property experiment remains recorded but is not qualifying evidence.
+
+## Optional debug overlay
+
+The [overlay guide](../debug-overlay.md) describes the opt-in tool script for
+drawable bounds, mask coverage and draw-order labels. An exact drawable-ID
+filter makes dense models inspectable. It adds no automatic model children and
+does not change the generated meshes or mask resources.
+
+Debug and release each pass all 35 checks, including all overlay flags, ID
+filtering, disabling with exact pixel restoration, model unload and exported
+execution. The selected-ID capture was inspected and is readable. The all-labels
+view can be crowded, so order labels are disabled by default and the guide
+explains filtering. Native binaries are unchanged from the transform checkpoint.
+The tested overlay script SHA-256 is
+`055b69fa5927777287c1e68c65975212e06c5873c02ec9e849d7b8546824ad40`.
+Both retained test projects contain that exact script; exported PCK identities
+are recorded in their reports. Private evidence is retained under
+`.local-build/evidence/renderer-overlay-debug` and `renderer-overlay-release`.
+
+Fallback experiments, stronger mask/model parity, deterministic texture sampling,
+platform qualification and later product stages remain unfinished.
