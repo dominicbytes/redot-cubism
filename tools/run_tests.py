@@ -23,6 +23,8 @@ def main():
     parser.add_argument("--expression", help="Known non-neutral fixture expression for native smoke")
     parser.add_argument("--graphics", choices=["gl_compatibility", "forward_plus"], help="Render private native smoke captures")
     parser.add_argument("--library", type=Path, help="Built addon library for native smoke")
+    parser.add_argument("--sanitizer-runtime", type=Path)
+    parser.add_argument("--sanitizer-library", type=Path)
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     if args.suite == "public":
@@ -41,6 +43,10 @@ def main():
             commands[0] += ["--graphics", args.graphics]
         if args.template:
             commands[0] += ["--template", str(args.template.resolve()), "--export-mode", args.export_mode]
+        if args.sanitizer_runtime and args.sanitizer_library:
+            commands[0] += ["--sanitizer-runtime", str(args.sanitizer_runtime.resolve()), "--sanitizer-library", str(args.sanitizer_library.resolve())]
+        elif args.sanitizer_runtime or args.sanitizer_library:
+            parser.error("Supply both sanitizer runtime and library")
     else:
         print(f"BLOCKED: {args.suite} is not qualified at this stage. It requires the matched SDK, fixture and target runner.", file=sys.stderr)
         return 2
@@ -48,7 +54,7 @@ def main():
     for index, command in enumerate(commands):
         start = time.monotonic()
         try:
-            result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=180)
+            result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=900 if args.sanitizer_runtime else 300)
             code, log = result.returncode, result.stdout
         except subprocess.TimeoutExpired:
             code, log = 124, "Test command exceeded the wall-clock limit."

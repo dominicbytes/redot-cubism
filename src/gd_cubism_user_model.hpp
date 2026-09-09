@@ -19,6 +19,7 @@
 
 #include <gd_cubism_effect.hpp>
 #include <gd_cubism_motion_entry.hpp>
+#include <vector>
 
 
 // ------------------------------------------------------------------ define(s)
@@ -70,10 +71,12 @@ public:
 
 class GDCubismUserModel : public Node2D {
     GDCLASS(GDCubismUserModel, Node2D);
+    friend class InternalCubismUserModel;
 
 public:
     GDCubismUserModel();
     ~GDCubismUserModel();
+    static void shutdown_models();
 
 public:
     enum moc3FileFormatVersion {
@@ -101,6 +104,15 @@ public:
         PHYSICS = 0,
         IDLE = 1,
         MANUAL = 2
+    };
+
+    enum ModelState {
+        UNLOADED,
+        LOADING,
+        READY,
+        LOAD_ERROR,
+        DISPOSING,
+        DISPOSED
     };
 
     String assets;
@@ -135,8 +147,40 @@ protected:
     void _notification(int p_what);
 
 private:
+    struct PendingSignal {
+        StringName name;
+        Variant payload;
+        bool has_payload;
+        uint64_t generation;
+    };
+    ModelState model_state = UNLOADED;
+    Dictionary last_error;
+    uint64_t generation = 0;
+    bool native_busy = false;
+    bool disposing = false;
+    bool destroying = false;
+    bool pending_load = false;
+    bool pending_unload = false;
+    GDCubismMotionQueueEntryHandle::FinishReason pending_clear_reason = GDCubismMotionQueueEntryHandle::UNLOADED;
+    bool dispatch_scheduled = false;
+    String pending_asset;
+    std::vector<PendingSignal> pending_signals;
+    std::vector<Ref<GDCubismMotionQueueEntryHandle>> motion_handles;
     void load_model(const String asset_path);
-    void clear();
+    void clear(GDCubismMotionQueueEntryHandle::FinishReason reason = GDCubismMotionQueueEntryHandle::UNLOADED);
+    void finish_motion_handles(GDCubismMotionQueueEntryHandle::FinishReason reason);
+    void update_motion_handles();
+    void apply_pending_operation();
+    void update_mask_visibility();
+    void queue_model_signal(const StringName &name, const Variant &payload = Variant(), bool has_payload = false);
+    void dispatch_model_signals();
+
+public:
+    ModelState get_model_state() const { return model_state; }
+    Dictionary get_last_error() const { return last_error.duplicate(); }
+    bool is_native_busy() const { return native_busy || disposing; }
+    bool is_destroying() const { return destroying; }
+    void unload_model();
 
 public:
     Dictionary csm_get_version();
@@ -218,9 +262,6 @@ public:
     void set_shader_mask_mul_inv(Ref<Shader> shader) { this->set_shader(GD_CUBISM_SHADER_MASK_MUL_INV, shader); }
     Ref<Shader> get_shader_mask_mul_inv() const { return this->get_shader(GD_CUBISM_SHADER_MASK_MUL_INV); }    
 
-    // for Signal
-    static void on_motion_finished(Csm::ACubismMotion* motion);
-
     void _update(const double delta);
 
     void advance(const double delta);
@@ -240,12 +281,6 @@ public:
     void set_mask_viewport_size(const int32_t size) { this->mask_viewport_size = size; }
     int32_t get_mask_viewport_size() const { return this->mask_viewport_size; }
 
-    void _ready() override;
-    void _enter_tree() override;
-    void _exit_tree() override;
-    void _process(double delta) override;
-    void _physics_process(double delta) override;
-
     void _on_append_child_act(GDCubismEffect* node);
     void _on_remove_child_act(GDCubismEffect* node);
 };
@@ -254,6 +289,7 @@ VARIANT_ENUM_CAST(GDCubismUserModel::moc3FileFormatVersion);
 VARIANT_ENUM_CAST(GDCubismUserModel::Priority);
 VARIANT_ENUM_CAST(GDCubismUserModel::ParameterMode);
 VARIANT_ENUM_CAST(GDCubismUserModel::MotionProcessCallback);
+VARIANT_ENUM_CAST(GDCubismUserModel::ModelState);
 
 
 // ------------------------------------------------------------------ method(s)

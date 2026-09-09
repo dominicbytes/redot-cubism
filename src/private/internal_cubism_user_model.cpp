@@ -7,7 +7,7 @@
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/image.hpp>
-#include <godot_cpp/core/error_macros.hpp>
+#include <godot_cpp/classes/json.hpp>
 
 #ifdef GD_CUBISM_USE_RENDERER_2D
     #include <private/internal_cubism_renderer_2d.hpp>
@@ -43,6 +43,34 @@ InternalCubismUserModel::~InternalCubismUserModel() {
     this->clear();
 }
 
+bool InternalCubismUserModel::fail_load(const String &path, const String &message, Error code) {
+    load_error["code"] = code;
+    load_error["path"] = path;
+    load_error["message"] = message;
+    return false;
+}
+
+bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &buffer, bool json) {
+    Ref<FileAccess> file = FileAccess::open(path, FileAccess::READ);
+    if (file.is_null()) return fail_load(path, "Cannot open the declared Cubism file.", ERR_FILE_CANT_OPEN);
+    buffer = file->get_buffer(file->get_length());
+    if (buffer.is_empty()) return fail_load(path, "The declared Cubism file is empty.", ERR_FILE_CORRUPT);
+    if (json) {
+        Ref<JSON> parser;
+        parser.instantiate();
+        if (parser->parse(buffer.get_string_from_utf8()) != OK || parser->get_data().get_type() != Variant::DICTIONARY) {
+            return fail_load(path, "Expected a JSON object: " + parser->get_error_message(), ERR_PARSE_ERROR);
+        }
+        // R5's numeric parser requires a newline/comma terminator and cannot read
+        // Unicode escapes. Redot emits decoded UTF-8 strings and formatted numbers.
+        buffer = JSON::stringify(parser->get_data(), "\t", false, true).to_utf8_buffer();
+        auto *sdk_json = Utils::CubismJson::Create(buffer.ptr(), buffer.size());
+        if (sdk_json == nullptr) return fail_load(path, "JSON is unsupported by the pinned Cubism parser.", ERR_PARSE_ERROR);
+        Utils::CubismJson::Delete(sdk_json);
+    }
+    return true;
+}
+
 
 bool InternalCubismUserModel::model_load(
     const String &model_pathname
@@ -51,36 +79,38 @@ bool InternalCubismUserModel::model_load(
     this->_model_pathname = model_pathname;
     this->_updating = true;
     this->_initialized = false;
-    this->_model_setting = nullptr;
-
-    PackedByteArray buffer = FileAccess::get_file_as_bytes(this->_model_pathname);
-    if(buffer.size() == 0) return false;
-
     this->clear();
+    load_error.clear();
+    PackedByteArray buffer;
+    if (!read_buffer(model_pathname, buffer)) return false;
 
     this->_model_setting = CSM_NEW CubismModelSettingJson(buffer.ptr(), buffer.size());
 
     // setup Live2D model
     if (strcmp(this->_model_setting->GetModelFileName(), "") == 0) {
-        return false;
+        return fail_load(model_pathname, "FileReferences.Moc must name a MOC3 file.");
     } else {
         String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetModelFileName());
         String moc3_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
 
-        buffer = FileAccess::get_file_as_bytes(moc3_pathname);
-        this->LoadModel(buffer.ptr(), buffer.size());
-
-        const Live2D::Cubism::Core::csmVersion version = Live2D::Cubism::Core::csmGetMocVersion(buffer.ptr(), buffer.size());
+        if (!read_buffer(moc3_pathname, buffer, false)) return false;
+        const auto version = CubismMoc::GetMocVersionFromBuffer(buffer.ptr(), buffer.size());
+        if (version == Live2D::Cubism::Core::csmMocVersion_Unknown || version > Live2D::Cubism::Core::csmGetLatestMocVersion()) {
+            return fail_load(moc3_pathname, "MOC3 version is invalid or newer than this Cubism Core.", ERR_FILE_UNRECOGNIZED);
+        }
+        if (!CubismMoc::HasMocConsistencyFromUnrevivedMoc(buffer.ptr(), buffer.size())) {
+            return fail_load(moc3_pathname, "MOC3 consistency check failed.", ERR_FILE_CORRUPT);
+        }
+        // Framework copies MOC bytes into Core-aligned owned storage.
+        this->LoadModel(buffer.ptr(), buffer.size(), true);
         this->_moc3_file_format_version = static_cast<GDCubismUserModel::moc3FileFormatVersion>(version);
     }
 
     if (this->_model == nullptr) {
-        ERR_PRINT("Cubism model could not be loaded.");
-        return false;
+        return fail_load(model_pathname, "Cubism model could not be loaded.");
     }
     if (this->_model->GetOffscreenCount() != 0) {
-        ERR_PRINT("This Cubism model requires offscreen compositing, which the Redot canvas renderer does not support.");
-        return false;
+        return fail_load(model_pathname, "This Cubism model requires offscreen compositing, which the Redot canvas renderer does not support.", ERR_UNAVAILABLE);
     }
     for (Csm::csmInt32 i = 0; i < this->_model->GetDrawableCount(); ++i) {
         const auto blend = this->_model->GetDrawableBlendModeType(i);
@@ -90,22 +120,21 @@ bool InternalCubismUserModel::model_load(
             || (color == Live2D::Cubism::Core::csmColorBlendType_Normal
                 && blend.GetAlphaBlendType() == Live2D::Cubism::Core::csmAlphaBlendType_Over);
         if (!compatible) {
-            ERR_PRINT("This Cubism model uses a blend mode unsupported by the Redot canvas renderer.");
-            return false;
+            return fail_load(model_pathname, "This Cubism model uses a blend mode unsupported by the Redot canvas renderer.", ERR_UNAVAILABLE);
         }
     }
 
     // Expression
     if(this->_owner_viewport->enable_load_expressions == true) {
-        this->expression_load();
+        if (!this->expression_load()) return false;
     }
 
     // Physics
-    this->physics_load();
+    if (!this->physics_load()) return false;
     // Pose
-    this->pose_load();
+    if (!this->pose_load()) return false;
     //UserData
-    this->userdata_load();
+    if (!this->userdata_load()) return false;
 
     // EyeBlink(Parameters)
     {
@@ -126,15 +155,14 @@ bool InternalCubismUserModel::model_load(
     }
 
     if(this->_model_setting == nullptr || this->_modelMatrix == nullptr) {
-        this->clear();
-        return false;
+        return fail_load(model_pathname, "Cubism did not create model settings and its model matrix.");
     }
 
     this->_model->SaveParameters();
 
     // Motion
     if(this->_owner_viewport->enable_load_motions == true) {
-        this->motion_load();
+        if (!this->motion_load()) return false;
     }
 
     this->CreateRenderer(
@@ -142,7 +170,7 @@ bool InternalCubismUserModel::model_load(
         static_cast<Csm::csmUint32>(this->_model->GetCanvasHeightPixel()));
 
     // Resource(Texture)
-    this->model_load_resource();
+    if (!this->model_load_resource()) return false;
 
     this->stop();
 
@@ -168,7 +196,7 @@ bool InternalCubismUserModel::model_load(
 }
 
 
-void InternalCubismUserModel::model_load_resource()
+bool InternalCubismUserModel::model_load_resource()
 {
     ResourceLoader *res_loader = ResourceLoader::get_singleton();
 
@@ -180,19 +208,35 @@ void InternalCubismUserModel::model_load_resource()
 
         String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetTextureFileName(index));
         String texture_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
+        const String extension = texture_pathname.get_extension().to_lower();
+        if (extension != "png" && extension != "jpg" && extension != "jpeg" && extension != "webp") {
+            return fail_load(texture_pathname, "Cubism textures must be PNG, JPEG or WebP images.", ERR_FILE_UNRECOGNIZED);
+        }
+        if (texture_pathname.begins_with("res://") ? !res_loader->exists(texture_pathname, "Texture2D") : !FileAccess::file_exists(texture_pathname)) {
+            return fail_load(texture_pathname, "The declared Cubism texture is missing.", ERR_FILE_NOT_FOUND);
+        }
 
         Ref<Texture2D> tex;
         // allow dynamically loading image textures for models provided from disk or user data
         if (!res_loader->exists(texture_pathname)) {
             Ref<Image> img = Image::load_from_file(texture_pathname);
+            if (img.is_null() || img->is_empty()) return fail_load(texture_pathname, "Cubism texture could not be decoded.");
             tex = ImageTexture::create_from_image(img);
             tex->take_over_path(texture_pathname);
         } else {
             tex = res_loader->load(texture_pathname);
         }
+        if (tex.is_null()) return fail_load(texture_pathname, "Cubism texture did not load as Texture2D.");
 
         this->_renderer_resource.ary_texture.append(tex);
     }
+    for (csmInt32 index = 0; index < _model->GetDrawableCount(); ++index) {
+        const int texture = _model->GetDrawableTextureIndex(index);
+        if (texture < 0 || texture >= _renderer_resource.ary_texture.size()) {
+            return fail_load(_model_pathname, "A drawable references a missing texture index.");
+        }
+    }
+    return true;
 }
 
 
@@ -266,6 +310,9 @@ void InternalCubismUserModel::update_node() {
 
 void InternalCubismUserModel::clear() {
 
+    this->_initialized = false;
+    this->_updating = false;
+
     this->DeleteRenderer();
 
     this->_renderer_resource.clear();
@@ -326,7 +373,13 @@ void InternalCubismUserModel::expression_stop() {
 }
 
 
-CubismMotionQueueEntryHandle InternalCubismUserModel::motion_start(const char* group, const int32_t no, const int32_t priority, const bool loop, const bool loop_fade_in, void* custom_data) {
+CubismMotionQueueEntryHandle InternalCubismUserModel::motion_start(const char* group, const int32_t no, const int32_t priority, const bool loop, const bool loop_fade_in) {
+
+    csmString name = Utils::CubismString::GetFormatedString("%s_%d", group, no);
+    CubismMotion* motion = this->_map_motion[name];
+    if (motion == nullptr || priority < GDCubismUserModel::PRIORITY_NONE || priority > GDCubismUserModel::PRIORITY_FORCE) {
+        return InvalidMotionQueueEntryHandleValue;
+    }
 
     if (priority == GDCubismUserModel::Priority::PRIORITY_FORCE) {
         this->_motionManager->SetReservePriority(priority);
@@ -334,18 +387,10 @@ CubismMotionQueueEntryHandle InternalCubismUserModel::motion_start(const char* g
         return InvalidMotionQueueEntryHandleValue;
     }
 
-    csmString name = Utils::CubismString::GetFormatedString("%s_%d", group, no);
-
-    CubismMotion* motion = this->_map_motion[name];
-
-    if(motion == nullptr ) return InvalidMotionQueueEntryHandleValue;
-
     motion->SetLoop(loop);
     motion->SetLoopFadeIn(loop_fade_in);
-    motion->SetFinishedMotionHandler(GDCubismUserModel::on_motion_finished);
-    #ifdef CUBISM_MOTION_CUSTOMDATA
-    motion->SetFinishedMotionCustomData(custom_data);
-    #endif // CUBISM_MOTION_CUSTOMDATA
+    // The owner observes queue completion after SDK iteration. Cached motions
+    // never retain a callback pointer to a Redot object or a later playback.
 
     return this->_motionManager->StartMotionPriority(motion, false, priority);
 }
@@ -360,14 +405,13 @@ void InternalCubismUserModel::motion_stop() {
 void InternalCubismUserModel::MotionEventFired(const csmString& eventValue) {
     if(this->_owner_viewport != nullptr) {
         String value; value.parse_utf8(eventValue.GetRawString());
-        this->_owner_viewport->emit_signal("motion_event", value);
+        this->_owner_viewport->queue_model_signal("motion_event", value, true);
     }
 }
 
 
-void InternalCubismUserModel::expression_load() {
-    if(this->_model_setting == nullptr) return;
-    if(this->_model_setting->GetExpressionCount() == 0) return;
+bool InternalCubismUserModel::expression_load() {
+    if(this->_model_setting->GetExpressionCount() == 0) return true;
 
     for (csmInt32 i = 0; i < this->_model_setting->GetExpressionCount(); i++)
     {
@@ -376,12 +420,14 @@ void InternalCubismUserModel::expression_load() {
         String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetExpressionFileName(i));
         String expression_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
 
-        PackedByteArray buffer = FileAccess::get_file_as_bytes(expression_pathname);
+        PackedByteArray buffer;
+        if (!read_buffer(expression_pathname, buffer)) return false;
         CubismExpressionMotion* motion = static_cast<CubismExpressionMotion*>(this->LoadExpression(
             buffer.ptr(),
             buffer.size(),
             this->_model_setting->GetExpressionName(i)
         ));
+        if (motion == nullptr) return fail_load(expression_pathname, "Cubism could not create the expression.");
 
         if(this->_map_expression[name] != nullptr) {
             ACubismMotion::Delete(this->_map_expression[name]);
@@ -390,51 +436,51 @@ void InternalCubismUserModel::expression_load() {
 
         this->_map_expression[name] = motion;
     }
+    return true;
 }
 
 
-void InternalCubismUserModel::physics_load() {
-    if(strcmp(this->_model_setting->GetPhysicsFileName(), "") == 0) return;
+bool InternalCubismUserModel::physics_load() {
+    if(strcmp(this->_model_setting->GetPhysicsFileName(), "") == 0) return true;
 
     String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetPhysicsFileName());
     String physics_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
 
-    PackedByteArray buffer = FileAccess::get_file_as_bytes(physics_pathname);
-    if(buffer.size() > 0) {
-        this->LoadPhysics(buffer.ptr(), buffer.size());
-    }
+    PackedByteArray buffer;
+    if (!read_buffer(physics_pathname, buffer)) return false;
+    this->LoadPhysics(buffer.ptr(), buffer.size());
+    return _physics != nullptr || fail_load(physics_pathname, "Cubism could not create physics.");
 }
 
 
-void InternalCubismUserModel::pose_load() {
-    if(strcmp(this->_model_setting->GetPoseFileName(), "") == 0) return;
+bool InternalCubismUserModel::pose_load() {
+    if(strcmp(this->_model_setting->GetPoseFileName(), "") == 0) return true;
 
     String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetPoseFileName());
     String pose_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
 
-    PackedByteArray buffer = FileAccess::get_file_as_bytes(pose_pathname);
-    if(buffer.size() > 0) {
-        this->LoadPose(buffer.ptr(), buffer.size());
-    }
+    PackedByteArray buffer;
+    if (!read_buffer(pose_pathname, buffer)) return false;
+    this->LoadPose(buffer.ptr(), buffer.size());
+    return _pose != nullptr || fail_load(pose_pathname, "Cubism could not create the pose.");
 }
 
 
-void InternalCubismUserModel::userdata_load() {
-    if(strcmp(this->_model_setting->GetUserDataFile(), "") == 0) return;
+bool InternalCubismUserModel::userdata_load() {
+    if(strcmp(this->_model_setting->GetUserDataFile(), "") == 0) return true;
 
     String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetUserDataFile());
     String userdata_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
 
-    PackedByteArray buffer = FileAccess::get_file_as_bytes(userdata_pathname);
-    if(buffer.size() > 0) {
-        this->LoadUserData(buffer.ptr(), buffer.size());
-    }
+    PackedByteArray buffer;
+    if (!read_buffer(userdata_pathname, buffer)) return false;
+    this->LoadUserData(buffer.ptr(), buffer.size());
+    return _modelUserData != nullptr || fail_load(userdata_pathname, "Cubism could not create user data.");
 }
 
 
-void InternalCubismUserModel::motion_load() {
-    if(this->_model_setting == nullptr) return;
-    if(this->_model_setting->GetMotionGroupCount() == 0) return;
+bool InternalCubismUserModel::motion_load() {
+    if(this->_model_setting->GetMotionGroupCount() == 0) return true;
 
     for (csmInt32 ig = 0; ig < this->_model_setting->GetMotionGroupCount(); ig++)
     {
@@ -451,12 +497,14 @@ void InternalCubismUserModel::motion_load() {
             String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetMotionFileName(group, im));
             String motion_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
 
-            PackedByteArray buffer = FileAccess::get_file_as_bytes(motion_pathname);
+            PackedByteArray buffer;
+            if (!read_buffer(motion_pathname, buffer)) return false;
             CubismMotion* motion = static_cast<CubismMotion*>(this->LoadMotion(
                 buffer.ptr(),
                 buffer.size(),
                 name.GetRawString()
             ));
+            if (motion == nullptr) return fail_load(motion_pathname, "Cubism could not create the motion.");
 
             csmFloat32 fade_time_sec = this->_model_setting->GetMotionFadeInTimeValue(group, im);
             if (fade_time_sec >= 0.0f) {
@@ -477,41 +525,35 @@ void InternalCubismUserModel::motion_load() {
             this->_map_motion[name] = motion;
         }
     }
+    return true;
 }
 
 
 void InternalCubismUserModel::effect_init() {
-    for(
-        Csm::csmVector<GDCubismEffect*>::iterator i = this->_owner_viewport->_list_cubism_effect.Begin();
-        i != this->_owner_viewport->_list_cubism_effect.End();
-        i++
-    ) {
-        (*i)->_cubism_init(this);
-    }
+    effect_batch(0.0, EFFECT_CALL_INIT);
 }
 
 
 void InternalCubismUserModel::effect_term() {
-    for(
-        Csm::csmVector<GDCubismEffect*>::iterator i = this->_owner_viewport->_list_cubism_effect.Begin();
-        i != this->_owner_viewport->_list_cubism_effect.End();
-        i++
-    ) {
-        (*i)->_cubism_term(this);
-    }
+    effect_batch(0.0, EFFECT_CALL_TERM);
 }
 
 
 void InternalCubismUserModel::effect_batch(const double delta, const EFFECT_CALL efx_call) {
-    for(
-        Csm::csmVector<GDCubismEffect*>::iterator i = this->_owner_viewport->_list_cubism_effect.Begin();
-        i != this->_owner_viewport->_list_cubism_effect.End();
-        i++
-    ) {
+    std::vector<uint64_t> effects;
+    for (int i = 0; i < _owner_viewport->_list_cubism_effect.GetSize(); ++i) {
+        effects.push_back(_owner_viewport->_list_cubism_effect[i]->get_instance_id());
+    }
+    for (uint64_t id : effects) {
+        auto *effect = Object::cast_to<GDCubismEffect>(ObjectDB::get_instance(id));
+        if (effect == nullptr || effect->get_parent() != _owner_viewport) continue;
+        if (effect->is_queued_for_deletion() && efx_call != EFFECT_CALL_TERM) continue;
         switch(efx_call) {
-            case EFFECT_CALL_PROLOGUE:  (*i)->_cubism_prologue(this, delta);    break;
-            case EFFECT_CALL_PROCESS:   (*i)->_cubism_process(this, delta);     break;
-            case EFFECT_CALL_EPILOGUE:  (*i)->_cubism_epilogue(this, delta);    break;
+            case EFFECT_CALL_INIT:      effect->_cubism_init(this);               break;
+            case EFFECT_CALL_TERM:      effect->_cubism_term(this);               break;
+            case EFFECT_CALL_PROLOGUE:  effect->_cubism_prologue(this, delta);    break;
+            case EFFECT_CALL_PROCESS:   effect->_cubism_process(this, delta);     break;
+            case EFFECT_CALL_EPILOGUE:  effect->_cubism_epilogue(this, delta);    break;
         }
     }
 }

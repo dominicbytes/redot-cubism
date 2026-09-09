@@ -44,6 +44,16 @@ XML documentation reader. Neither change alters Cubism playback.
 
 ## Tests and evidence
 
+The clean committed checkpoint `1ca0e1608d45959fb770f86dd13da2d5f3ff20b2`
+was rebuilt and retested after the initial working-tree runs below. Its debug
+library SHA-256 is `a0407b8decefa09770d27969c60101f8a9d038158f72f5d5f3e74677b93bc3ec`;
+release is `dc888c1d95e748aa5be2fec12d05e9796703fd37e1f3759323cd02166e867b26`.
+Both passed seven checks: fresh import, editor restart, runtime, compatibility
+graphics, export, exported runtime and exported compatibility graphics. Build
+metadata reports the committed revision and `addon_dirty=false`. The filtered
+public equivalent is `eec01e1e152edf9b980b97b977d873ac0d73b7d0`;
+[public CI passed](https://github.com/dominicbytes/redot_cubism/actions/runs/34168700703).
+
 The first passing debug library hash was
 `ad6c5095670a68a33b67632f6b6b734525eb54cc9c928b74933abe62f9f1b7dd`;
 release was `15be25ddf987aa783b3e4f9eec70fde78312a2720718d348e5a88f119702b275`.

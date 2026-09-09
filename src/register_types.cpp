@@ -25,6 +25,7 @@
 #include <register_types.hpp>
 #include <plugin.hpp>
 #include <cubism_build_info.hpp>
+#include <cubism_build_info.gen.h>
 
 // --------------------------------------------------------------- namespace(s)
 using namespace godot;
@@ -69,7 +70,9 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     option.LoggingLevel = Csm::CubismFramework::Option::LogLevel::LogLevel_Off;
     #endif // DEBUG_ENABLED
 
-    Csm::CubismFramework::StartUp(&allocator, &option);
+    ERR_FAIL_COND_MSG(Live2D::Cubism::Core::csmGetVersion() != CUBISM_EXPECTED_CORE_VERSION,
+        "Cubism Core version does not match the pinned SDK used for this addon build.");
+    ERR_FAIL_COND_MSG(!Csm::CubismFramework::StartUp(&allocator, &option), "Cubism Framework startup failed.");
     Csm::CubismFramework::Initialize();
 
     GDREGISTER_CLASS(CubismBuildInfo);
@@ -107,7 +110,7 @@ void uninitialize_gd_cubism_module(ModuleInitializationLevel p_level) {
 
     ResourceLoader::get_singleton()->remove_resource_format_loader(motionLoader);
     motionLoader.unref();
-    
+    GDCubismUserModel::shutdown_models();
     Csm::CubismFramework::Dispose();
 }
 

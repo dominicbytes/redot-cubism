@@ -39,17 +39,15 @@ public:
     virtual void _cubism_init(InternalCubismUserModel* model) override {
         if(this->_initialized == true) return;
 
-        this->emit_signal("cubism_init", model->_owner_viewport);
-
         this->_initialized = true;
+        if (!model->_owner_viewport->is_destroying()) this->emit_signal("cubism_init", model->_owner_viewport);
     }
 
     virtual void _cubism_term(InternalCubismUserModel* model) override {
         if(this->_initialized == false) return;
 
-        this->emit_signal("cubism_term", model->_owner_viewport);
-
         this->_initialized = false;
+        if (!model->_owner_viewport->is_destroying()) this->emit_signal("cubism_term", model->_owner_viewport);
     }
 
     virtual void _cubism_prologue(InternalCubismUserModel* model, const double delta) override {

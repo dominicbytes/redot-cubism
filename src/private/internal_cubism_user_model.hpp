@@ -38,6 +38,8 @@ class InternalCubismUserModel : public Csm::CubismUserModel {
     friend GDCubismEffectHitArea;
 
     enum EFFECT_CALL {
+        EFFECT_CALL_INIT,
+        EFFECT_CALL_TERM,
         EFFECT_CALL_PROLOGUE,
         EFFECT_CALL_PROCESS,
         EFFECT_CALL_EPILOGUE
@@ -59,10 +61,14 @@ private:
     Csm::csmVector<Csm::CubismIdHandle> _list_lipsync;
     Csm::csmMap<Csm::csmString,Csm::CubismExpressionMotion*> _map_expression;
     Csm::csmMap<Csm::csmString,Csm::CubismMotion*> _map_motion;
+    Dictionary load_error;
+    bool fail_load(const String &path, const String &message, Error code = ERR_INVALID_DATA);
+    bool read_buffer(const String &path, PackedByteArray &buffer, bool json = true);
 
 public:
     bool model_load(const String &model_pathname);
-    void model_load_resource();
+    bool model_load_resource();
+    Dictionary get_load_error() const { return load_error.duplicate(); }
     void pro_update(const double delta);
     void efx_update(const double delta);
     void epi_update(const double delta);
@@ -74,17 +80,17 @@ public:
     void expression_set(const char* expression_id);
     void expression_stop();
 
-    Csm::CubismMotionQueueEntryHandle motion_start(const char* group, const int32_t no, const int32_t priority, const bool loop, const bool loop_fade_in, void* custom_data);
+    Csm::CubismMotionQueueEntryHandle motion_start(const char* group, const int32_t no, const int32_t priority, const bool loop, const bool loop_fade_in);
     void motion_stop();
 
     virtual void MotionEventFired(const Csm::csmString& eventValue) override;
 
 private:
-    void expression_load();
-    void physics_load();
-    void pose_load();
-    void userdata_load();
-    void motion_load();
+    bool expression_load();
+    bool physics_load();
+    bool pose_load();
+    bool userdata_load();
+    bool motion_load();
 
     void effect_init();
     void effect_term();

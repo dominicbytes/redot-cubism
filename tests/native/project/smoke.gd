@@ -17,7 +17,39 @@ func _values(model: GDCubismUserModel) -> PackedFloat64Array:
 		values.append(parameter.value)
 	return values
 
+func _node_count(node: Node) -> int:
+	var count: int = 1
+	for child: Node in node.get_children():
+		count += _node_count(child)
+	return count
+
+func _window_cycles(model: GDCubismUserModel) -> bool:
+	var window: Window = get_window()
+	var nodes: int = _node_count(model)
+	var minimize_observed: bool = true
+	for cycle: int in 5:
+		model.hide()
+		for frame: int in 3:
+			model.advance(1.0 / 60.0)
+			await get_tree().process_frame
+		model.show()
+		window.mode = Window.MODE_MINIMIZED
+		for frame: int in 3:
+			model.advance(1.0 / 60.0)
+			await get_tree().process_frame
+		minimize_observed = minimize_observed and window.mode == Window.MODE_MINIMIZED
+		window.mode = Window.MODE_WINDOWED
+		for frame: int in 3:
+			model.advance(1.0 / 60.0)
+			await get_tree().process_frame
+		if not _check(_node_count(model) == nodes, "mask/view nodes accumulated across visibility changes"):
+			return false
+	print("CUBISM_WINDOW_CYCLES:" + JSON.stringify({"cycles": 5, "owned_node_count": nodes, "minimize_observed": minimize_observed}))
+	return true
+
 func _capture(model: GDCubismUserModel, path: String) -> bool:
+	if not await _window_cycles(model):
+		return false
 	var canvas: Dictionary = model.get_canvas_info()
 	var viewport_size: Vector2 = get_viewport_rect().size
 	model.position = viewport_size / 2.0
@@ -44,6 +76,26 @@ func _capture(model: GDCubismUserModel, path: String) -> bool:
 
 func _run() -> void:
 	var fixture: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://fixture.json"))
+	if "--loading-checks" in OS.get_cmdline_user_args():
+		var passed: bool = preload("res://loading_checks.gd").run(self, fixture)
+		get_tree().quit(0 if passed else 1)
+		return
+	if "--handle-checks" in OS.get_cmdline_user_args():
+		var passed: bool = await preload("res://handle_checks.gd").run(self, fixture)
+		get_tree().quit(0 if passed else 1)
+		return
+	if "--delta-checks" in OS.get_cmdline_user_args():
+		var passed: bool = preload("res://delta_checks.gd").run(self, fixture)
+		get_tree().quit(0 if passed else 1)
+		return
+	if "--process-checks" in OS.get_cmdline_user_args():
+		var passed: bool = await preload("res://process_checks.gd").run(self, fixture)
+		get_tree().quit(0 if passed else 1)
+		return
+	if "--lifecycle-checks" in OS.get_cmdline_user_args():
+		var passed: bool = await preload("res://lifecycle_checks.gd").run(self, fixture)
+		get_tree().quit(0 if passed else 1)
+		return
 	var versions: Dictionary = CubismBuildInfo.get_versions()
 	print("CUBISM_NATIVE_VERSIONS:" + JSON.stringify(versions))
 	if not _check(versions.runtime_core_packed == 0x06000001, "Core version mismatch"):
@@ -76,6 +128,8 @@ func _run() -> void:
 		var current: PackedFloat64Array = _values(model)
 		for i: int in before.size():
 			moved = moved or absf(before[i] - current[i]) > 0.0001
+	await get_tree().process_frame
+	await get_tree().process_frame
 	if not _check(moved and completed_motions == 1, "motion did not animate and finish exactly once"):
 		return
 	model.assets = fixture.model
