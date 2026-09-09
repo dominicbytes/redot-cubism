@@ -34,6 +34,8 @@ def main():
     parser.add_argument("--template", type=Path)
     parser.add_argument("--export-mode", choices=["debug", "release"], default="debug")
     parser.add_argument("--graphics", choices=["gl_compatibility", "forward_plus"], help="Also render and capture on the selected real graphics backend")
+    parser.add_argument("--sanitizer-runtime", type=Path, help="Headless ASan Redot built from the pinned engine source")
+    parser.add_argument("--sanitizer-library", type=Path, help="Matching addon built with sanitize=address")
     args = parser.parse_args()
     binary = os.environ.get("REDOT_BIN", "")
     if not Path(binary).is_file() or not args.library.is_file() or not args.model.is_file():
@@ -42,6 +44,12 @@ def main():
     version = subprocess.check_output([binary, "--version"], text=True, timeout=10).strip()
     if version != pins["redot"]["version"]:
         parser.error(f"Unexpected Redot version: {version}")
+    if bool(args.sanitizer_runtime) != bool(args.sanitizer_library):
+        parser.error("Supply both sanitizer runtime and library")
+    if args.sanitizer_runtime:
+        sanitizer_version = subprocess.check_output([str(args.sanitizer_runtime), "--version"], text=True, timeout=10).strip()
+        if sanitizer_version != version.replace(".official.", ".cubism_asan.") or not args.sanitizer_library.is_file():
+            parser.error("Sanitizer inputs must match the pinned Redot source and addon")
     refs = json.loads(args.model.read_text())["FileReferences"]
     group = next(iter(refs["Motions"]))
     motion = json.loads((args.model.parent / refs["Motions"][group][0]["File"]).read_text())
@@ -83,23 +91,62 @@ def main():
             command += ["--path", str(project)]
         command += switches
         try:
-            result = subprocess.run(command, cwd=run_root, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=60)
+            result = subprocess.run(command, cwd=run_root, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300 if name.endswith("-asan") else 60)
             output, code = result.stdout, result.returncode
         except subprocess.TimeoutExpired as exc:
             output, code = str(exc), 124
         (run_root / f"{name}.log").write_text(output)
-        passed = code == 0 and not re.search(r"SCRIPT ERROR|ERROR:|WARNING:|Aborted|Segmentation fault", output) and (marker is None or marker in output)
+        diagnostic_output = output
+        if "deltas" in name:
+            # This deliberate negative input has one documented debug diagnostic.
+            diagnostic_output = diagnostic_output.replace("WARNING: Negative Cubism delta ignored.", "EXPECTED_NEGATIVE_DELTA_WARNING", 1)
+        passed = code == 0 and not re.search(r"SCRIPT ERROR|ERROR:|WARNING:|Aborted|Segmentation fault|ERROR: AddressSanitizer|LeakSanitizer", diagnostic_output) and (marker is None or marker in output)
+        if graphics and passed:
+            actual = re.search(r"^CUBISM_NATIVE_GRAPHICS:(.+)$", output, re.M)
+            passed = bool(actual) and json.loads(actual.group(1))["renderer"] == args.graphics
+        if passed and "[CSM][I]CubismFramework::StartUp()" in output:
+            passed = output.count("[CSM][I]CubismFramework::Initialize() is complete.") == 1 and output.count("[CSM][I]CubismFramework::Dispose() is complete.") == 1
         checks.append({"test": name, "exit_code": code, "status": "PASS" if passed else "FAIL", "log": f"{run_root.name}/{name}.log"})
         print(f"{name}: {checks[-1]['status']}", flush=True)
         if not passed:
             print(output, flush=True)
         return passed
 
-    success = run("fresh-import", ["--editor", "--import", "--quit-after", "1000"], "CUBISM_NATIVE_EDITOR_PASS")
+    success = run("fresh-import", ["--editor", "--import", "--quit-after", "1000"], "CUBISM_NATIVE_EDITOR_REGISTERED")
     if success:
-        success = run("editor-restart", ["--editor", "--import", "--quit-after", "1000"], "CUBISM_NATIVE_EDITOR_EXIT")
+        success = run("editor-restart", ["--editor", "--import", "--quit-after", "1000"], "CUBISM_NATIVE_EDITOR_PASS")
+    if success:
+        success = run("empty-runtime", ["--script", "res://empty_runtime.gd", "--quit-after", "2"], "CUBISM_EMPTY_PASS")
     if success:
         success = run("runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS")
+    if success:
+        success = run("native-processing", ["--fixed-fps", "60", "--quit-after", "600", "--", "--process-checks"], "CUBISM_PROCESS_PASS")
+    if success:
+        success = run("lifecycle", ["--fixed-fps", "60", "--quit-after", "600", "--", "--lifecycle-checks"], "CUBISM_LIFECYCLE_PASS")
+    if success:
+        success = run("loading-removal", ["--quit-after", "120", "--", "--loading-checks"], "CUBISM_LOADING_PASS")
+    if success:
+        success = run("handles", ["--quit-after", "600", "--", "--handle-checks"], "CUBISM_HANDLE_PASS")
+    if success:
+        success = run("deltas", ["--quit-after", "600", "--", "--delta-checks"], "CUBISM_DELTA_PASS")
+    sanitizer_tested = False
+    if success and args.sanitizer_runtime:
+        library_path.write_bytes(args.sanitizer_library.read_bytes())
+        previous_asan = env.get("ASAN_OPTIONS")
+        env["ASAN_OPTIONS"] = "detect_leaks=1:abort_on_error=1"
+        try:
+            success = run("lifecycle-asan", ["--rendering-driver", "dummy", "--path", str(project), "--fixed-fps", "60", "--quit-after", "10000", "--", "--lifecycle-checks", "--cycles=250"], "CUBISM_LIFECYCLE_PASS cycles=250", args.sanitizer_runtime)
+            if success:
+                success = run("handles-asan", ["--rendering-driver", "dummy", "--path", str(project), "--quit-after", "600", "--", "--handle-checks"], "CUBISM_HANDLE_PASS", args.sanitizer_runtime)
+            if success:
+                success = run("loading-removal-asan", ["--rendering-driver", "dummy", "--path", str(project), "--quit-after", "120", "--", "--loading-checks"], "CUBISM_LOADING_PASS", args.sanitizer_runtime)
+            sanitizer_tested = success
+        finally:
+            library_path.write_bytes(args.library.read_bytes())
+            if previous_asan is None:
+                del env["ASAN_OPTIONS"]
+            else:
+                env["ASAN_OPTIONS"] = previous_asan
     graphics_tested = False
     if success and args.graphics:
         success = run("graphics", ["--quit-after", "120", "--", f"--capture={run_root / 'model.png'}"], "CUBISM_NATIVE_GRAPHICS:", graphics=True)
@@ -122,7 +169,12 @@ def main():
         success = run("export", [f"--export-{args.export_mode}", "Native", str(game)])
         if success:
             project.rename(run_root / "source-not-available")
+            success = run("exported-empty-runtime", ["--script", "res://empty_runtime.gd", "--quit-after", "2"], "CUBISM_EMPTY_PASS", game)
+        if success:
             success = run("exported-runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS", game)
+            for label, flag, marker in [("native-processing", "--process-checks", "CUBISM_PROCESS_PASS"), ("lifecycle", "--lifecycle-checks", "CUBISM_LIFECYCLE_PASS"), ("loading-removal", "--loading-checks", "CUBISM_LOADING_PASS"), ("handles", "--handle-checks", "CUBISM_HANDLE_PASS"), ("deltas", "--delta-checks", "CUBISM_DELTA_PASS")]:
+                if success:
+                    success = run("exported-" + label, ["--fixed-fps", "60", "--quit-after", "600", "--", flag], marker, game)
             if success and args.graphics:
                 success = run("exported-graphics", ["--quit-after", "120", "--", f"--capture={run_root / 'exported-model.png'}"], "CUBISM_NATIVE_GRAPHICS:", game, graphics=True)
                 success = success and (run_root / "exported-model.png").is_file()
@@ -131,9 +183,19 @@ def main():
               "fixture_manifest_sha256": sha256(args.model), "fixture_moc_sha256": sha256(args.model.parent / refs["Moc"]),
               "checks": checks, "real_model_tested": any(c["test"] == "runtime" and c["status"] == "PASS" for c in checks),
               "export_template_tested": exported, "graphics_tested": graphics_tested}
+    if args.sanitizer_runtime:
+        report["sanitizer"] = {"tested": sanitizer_tested, "runtime_version": sanitizer_version,
+            "runtime_sha256": sha256(args.sanitizer_runtime), "library_sha256": sha256(args.sanitizer_library),
+            "cycles": 250, "coverage": "instrumented engine, addon and public Framework; proprietary Core is not instrumented"}
     if graphics_tested:
         report["graphics_backend"] = args.graphics
         report["capture_sha256"] = sha256(run_root / "model.png")
+        for label in ("graphics", "exported-graphics"):
+            log = run_root / f"{label}.log"
+            if log.is_file():
+                window_cycles = re.search(r"^CUBISM_WINDOW_CYCLES:(.+)$", log.read_text(), re.M)
+                if window_cycles:
+                    report[label + "_window_cycles"] = json.loads(window_cycles.group(1))
     if exported:
         report["template_sha256"] = sha256(args.template)
         report["exported_files"] = {p.relative_to(export_dir).as_posix(): sha256(p) for p in export_dir.rglob("*") if p.is_file()}

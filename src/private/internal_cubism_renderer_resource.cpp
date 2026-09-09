@@ -24,7 +24,7 @@
 InternalCubismRendererResource::InternalCubismRendererResource(GDCubismUserModel *owner_viewport)
     : _owner_viewport(owner_viewport)
 {
-    ResourceLoader* res_loader = memnew(ResourceLoader);
+    ResourceLoader* res_loader = ResourceLoader::get_singleton();
 
     this->ary_shader.resize(GD_CUBISM_SHADER_MAX);
 
@@ -41,7 +41,6 @@ InternalCubismRendererResource::InternalCubismRendererResource(GDCubismUserModel
     this->ary_shader[GD_CUBISM_SHADER_MASK_MUL] = res_loader->load("res://addons/gd_cubism/res/shader/2d_cubism_mask_mul.gdshader");
     this->ary_shader[GD_CUBISM_SHADER_MASK_MUL_INV] = res_loader->load("res://addons/gd_cubism/res/shader/2d_cubism_mask_mul_inv.gdshader");
 
-    memdelete(res_loader);
 }
 
 
@@ -53,13 +52,14 @@ InternalCubismRendererResource::~InternalCubismRendererResource() {
 
 
 void InternalCubismRendererResource::clear() {
-    for (int i = 0; i < this->managed_nodes.size(); i++) {
-        Node *c = Object::cast_to<Node>(this->managed_nodes[i]);
-        c->get_parent()->remove_child(c);
-        c->queue_free();
-    }
-
+    const Array nodes = this->managed_nodes.duplicate();
     this->managed_nodes.clear();
+    for (int i = 0; i < nodes.size(); i++) {
+        Node *c = Object::cast_to<Node>(nodes[i]);
+        if (c == nullptr) continue;
+        if (c->get_parent() != nullptr) c->get_parent()->remove_child(c);
+        memdelete(c);
+    }
 
     this->ary_texture.clear();
     this->dict_mesh.clear();

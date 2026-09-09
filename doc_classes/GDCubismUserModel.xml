@@ -1,19 +1,34 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<class name="GDCubismUserModel" inherits="SubViewport" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+<class name="GDCubismUserModel" inherits="Node2D" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
 	<brief_description>
 	</brief_description>
 	<description>
-		This is a [SubViewport] subclass for loading the Live2D model, generating the [Texture] necessary for display, and performing operations.
+		Loads and renders a Live2D Cubism model. Required native processing continues when a GDScript subclass overrides regular process callbacks. The inherited Node pause policy still applies. Runtime nodes are disposed on tree exit and recreated on reentry.
 	</description>
 	<tutorials>
 	</tutorials>
 	<methods>
+		<method name="get_model_state" qualifiers="const">
+			<return type="int" enum="GDCubismUserModel.ModelState" />
+			<description>Returns the explicit load/teardown state.</description>
+		</method>
+		<method name="get_last_error" qualifiers="const">
+			<return type="Dictionary" />
+			<description>Returns a copy of the latest load error containing code, path and message. Empty after a successful load or explicit unload.</description>
+		</method>
+		<method name="is_initialized" qualifiers="const">
+			<return type="bool" />
+			<description>True only while a complete native model is ready.</description>
+		</method>
+		<method name="unload_model">
+			<return type="void" />
+			<description>Releases owned runtime resources and cancels motion handles with UNLOADED. Repeated calls are safe. Retained parameter resources become invalid.</description>
+		</method>
 		<method name="advance">
 			<return type="void" />
 			<param index="0" name="delta" type="float" />
 			<description>
-				Advances the animation by the specified [i]delta[/i] time (in seconds).
-				Please specify a value of 0.0 or more for delta.
+				Advances a ready, unpaused model in MANUAL mode. Delta is in seconds. Zero and nonfinite values do not advance; negative values are ignored with a debug warning. The effective delta after speed scaling is capped at 0.1 seconds. Use multiple fixed steps for deterministic evaluation.
 			</description>
 		</method>
 		<method name="csm_get_latest_moc_version">
@@ -50,7 +65,7 @@
 		<method name="get_cubism_motion_queue_entries" qualifiers="const">
 			<return type="Array" />
 			<description>
-				Returns information about the currently playing [i]Motion[/i].
+				Legacy list of opaque motion-entry resources. Use the handle returned by start_motion to observe playback completion and cancellation.
 			</description>
 		</method>
 		<method name="get_expressions" qualifiers="const">
@@ -536,6 +551,13 @@
 		</member>
 	</members>
 	<signals>
+		<signal name="model_ready">
+			<description>Queued after a complete load. Superseded loads do not emit stale ready signals. Use queue_free to delete the model from a callback.</description>
+		</signal>
+		<signal name="model_failed">
+			<param index="0" name="error" type="Dictionary" />
+			<description>Queued after a failed load has released partial resources. The dictionary contains code, path and message.</description>
+		</signal>
 		<signal name="motion_event">
 			<param index="0" name="value" type="String" />
 			<description>
@@ -554,21 +576,17 @@
 		</signal>
 		<signal name="motion_finished">
 			<description>
-				Called at the timing when _Motion_ has finished playing.
-				[b]Example:[/b]
-				[codeblocks]
-				[gdscript]
-					func _on_motion_finished(value: String):
-					    print(value)
-
-					func _ready():
-					    $GDCubismUserModel.motion_event.connect(_on_motion_event)
-				[/gdscript]
-				[/codeblocks]
+				Legacy no-argument signal queued after natural completion, outside SDK iteration. Use the motion handle's finished signal for all terminal reasons, including cancellation. Use queue_free for deletion inside callbacks.
 			</description>
 		</signal>
 	</signals>
 	<constants>
+		<constant name="UNLOADED" value="0" enum="ModelState">No load has been attempted.</constant>
+		<constant name="LOADING" value="1" enum="ModelState">Loading native resources.</constant>
+		<constant name="READY" value="2" enum="ModelState">The model is ready.</constant>
+		<constant name="LOAD_ERROR" value="3" enum="ModelState">Load failed; inspect get_last_error.</constant>
+		<constant name="DISPOSING" value="4" enum="ModelState">Releasing native resources.</constant>
+		<constant name="DISPOSED" value="5" enum="ModelState">Native resources have been released.</constant>
 		<constant name="CSM_MOC_VERSION_UNKNOWN" value="0" enum="moc3FileFormatVersion">
 			Unknown or failed to load
 		</constant>
@@ -604,15 +622,14 @@
 			When this is specified, motion playback cannot be performed by the [method GDCubismUserModel.start_motion] function.
 		</constant>
 		<constant name="PHYSICS" value="0" enum="MotionProcessCallback">
-			The animation update process is performed within the [code]_physics_process[/code] function.
+			Native animation updates run through internal physics notifications.
 			Use this when you want to interact with physical simulation.
 		</constant>
 		<constant name="IDLE" value="1" enum="MotionProcessCallback">
-			The animation update process is performed within the [code]_process[/code] function.
+			Native animation updates run through internal process notifications.
 		</constant>
 		<constant name="MANUAL" value="2" enum="MotionProcessCallback">
 			No animation update process is performed. To process the animation, use the [method GDCubismUserModel.advance] function.
-			I hope this helps! If you have any other requests, feel free to ask.
 		</constant>
 	</constants>
 </class>

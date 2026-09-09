@@ -6,6 +6,12 @@
 	</description>
 	<tutorials>
 	</tutorials>
+	<methods>
+		<method name="is_valid" qualifiers="const">
+			<return type="bool" />
+			<description>False after the model is unloaded or replaced. A retained resource keeps its cached value and cannot write through an expired native pointer.</description>
+		</method>
+	</methods>
 	<members>
 		<member name="id" type="String" setter="" getter="get_id" default="&quot;&quot;">
 		</member>

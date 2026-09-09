@@ -3,16 +3,44 @@
 	<brief_description>
 	</brief_description>
 	<description>
-		The return values of the [method GDCubismUserModel.start_motion] function and the [method GDCubismUserModel.start_random_motion] function of [GDCubismUserModel].
+		The result of starting a native motion. Each accepted playback has one terminal result. Retained handles remain safe after stopping or destroying the model. Check is_finished before awaiting finished because a rejected request is already terminal.
 	</description>
 	<tutorials>
 	</tutorials>
+	<methods>
+		<method name="get_error" qualifiers="const">
+			<return type="int" enum="GDCubismMotionQueueEntryHandle.HandleError" />
+			<description>Whether the original request was accepted. An accepted handle remains OK after termination.</description>
+		</method>
+		<method name="is_finished" qualifiers="const">
+			<return type="bool" />
+			<description>True after termination or immediate rejection.</description>
+		</method>
+		<method name="get_reason" qualifiers="const">
+			<return type="int" enum="GDCubismMotionQueueEntryHandle.FinishReason" />
+			<description>Returns PLAYING or the stable terminal reason.</description>
+		</method>
+	</methods>
+	<signals>
+		<signal name="finished">
+			<param index="0" name="reason" type="int" />
+			<description>Emitted once, deferred outside SDK iteration, for an accepted playback's terminal transition. Immediate rejections are already finished and do not emit this signal.</description>
+		</signal>
+	</signals>
 	<members>
 		<member name="error" type="int" setter="" getter="get_error" enum="GDCubismMotionQueueEntryHandle.HandleError" default="1">
-			Checks whether the call to the [method GDCubismUserModel.start_motion] function and the [method GDCubismUserModel.start_random_motion] function of [GDCubismUserModel] was successful.
+			Whether the original start_motion request was accepted.
 		</member>
 	</members>
 	<constants>
+		<constant name="PLAYING" value="0" enum="FinishReason">Playback is active.</constant>
+		<constant name="COMPLETED" value="1" enum="FinishReason">Natural completion.</constant>
+		<constant name="STOPPED" value="2" enum="FinishReason">Explicitly stopped.</constant>
+		<constant name="INTERRUPTED" value="3" enum="FinishReason">Replaced by an accepted motion.</constant>
+		<constant name="UNLOADED" value="4" enum="FinishReason">Model unloaded or left the tree.</constant>
+		<constant name="RELOADED" value="5" enum="FinishReason">Model replaced by a load request.</constant>
+		<constant name="MODEL_DESTROYED" value="6" enum="FinishReason">Owning model destroyed.</constant>
+		<constant name="PLAYBACK_ERROR" value="7" enum="FinishReason">Request rejected.</constant>
 		<constant name="OK" value="0" enum="HandleError">
 			Success
 		</constant>

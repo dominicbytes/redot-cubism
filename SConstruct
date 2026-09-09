@@ -26,6 +26,21 @@ build_dir = Path(options.get("CUBISM_BUILD_DIR", root / ".local-build/native")).
 build_dir.mkdir(parents=True, exist_ok=True)
 SConsignFile(str(build_dir / ".sconsign.dblite"))
 env = SConscript(str(cpp / "SConstruct"))
+# Some shared filesystems report a constant or invalid mtime. Do not reuse a
+# source signature solely because its timestamp is unchanged.
+SetOption("max_drift", -1)
+env.Decider("content")
+# Addon-only flags must not change targets already declared by redot-cpp.
+env = env.Clone()
+sanitizer = ARGUMENTS.get("sanitize", "none")
+if sanitizer not in ("none", "address") or (sanitizer == "address" and env["platform"] != "linux"):
+    print("Redot Cubism build input error: sanitize supports none or address on Linux")
+    Exit(1)
+if sanitizer == "address":
+    # Keep diagnostic symbols and use the same shared C++ runtime as ASan.
+    env["LINKFLAGS"] = [flag for flag in env["LINKFLAGS"] if flag not in ("-s", "-static-libgcc", "-static-libstdc++")]
+    env.Append(CCFLAGS=["-fsanitize=address", "-fno-omit-frame-pointer", "-g1"])
+    env.Append(LINKFLAGS=["-fsanitize=address"])
 if ARGUMENTS.get("build_profile"):
     # The pinned binding generator omits the profile from its input dependencies.
     env.Depends(str(cpp / "gen/include/godot_cpp/core/ext_wrappers.gen.inc"),
@@ -48,11 +63,14 @@ build_info = {
     "target": env["target"],
     "precision": env["precision"],
     "compiler": env.subst("$CXX"),
+    "sanitizer": sanitizer,
 }
 build_info["addon_dirty"] = bool(subprocess.check_output(
     ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=normal"], text=True).strip())
 info_header = generated_dir / "cubism_build_info.gen.h"
 header_text = "#define CUBISM_BUILD_INFO_JSON " + json.dumps(json.dumps(build_info, sort_keys=True)) + "\n"
+core_major, core_minor, core_patch = map(int, pins["cubism_sdk"]["core_version"].split("."))
+header_text += f"#define CUBISM_EXPECTED_CORE_VERSION {((core_major << 24) | (core_minor << 16) | core_patch)}\n"
 if not info_header.exists() or info_header.read_text() != header_text:
     info_header.write_text(header_text)
 env.Append(CPPPATH=[str(generated_dir)])
@@ -244,6 +262,9 @@ sources = objects
 
 # Find the addon path (e.g. project/addons/example).
 addon_path = Path(extension_path).parent
+if sanitizer != "none":
+    # Keep the instrumented test library out of the ordinary addon install.
+    addon_path = build_dir
 
 # Find the project name from the gdextension file (e.g. example).
 project_name = Path(extension_path).stem

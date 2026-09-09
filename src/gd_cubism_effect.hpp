@@ -35,6 +35,7 @@ protected:
 
 protected:
     static void _bind_methods();
+    void _notification(int p_what);
 
 public:
     void set_active(const bool active) { this->_active = active; }
@@ -46,8 +47,6 @@ public:
     virtual void _cubism_process(InternalCubismUserModel* model, const double delta);
     virtual void _cubism_epilogue(InternalCubismUserModel* model, const double delta);
 
-    void _enter_tree() override;
-    void _exit_tree() override;
 };
 
 
