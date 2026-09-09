@@ -173,6 +173,7 @@ struct Validation {
 }
 
 void CubismManifestParser::_bind_methods() {
+    ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_physics", "json"), &CubismManifestParser::parse_physics);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_pose", "json"), &CubismManifestParser::parse_pose);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("read_project_json", "path"), &CubismManifestParser::read_project_json);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_motion", "json", "group", "index", "source_path"), &CubismManifestParser::parse_motion);
@@ -668,5 +669,100 @@ Dictionary CubismManifestParser::parse_pose(const String &json) {
     result["diagnostics"] = v.diagnostics;
     result["pose"] = v.ok ? data : Dictionary();
     result["fade_in_seconds"] = fade;
+    return result;
+}
+
+Dictionary CubismManifestParser::parse_physics(const String &json) {
+    Validation v;
+    const Dictionary data = v.object(json);
+    auto object = [&](const Dictionary &parent, const String &key, const String &path) -> Dictionary {
+        return v.type(parent, key, Variant::DICTIONARY, path) ? Dictionary(parent[key]) : Dictionary();
+    };
+    auto number = [&](const Dictionary &parent, const String &key, const String &path) -> double {
+        if (!parent.has(key)) v.error(path, "Required number is missing.");
+        v.numeric(parent, key, path);
+        const Variant value = parent.get(key, Variant());
+        return value.get_type() == Variant::INT || value.get_type() == Variant::FLOAT ? double(value) : 0.0;
+    };
+    auto vector = [&](const Dictionary &parent, const String &key, const String &path) {
+        const Dictionary coordinates = object(parent, key, path);
+        number(coordinates, "X", path + String(".X"));
+        number(coordinates, "Y", path + String(".Y"));
+    };
+    if (v.ok) {
+        if (number(data, "Version", "Version") != 3) v.error("Version", "Expected physics version 3.");
+        const Dictionary meta = object(data, "Meta", "Meta");
+        const Dictionary forces = object(meta, "EffectiveForces", "Meta.EffectiveForces");
+        vector(forces, "Gravity", "Meta.EffectiveForces.Gravity");
+        vector(forces, "Wind", "Meta.EffectiveForces.Wind");
+        if (meta.has("Fps")) {
+            const double fps = number(meta, "Fps", "Meta.Fps");
+            // Bound SDK fixed-step work; absent/zero uses the runtime delta.
+            if (fps < 0 || fps > 1000) v.error("Meta.Fps", "Physics FPS must be between 0 and 1000.");
+        }
+        int inputs = 0, outputs = 0, particles = 0;
+        Array settings;
+        if (v.type(data, "PhysicsSettings", Variant::ARRAY, "PhysicsSettings")) settings = data["PhysicsSettings"];
+        for (int i = 0; i < settings.size(); ++i) {
+            const String path = "PhysicsSettings[" + String::num_int64(i) + String("]");
+            if (settings[i].get_type() != Variant::DICTIONARY) { v.error(path, "Expected a physics setting object."); continue; }
+            const Dictionary setting = settings[i];
+            const Dictionary normalization = object(setting, "Normalization", path + String(".Normalization"));
+            for (const String key : {String("Position"), String("Angle")}) {
+                const String normal_path = path + String(".Normalization.") + key;
+                const Dictionary values = object(normalization, key, normal_path);
+                for (const String field : {String("Minimum"), String("Maximum"), String("Default")}) number(values, field, normal_path + String(".") + field);
+            }
+            Array vertices;
+            if (v.type(setting, "Vertices", Variant::ARRAY, path + String(".Vertices"))) vertices = setting["Vertices"];
+            if (vertices.is_empty()) v.error(path + String(".Vertices"), "A physics setting requires a root particle.");
+            particles += vertices.size();
+            for (int j = 0; j < vertices.size(); ++j) {
+                const String vertex_path = path + String(".Vertices[") + String::num_int64(j) + String("]");
+                if (vertices[j].get_type() != Variant::DICTIONARY) { v.error(vertex_path, "Expected a particle object."); continue; }
+                const Dictionary vertex = vertices[j];
+                for (const String key : {String("Mobility"), String("Delay"), String("Acceleration"), String("Radius")}) number(vertex, key, vertex_path + String(".") + key);
+                vector(vertex, "Position", vertex_path + String(".Position"));
+            }
+            for (const String key : {String("Input"), String("Output")}) {
+                const String io_path = path + String(".") + key;
+                if (!v.type(setting, key, Variant::ARRAY, io_path)) continue;
+                const Array entries = setting[key];
+                // SDK forms pointers to both arrays before entering their loops.
+                if (entries.is_empty()) v.error(io_path, "A physics setting requires at least one input and output.");
+                if (key == "Input") inputs += entries.size(); else outputs += entries.size();
+                for (int j = 0; j < entries.size(); ++j) {
+                    const String entry_path = io_path + String("[") + String::num_int64(j) + String("]");
+                    if (entries[j].get_type() != Variant::DICTIONARY) { v.error(entry_path, "Expected an input/output object."); continue; }
+                    const Dictionary entry = entries[j];
+                    number(entry, "Weight", entry_path + String(".Weight"));
+                    v.type(entry, "Reflect", Variant::BOOL, entry_path + String(".Reflect"));
+                    if (v.type(entry, "Type", Variant::STRING, entry_path + String(".Type"))) {
+                        const String type = entry["Type"];
+                        if (type != "X" && type != "Y" && type != "Angle") v.error(entry_path + String(".Type"), "Expected X, Y or Angle.");
+                    }
+                    const String target_key = key == "Input" ? "Source" : "Destination";
+                    const String target_path = entry_path + String(".") + target_key;
+                    const Dictionary target = object(entry, target_key, target_path);
+                    if (v.type(target, "Id", Variant::STRING, target_path + String(".Id")) && String(target["Id"]).is_empty()) v.error(target_path + String(".Id"), "Expected a nonempty parameter ID.");
+                    if (v.type(target, "Target", Variant::STRING, target_path + String(".Target")) && String(target["Target"]) != "Parameter") v.error(target_path + String(".Target"), "Only parameter targets are supported.");
+                    if (key == "Output") {
+                        number(entry, "Scale", entry_path + String(".Scale"));
+                        const double index = number(entry, "VertexIndex", entry_path + String(".VertexIndex"));
+                        if (index < 1 || index >= vertices.size() || std::floor(index) != index) v.error(entry_path + String(".VertexIndex"), "Expected a non-root particle index within this setting.");
+                    }
+                }
+            }
+        }
+        for (const String key : {String("PhysicsSettingCount"), String("TotalInputCount"), String("TotalOutputCount"), String("VertexCount")}) {
+            const double declared = number(meta, key, "Meta." + key);
+            const int actual = key == "PhysicsSettingCount" ? settings.size() : key == "TotalInputCount" ? inputs : key == "TotalOutputCount" ? outputs : particles;
+            if (declared != actual) v.error("Meta." + key, "Declared count does not match decoded arrays.");
+        }
+    }
+    Dictionary result;
+    result["ok"] = v.ok;
+    result["diagnostics"] = v.diagnostics;
+    result["physics"] = v.ok ? data : Dictionary();
     return result;
 }
