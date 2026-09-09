@@ -31,6 +31,8 @@ def main():
     parser.add_argument("--model", type=Path, required=True, help="Lawfully provisioned model3.json with motions and expressions")
     parser.add_argument("--expression", required=True, help="Declared expression known to change the fixture's default pose")
     parser.add_argument("--mask-compositions", type=Path, help="Private JSON array of expected unique mask-source ID arrays")
+    parser.add_argument("--draw-order-oracle", type=Path, help="Private Core-derived default and parameter-driven drawable orders")
+    parser.add_argument("--normal-blend-overlap", action="store_true", help="Test overlap using a fixture independently verified to contain only normal-blend drawables")
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--template", type=Path)
     parser.add_argument("--export-mode", choices=["debug", "release"], default="debug")
@@ -38,6 +40,8 @@ def main():
     parser.add_argument("--sanitizer-runtime", type=Path, help="Headless ASan Redot built from the pinned engine source")
     parser.add_argument("--sanitizer-library", type=Path, help="Matching addon built with sanitize=address")
     args = parser.parse_args()
+    if args.normal_blend_overlap and not args.graphics:
+        parser.error("Normal-blend overlap requires graphics")
     binary = os.environ.get("REDOT_BIN", "")
     if not Path(binary).is_file() or not args.library.is_file() or not args.model.is_file():
         parser.error("Set REDOT_BIN and supply existing library/model files")
@@ -60,6 +64,10 @@ def main():
     if args.expression not in {expression["Name"] for expression in refs["Expressions"]}:
         parser.error("Expression must be declared by the fixture model")
     mask_compositions = json.loads(args.mask_compositions.read_text()) if args.mask_compositions else None
+    draw_order_oracle = json.loads(args.draw_order_oracle.read_text()) if args.draw_order_oracle else None
+    if args.draw_order_oracle and (not args.graphics or not isinstance(draw_order_oracle, dict) or
+            not all(draw_order_oracle.get(key) for key in ("defaults", "default_order", "cases"))):
+        parser.error("Draw-order oracle requires graphics and nonempty defaults, default_order and cases")
     if args.mask_compositions and (not isinstance(mask_compositions, list) or not mask_compositions or
             any(not isinstance(group, list) or not group or any(not isinstance(name, str) for name in group)
                 for group in mask_compositions)):
@@ -80,7 +88,7 @@ def main():
         f'[libraries]\n{feature}.x86_64="res://addons/gd_cubism/bin/{args.library.name}"\n')
     (project / "fixture.json").write_text(json.dumps({"model": "res://fixture/" + args.model.name,
         "motion_group": group, "motion_duration": duration, "expression": args.expression,
-        "mask_compositions": mask_compositions}))
+        "mask_compositions": mask_compositions, "draw_order_oracle": draw_order_oracle}))
     (project / "FIXTURE_NOTICE.txt").write_text("This content uses sample data owned and copyrighted by Live2D Inc.\n")
     env = dict(os.environ)
     for name in ("CONFIG", "DATA", "CACHE"):
@@ -112,6 +120,8 @@ def main():
         if graphics and passed:
             actual = re.search(r"^CUBISM_NATIVE_GRAPHICS:(.+)$", output, re.M)
             passed = bool(actual) and json.loads(actual.group(1))["renderer"] == args.graphics
+        if passed and name.endswith("renderer-order") and draw_order_oracle:
+            passed = f"CUBISM_DYNAMIC_ORDER_PASS cases={len(draw_order_oracle['cases'])}" in output
         if passed and "[CSM][I]CubismFramework::StartUp()" in output:
             passed = output.count("[CSM][I]CubismFramework::Initialize() is complete.") == 1 and output.count("[CSM][I]CubismFramework::Dispose() is complete.") == 1
         checks.append({"test": name, "exit_code": code, "status": "PASS" if passed else "FAIL", "log": f"{run_root.name}/{name}.log"})
@@ -168,6 +178,8 @@ def main():
             success = run("renderer-bounds", ["--quit-after", "120", "--", "--bounds-checks"], "CUBISM_BOUNDS_PASS", graphics=True)
         if success:
             success = run("renderer-blends", ["--quit-after", "600", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=54", graphics=True)
+        if success and args.normal_blend_overlap:
+            success = run("renderer-overlap", ["--quit-after", "600", "--", "--overlap-checks", f"--overlap-capture={run_root / 'overlap.png'}"], "CUBISM_OVERLAP_PASS orders=4", graphics=True)
     exported = False
     if success and args.template:
         template = args.template.resolve()
@@ -202,10 +214,13 @@ def main():
                     success = run("exported-renderer-bounds", ["--quit-after", "120", "--", "--bounds-checks"], "CUBISM_BOUNDS_PASS", game, graphics=True)
                 if success:
                     success = run("exported-renderer-blends", ["--quit-after", "600", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=54", game, graphics=True)
+                if success and args.normal_blend_overlap:
+                    success = run("exported-renderer-overlap", ["--quit-after", "600", "--", "--overlap-checks", f"--overlap-capture={run_root / 'exported-overlap.png'}"], "CUBISM_OVERLAP_PASS orders=4", game, graphics=True)
             exported = success
     report = {"status": "PASS" if success else "FAIL", "engine_version": version, "library_sha256": sha256(args.library),
               "fixture_manifest_sha256": sha256(args.model), "fixture_moc_sha256": sha256(args.model.parent / refs["Moc"]),
               "mask_compositions_sha256": sha256(args.mask_compositions) if args.mask_compositions else None,
+              "draw_order_oracle_sha256": sha256(args.draw_order_oracle) if args.draw_order_oracle else None,
               "shader_sha256": shader_hashes,
               "checks": checks, "real_model_tested": any(c["test"] == "runtime" and c["status"] == "PASS" for c in checks),
               "export_template_tested": exported, "graphics_tested": graphics_tested}

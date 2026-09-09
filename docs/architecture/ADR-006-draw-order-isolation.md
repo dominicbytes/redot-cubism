@@ -28,7 +28,11 @@ and exported games. A fixed-state single-model capture remains byte-identical.
 Headless updates cannot qualify this behavior because the legacy renderer skips
 updates in an invisible window.
 
-An overlapping-model image oracle, dynamic Cubism draw-order changes, and
-CanvasGroup/SubViewport fallback comparisons remain separate PR 4 gates.
+Core-derived order tests now cover Haru's left/right arm changes and restoration
+to defaults. A normal-blend image oracle compares four two/three-character layer
+orders against composited individual captures. The pre-fix build fails with
+1,900 mismatched pixels in its first order; the current renderer passes.
+CanvasGroup/SubViewport fallback comparisons and destination-dependent blend
+composition remain separate PR 4 gates.
 Per-frame sorting is retained until correctness and visual parity are qualified;
 dynamic-flag optimization must preserve the same ordering contract.

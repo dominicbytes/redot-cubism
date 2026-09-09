@@ -44,8 +44,8 @@ capture or native binary is included in this source checkpoint.
 
 ## Remaining gates
 
-Dynamic Cubism draw-order changes and overlapping-model image oracles remain
-open. Full-model blend/effect and regular/inverted-mask parity, extreme transforms, zero-area geometry,
+Dynamic arm-driven ordering and normal-blend overlapping-model image checks
+now pass as described below. Full-model blend/effect and regular/inverted-mask parity, extreme transforms, zero-area geometry,
 offscreen policy, fallback rendering experiments and debug visualization still
 need qualification. Dynamic-flag optimization follows visual parity.
 
@@ -97,3 +97,33 @@ before, 0.376884 after). This pose is therefore a weak oracle for the visible
 benefit of atlas selection; the resource-binding regression is the decisive
 evidence for that fix. Stronger mask-image cases and full renderer parity remain
 open.
+
+## Dynamic ordering and overlap qualification
+
+An independent Core scan supplies all default parameter values, drawable order,
+and expected orders for Haru's `ParamArmLA=1` and `ParamArmRA=1`. Native/exported
+tests check both transitions, continued model-layer isolation, and restoration
+to the default order. The test harness fingerprints this private oracle and
+requires its case-completion marker; unchanged or empty cases cannot pass.
+
+Core also confirms that Haru contains only normal-blend drawables. The overlap
+oracle captures three differently tinted/translucent characters separately,
+then compares four two/three-character layer orders with premultiplied-alpha
+composition of those captures. The fixed 3/255 channel tolerance accommodates
+framebuffer quantization. The saved pre-fix PR 3 library fails its first order
+with 1,900 mismatched pixels and maximum error 0.594. The current renderer passes
+all four orders. The focused comparison uses the private mipmapped fixture;
+the integrated suite also passes with the standard fixture import settings.
+
+Debug and release each pass the expanded 29-check suite, including these tests
+in the exported game. The integrated overlap case contains 6,333 overlapping
+pixels and maximum channel error 0.006383. Captures were inspected; known
+missing-mipmap speckling remains visible and is outside this ordering oracle.
+No native implementation change was needed for these qualification tests.
+The library identities remain those in the cross-atlas/blend follow-up above.
+
+Private reports, logs and actual/reference images are retained in
+`.local-build/evidence/renderer-order-overlap-debug` and
+`renderer-order-overlap-release`; the failing baseline is retained in
+`renderer-overlap-before`. This oracle does not qualify overlapping characters
+with destination-dependent additive/multiply effects or other graphics backends.
