@@ -26,6 +26,7 @@
 #include <plugin.hpp>
 #include <cubism_build_info.hpp>
 #include <cubism_manifest_parser.hpp>
+#include <cubism_model_resource.hpp>
 #include <cubism_build_info.gen.h>
 
 // --------------------------------------------------------------- namespace(s)
@@ -78,6 +79,7 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
 
     GDREGISTER_CLASS(CubismBuildInfo);
     GDREGISTER_CLASS(CubismManifestParser);
+    GDREGISTER_CLASS(CubismModelResource);
 
     GDREGISTER_VIRTUAL_CLASS(GDCubismEffect);
     GDREGISTER_CLASS(GDCubismEffectBreath);
