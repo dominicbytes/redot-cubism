@@ -62,6 +62,25 @@ visible drawable must stay at its owning model's depth. This test requires a
 visible graphics window because the legacy renderer skips updates in headless
 mode; a headless result cannot qualify drawable ordering. Internal draw-order
 and image parity remain separate checks.
+
+Add `--draw-order-oracle /private/order.json` to exercise parameter-driven
+ordering against data obtained independently from Cubism Core. The JSON contains
+`defaults` (parameter ID to value), `default_order` (drawable IDs sorted by Core
+render order and index), and `cases` (objects with `parameter`, `value`, and
+expected `order`). Haru's `ParamArmLA=1` and `ParamArmRA=1` change order. The test
+checks both changes, layer isolation, and restoration to the default order.
+An empty or unchanged case cannot pass; the harness requires the dynamic-case
+completion marker and records the oracle hash.
+
+Add `--normal-blend-overlap` only for a fixture independently confirmed to have
+normal-blend drawables throughout (the pinned Haru fixture qualifies). It renders
+three tinted, partly transparent characters separately, then compares overlapping
+two- and three-character renders in four layer orders with alpha-composited
+single-character captures. It requires at least 50 overlapping pixels and uses
+a fixed 3/255 channel tolerance. Actual/reference captures are retained for the
+last tested order, or the first failure. The pre-fix renderer fails this oracle;
+the current renderer passes it. This oracle does not qualify overlapping
+additive/multiply characters, which can depend on the destination behind them.
 The bounds check compares custom AABBs with actual mesh vertex buffers and
 requires the fixture to exercise all-negative coordinates. It runs in both
 native and exported graphics modes. Zero-area and extreme-transform coverage
