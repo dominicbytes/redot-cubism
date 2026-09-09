@@ -173,6 +173,8 @@ struct Validation {
 }
 
 void CubismManifestParser::_bind_methods() {
+    ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_user_data", "json"), &CubismManifestParser::parse_user_data);
+    ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_display_info", "json"), &CubismManifestParser::parse_display_info);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_physics", "json"), &CubismManifestParser::parse_physics);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_pose", "json"), &CubismManifestParser::parse_pose);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("read_project_json", "path"), &CubismManifestParser::read_project_json);
@@ -764,5 +766,80 @@ Dictionary CubismManifestParser::parse_physics(const String &json) {
     result["ok"] = v.ok;
     result["diagnostics"] = v.diagnostics;
     result["physics"] = v.ok ? data : Dictionary();
+    return result;
+}
+
+Dictionary CubismManifestParser::parse_user_data(const String &json) {
+    Validation v;
+    const Dictionary data = v.object(json);
+    if (v.ok) {
+        const Variant version = data.get("Version", Variant());
+        if ((version.get_type() != Variant::INT && version.get_type() != Variant::FLOAT) || double(version) != 3) v.error("Version", "Expected user-data version 3.");
+        if (v.type(data, "Meta", Variant::DICTIONARY, "Meta") && v.type(data, "UserData", Variant::ARRAY, "UserData")) {
+            const Dictionary meta = data["Meta"];
+            const Array entries = data["UserData"];
+            const Variant count = meta.get("UserDataCount", Variant());
+            if ((count.get_type() != Variant::INT && count.get_type() != Variant::FLOAT) || double(count) != entries.size()) v.error("Meta.UserDataCount", "Declared count must match the user-data array.");
+            if (meta.has("TotalUserDataSize")) {
+                v.numeric(meta, "TotalUserDataSize", "Meta.TotalUserDataSize");
+                const Variant size = meta["TotalUserDataSize"];
+                if ((size.get_type() == Variant::INT || size.get_type() == Variant::FLOAT) && (double(size) < 0 || std::floor(double(size)) != double(size))) v.error("Meta.TotalUserDataSize", "Expected a nonnegative integer size.");
+            }
+            for (int i = 0; i < entries.size(); ++i) {
+                const String path = "UserData[" + String::num_int64(i) + String("]");
+                if (entries[i].get_type() != Variant::DICTIONARY) { v.error(path, "Expected a user-data object."); continue; }
+                const Dictionary entry = entries[i];
+                for (const String key : {String("Target"), String("Id"), String("Value")}) {
+                    if (v.type(entry, key, Variant::STRING, path + String(".") + key) && key != "Value" && String(entry[key]).is_empty()) v.error(path + String(".") + key, "Expected a nonempty identifier.");
+                }
+            }
+        }
+    }
+    Dictionary result;
+    result["ok"] = v.ok;
+    result["diagnostics"] = v.diagnostics;
+    result["user_data"] = v.ok ? data : Dictionary();
+    return result;
+}
+
+Dictionary CubismManifestParser::parse_display_info(const String &json) {
+    Validation v;
+    const Dictionary data = v.object(json);
+    if (v.ok) {
+        const Variant version = data.get("Version", Variant());
+        if ((version.get_type() != Variant::INT && version.get_type() != Variant::FLOAT) || double(version) != 3) v.error("Version", "Expected display-info version 3.");
+        for (const String key : {String("Parameters"), String("ParameterGroups"), String("Parts")}) {
+            if (!data.has(key) || !v.type(data, key, Variant::ARRAY, key)) continue;
+            const Array entries = data[key];
+            Dictionary identifiers;
+            for (int i = 0; i < entries.size(); ++i) {
+                const String path = key + String("[") + String::num_int64(i) + String("]");
+                if (entries[i].get_type() != Variant::DICTIONARY) { v.error(path, "Expected a display-info object."); continue; }
+                const Dictionary entry = entries[i];
+                if (v.type(entry, "Id", Variant::STRING, path + String(".Id"))) {
+                    const String id = entry["Id"];
+                    if (id.is_empty() || identifiers.has(id)) v.error(path + String(".Id"), "Expected a nonempty unique ID in this collection.");
+                    identifiers[id] = true;
+                }
+                v.type(entry, "Name", Variant::STRING, path + String(".Name"));
+                if (entry.has("GroupId")) v.type(entry, "GroupId", Variant::STRING, path + String(".GroupId"));
+            }
+        }
+        if (data.has("CombinedParameters") && v.type(data, "CombinedParameters", Variant::ARRAY, "CombinedParameters")) {
+            const Array combinations = data["CombinedParameters"];
+            for (int i = 0; i < combinations.size(); ++i) {
+                const String path = "CombinedParameters[" + String::num_int64(i) + String("]");
+                if (combinations[i].get_type() != Variant::ARRAY) { v.error(path, "Expected a parameter ID array."); continue; }
+                const Array ids = combinations[i];
+                for (int j = 0; j < ids.size(); ++j) {
+                    if (ids[j].get_type() != Variant::STRING || String(ids[j]).is_empty()) v.error(path + String("[") + String::num_int64(j) + String("]"), "Expected a nonempty parameter ID.");
+                }
+            }
+        }
+    }
+    Dictionary result;
+    result["ok"] = v.ok;
+    result["diagnostics"] = v.diagnostics;
+    result["display_info"] = v.ok ? data : Dictionary();
     return result;
 }

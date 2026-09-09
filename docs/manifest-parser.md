@@ -174,3 +174,23 @@ This validates structure before SDK allocation. It does not resolve parameter
 IDs against the MOC, run the physics simulation, prove numerical stability for
 all finite inputs, or wire the file into the editor importer. Those remain
 runtime/importer qualification requirements.
+
+## User-data and display-info validation
+
+`parse_user_data(json)` returns `ok`, bounded `diagnostics` and `user_data`
+(empty on failure). Version 3 and an exact `Meta.UserDataCount` are required
+before the SDK's count-driven entry reads. Entries require nonempty string
+Target/Id and a string Value; empty values and unknown target names are preserved.
+Optional TotalUserDataSize must be a nonnegative integer but is not recomputed:
+the pinned consumer does not use it, and byte/character semantics are not assumed.
+
+`parse_display_info(json)` returns `ok`, `diagnostics` and `display_info` (empty
+on failure). Version 3 is required. Optional Parameters, ParameterGroups and
+Parts arrays contain objects with unique nonempty IDs per collection and string
+Names. Optional GroupId is a string and may be empty. CombinedParameters, when
+present, is an array of arrays of nonempty parameter IDs. Original names, order
+and unknown metadata are retained. IDs may repeat across different collections.
+
+Both use the shared JSON bounds. Neither resolves IDs against the MOC, traverses
+or validates group relationships, loads files, or creates SDK/runtime objects.
+Consumers must validate relationships before treating group metadata as a tree.
