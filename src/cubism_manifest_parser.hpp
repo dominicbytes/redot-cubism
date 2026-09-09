@@ -15,6 +15,7 @@ public:
     static godot::Dictionary parse_manifest(const godot::String &json, const godot::String &source_path);
     static godot::Dictionary parse_expression(const godot::String &json, const godot::String &expression_id, const godot::String &source_path);
     static godot::Dictionary parse_motion(const godot::String &json, const godot::String &group, int index, const godot::String &source_path);
+    static godot::Dictionary parse_pose(const godot::String &json);
     static godot::Dictionary read_project_json(const godot::String &path);
     // Physical filesystem snapshot, not a virtual/exported resource lookup.
     static godot::Dictionary validate_project_file(const godot::String &path);
