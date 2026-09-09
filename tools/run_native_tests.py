@@ -70,6 +70,7 @@ def main():
     copy_bytes(ROOT / "tests/native/project", project)
     copy_bytes(args.model.parent, project / "fixture")
     copy_bytes(ROOT / "demo/addons/gd_cubism/res", project / "addons/gd_cubism/res")
+    shader_hashes = {path.name: sha256(path) for path in sorted((project / "addons/gd_cubism/res/shader").glob("*.gdshader"))}
     library_path = project / "addons/gd_cubism/bin" / args.library.name
     library_path.parent.mkdir(parents=True)
     library_path.write_bytes(args.library.read_bytes())
@@ -165,6 +166,8 @@ def main():
             success = run("renderer-order", ["--quit-after", "120", "--", "--order-checks"], "CUBISM_ORDER_PASS", graphics=True)
         if success:
             success = run("renderer-bounds", ["--quit-after", "120", "--", "--bounds-checks"], "CUBISM_BOUNDS_PASS", graphics=True)
+        if success:
+            success = run("renderer-blends", ["--quit-after", "600", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=54", graphics=True)
     exported = False
     if success and args.template:
         template = args.template.resolve()
@@ -197,10 +200,13 @@ def main():
                     success = run("exported-renderer-order", ["--quit-after", "120", "--", "--order-checks"], "CUBISM_ORDER_PASS", game, graphics=True)
                 if success:
                     success = run("exported-renderer-bounds", ["--quit-after", "120", "--", "--bounds-checks"], "CUBISM_BOUNDS_PASS", game, graphics=True)
+                if success:
+                    success = run("exported-renderer-blends", ["--quit-after", "600", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=54", game, graphics=True)
             exported = success
     report = {"status": "PASS" if success else "FAIL", "engine_version": version, "library_sha256": sha256(args.library),
               "fixture_manifest_sha256": sha256(args.model), "fixture_moc_sha256": sha256(args.model.parent / refs["Moc"]),
               "mask_compositions_sha256": sha256(args.mask_compositions) if args.mask_compositions else None,
+              "shader_sha256": shader_hashes,
               "checks": checks, "real_model_tested": any(c["test"] == "runtime" and c["status"] == "PASS" for c in checks),
               "export_template_tested": exported, "graphics_tested": graphics_tested}
     if args.sanitizer_runtime:

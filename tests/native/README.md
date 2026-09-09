@@ -77,6 +77,21 @@ strings have the same Redot String hash. Supply the corresponding renamed groups
 as the oracle; all three masks must still exist. Keep the modified MOC private.
 This checks resource identity at load time and can run headlessly; it does not
 establish mask image parity.
+The same test compares each mask mesh's texture with its source drawable's
+texture. A private cross-atlas fixture is required to reproduce selection of
+the clipped drawable's texture: none of the eight bundled SDK models exercise
+that distinction. The local Haru regression moves only `D_PSD_35` to texture 1;
+Core independently confirms four cross-atlas mask references.
+
+Graphics runs additionally render 54 synthetic cases using the actual nine
+normal/add/multiply shader variants, including regular/inverted masks, source
+alpha 0/0.5/1 and destination alpha 0.5/1. Pixel results are compared with the
+SDK's compatible blend equations, with a fixed tolerance of 3/255 per channel
+for texture/framebuffer quantization. A shader that writes the destination
+directly isolates blend behavior from background composition. This reproduces
+unmasked multiply incorrectly behaving like normal blending. Reports record
+the copied shader hashes. These tests qualify the tested blend equations;
+they do not cover all model effects, mask geometry, or full SDK image parity.
 
 ## AddressSanitizer
 

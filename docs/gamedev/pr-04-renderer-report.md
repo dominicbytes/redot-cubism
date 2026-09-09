@@ -45,7 +45,7 @@ capture or native binary is included in this source checkpoint.
 ## Remaining gates
 
 Dynamic Cubism draw-order changes and overlapping-model image oracles remain
-open. Blend modes, regular/inverted masks, extreme transforms, zero-area geometry,
+open. Full-model blend/effect and regular/inverted-mask parity, extreme transforms, zero-area geometry,
 offscreen policy, fallback rendering experiments and debug visualization still
 need qualification. Dynamic-flag optimization follows visual parity.
 
@@ -57,3 +57,43 @@ deterministic texture-import policy that preserves unrelated texture consumers.
 
 Windows and actual window minimization remain unverified. These renderer edits
 have not been sanitizer-qualified or validated as clean committed binaries.
+
+## Cross-atlas and blend follow-up
+
+Mask meshes selected the clipped drawable's atlas instead of the source's atlas.
+None of the eight bundled SDK models contained cross-atlas mask references.
+A private Haru copy moves only `D_PSD_35` from texture 0 to texture 1; an
+independent Core inspection confirms four resulting cross-atlas references.
+The resource-binding regression fails before the one-line selection fix and
+passes afterward. The mask test now compares each source's drawable and mask
+texture resources.
+
+Unmasked multiply also used the normal blend shader. A synthetic pixel oracle
+based on the SDK's compatible OpenGL blend factors reproduced four failures.
+It tests all nine normal/add/multiply and regular/inverted-mask variants, source
+alpha 0/0.5/1, and destination alpha 0.5/1, with a fixed 3/255 channel tolerance.
+The corrected multiply shader uses `blend_mul`, adds the neutral contribution
+for uncovered alpha, and preserves destination alpha. All 54 cases now pass.
+
+The expanded debug and release suites each pass 27 checks, including all 54
+blend cases again in the exported game. Debug uses original Haru; release uses
+the cross-atlas fixture. Working-tree addon identities based on `6eeae9f`:
+
+- Debug: `802f724f42f524b6aee6e2861b0d1ddcb6ac51016b97cf18544ef116c4a5e131`.
+- Release: `5b0ed02c6f9b08ea0fd8eaf2d0646416f14d595415bb7bc9cac0a04110fea57c`.
+
+The shader files are separate runtime inputs; the latest debug report records
+their hashes, and the release report fingerprints the exported PCK. Reports and
+logs remain private under `renderer-blend-debug` and
+`renderer-cross-atlas-blend-release` in `.local-build/evidence`.
+
+An independent SDK capture of the cross-atlas fixture and matching Redot state
+has foreground mean RGB error 0.377, 95th-percentile channel error 1, and maximum
+channel error 10 on a 0–255 scale. The private SDK hook permits a fixture-directory
+override; the original fixture's reference image remains byte-identical after
+that hook. The side-by-side image was inspected. Against the saved pre-fix
+library, only 12 pixels change and mean error is essentially unchanged (0.376826
+before, 0.376884 after). This pose is therefore a weak oracle for the visible
+benefit of atlas selection; the resource-binding regression is the decisive
+evidence for that fix. Stronger mask-image cases and full renderer parity remain
+open.

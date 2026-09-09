@@ -416,7 +416,7 @@ void InternalCubismRenderer2D::build_model(InternalCubismRendererResource &res, 
                 node->set_name(mask_name);
                 node->set_material(mat);
                 mat->set_shader_parameter("channel", Vector4(0.0, 0.0, 0.0, 1.0));
-                mat->set_shader_parameter("tex_main", res.ary_texture[model->GetDrawableTextureIndex(index)]);
+                mat->set_shader_parameter("tex_main", res.ary_texture[model->GetDrawableTextureIndex(j)]);
 
                 node->set_z_index(model->GetRenderOrders()[index]);
                 node->set_visible(true);
