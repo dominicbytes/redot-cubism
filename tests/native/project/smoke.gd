@@ -76,6 +76,18 @@ func _capture(model: GDCubismUserModel, path: String) -> bool:
 
 func _run() -> void:
 	var fixture: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://fixture.json"))
+	if "--mask-checks" in OS.get_cmdline_user_args():
+		var passed: bool = preload("res://renderer_mask_checks.gd").run(self, fixture)
+		get_tree().quit(0 if passed else 1)
+		return
+	if "--bounds-checks" in OS.get_cmdline_user_args():
+		var passed: bool = await preload("res://renderer_bounds_checks.gd").run(self, fixture)
+		get_tree().quit(0 if passed else 1)
+		return
+	if "--order-checks" in OS.get_cmdline_user_args():
+		var passed: bool = await preload("res://renderer_order_checks.gd").run(self, fixture)
+		get_tree().quit(0 if passed else 1)
+		return
 	if "--loading-checks" in OS.get_cmdline_user_args():
 		var passed: bool = preload("res://loading_checks.gd").run(self, fixture)
 		get_tree().quit(0 if passed else 1)

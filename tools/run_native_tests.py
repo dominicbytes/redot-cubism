@@ -30,6 +30,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True, help="Private output directory")
     parser.add_argument("--model", type=Path, required=True, help="Lawfully provisioned model3.json with motions and expressions")
     parser.add_argument("--expression", required=True, help="Declared expression known to change the fixture's default pose")
+    parser.add_argument("--mask-compositions", type=Path, help="Private JSON array of expected unique mask-source ID arrays")
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--template", type=Path)
     parser.add_argument("--export-mode", choices=["debug", "release"], default="debug")
@@ -58,6 +59,11 @@ def main():
         parser.error("Fixture must have a bounded motion and at least one expression")
     if args.expression not in {expression["Name"] for expression in refs["Expressions"]}:
         parser.error("Expression must be declared by the fixture model")
+    mask_compositions = json.loads(args.mask_compositions.read_text()) if args.mask_compositions else None
+    if args.mask_compositions and (not isinstance(mask_compositions, list) or not mask_compositions or
+            any(not isinstance(group, list) or not group or any(not isinstance(name, str) for name in group)
+                for group in mask_compositions)):
+        parser.error("Mask compositions must be a nonempty array of nonempty string arrays")
     args.output.mkdir(parents=True, exist_ok=True)
     run_root = Path(tempfile.mkdtemp(prefix="native-", dir=args.output.resolve()))
     project = run_root / "project"
@@ -72,7 +78,8 @@ def main():
         '[configuration]\nentry_symbol="gd_cubism_library_init"\ncompatibility_minimum="26.2"\ndisable_godot_checks=true\nreloadable=false\n'
         f'[libraries]\n{feature}.x86_64="res://addons/gd_cubism/bin/{args.library.name}"\n')
     (project / "fixture.json").write_text(json.dumps({"model": "res://fixture/" + args.model.name,
-        "motion_group": group, "motion_duration": duration, "expression": args.expression}))
+        "motion_group": group, "motion_duration": duration, "expression": args.expression,
+        "mask_compositions": mask_compositions}))
     (project / "FIXTURE_NOTICE.txt").write_text("This content uses sample data owned and copyrighted by Live2D Inc.\n")
     env = dict(os.environ)
     for name in ("CONFIG", "DATA", "CACHE"):
@@ -148,10 +155,16 @@ def main():
             else:
                 env["ASAN_OPTIONS"] = previous_asan
     graphics_tested = False
+    if success and args.mask_compositions:
+        success = run("renderer-masks", ["--quit-after", "120", "--", "--mask-checks"], "CUBISM_MASK_PASS")
     if success and args.graphics:
         success = run("graphics", ["--quit-after", "120", "--", f"--capture={run_root / 'model.png'}"], "CUBISM_NATIVE_GRAPHICS:", graphics=True)
         graphics_tested = success and (run_root / "model.png").is_file()
         success = success and graphics_tested
+        if success:
+            success = run("renderer-order", ["--quit-after", "120", "--", "--order-checks"], "CUBISM_ORDER_PASS", graphics=True)
+        if success:
+            success = run("renderer-bounds", ["--quit-after", "120", "--", "--bounds-checks"], "CUBISM_BOUNDS_PASS", graphics=True)
     exported = False
     if success and args.template:
         template = args.template.resolve()
@@ -172,15 +185,22 @@ def main():
             success = run("exported-empty-runtime", ["--script", "res://empty_runtime.gd", "--quit-after", "2"], "CUBISM_EMPTY_PASS", game)
         if success:
             success = run("exported-runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS", game)
+            if success and args.mask_compositions:
+                success = run("exported-renderer-masks", ["--quit-after", "120", "--", "--mask-checks"], "CUBISM_MASK_PASS", game)
             for label, flag, marker in [("native-processing", "--process-checks", "CUBISM_PROCESS_PASS"), ("lifecycle", "--lifecycle-checks", "CUBISM_LIFECYCLE_PASS"), ("loading-removal", "--loading-checks", "CUBISM_LOADING_PASS"), ("handles", "--handle-checks", "CUBISM_HANDLE_PASS"), ("deltas", "--delta-checks", "CUBISM_DELTA_PASS")]:
                 if success:
                     success = run("exported-" + label, ["--fixed-fps", "60", "--quit-after", "600", "--", flag], marker, game)
             if success and args.graphics:
                 success = run("exported-graphics", ["--quit-after", "120", "--", f"--capture={run_root / 'exported-model.png'}"], "CUBISM_NATIVE_GRAPHICS:", game, graphics=True)
                 success = success and (run_root / "exported-model.png").is_file()
+                if success:
+                    success = run("exported-renderer-order", ["--quit-after", "120", "--", "--order-checks"], "CUBISM_ORDER_PASS", game, graphics=True)
+                if success:
+                    success = run("exported-renderer-bounds", ["--quit-after", "120", "--", "--bounds-checks"], "CUBISM_BOUNDS_PASS", game, graphics=True)
             exported = success
     report = {"status": "PASS" if success else "FAIL", "engine_version": version, "library_sha256": sha256(args.library),
               "fixture_manifest_sha256": sha256(args.model), "fixture_moc_sha256": sha256(args.model.parent / refs["Moc"]),
+              "mask_compositions_sha256": sha256(args.mask_compositions) if args.mask_compositions else None,
               "checks": checks, "real_model_tested": any(c["test"] == "runtime" and c["status"] == "PASS" for c in checks),
               "export_template_tested": exported, "graphics_tested": graphics_tested}
     if args.sanitizer_runtime:
