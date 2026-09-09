@@ -258,3 +258,29 @@ Public Python tests: 24 passed; staged source audit: 268 files passed. These are
 local working-tree builds following 761d825. Physics simulation stability,
 MOC parameter resolution, Windows, ASan and editor importer integration are
 not established by these parser tests.
+
+## Supporting metadata validation checkpoint
+
+Added `parse_user_data` and `parse_display_info` with shared bounds and typed
+metadata validation. User-data counts must match arrays before the SDK reads
+entries. Values and unknown target names remain intact. Optional declared text
+size is checked as a nonnegative integer without guessing encoding semantics.
+Display-info validates names, IDs, group-ID types and combined-parameter arrays;
+IDs are unique within each collection. Neither parser traverses group graphs
+or resolves references against a MOC. Both preserve unknown metadata and source
+ordering and return an empty data dictionary on failure.
+
+All 11 user-data/display-info files referenced by the SDK sample manifests
+passed, with preserved dictionaries compared against decoded source JSON.
+Malformed-count/type/ID/name/combined-parameter tests are included in both source
+and exported native runs. Evidence is retained locally under
+`.local-build/evidence/metadata-parser-*` and `all-sdk-metadata.log`.
+
+Linux debug and release each passed 55 integrated native/export checks,
+including 32 metadata assertions in each source/export run. Debug library:
+`d3902aa459ffaeded40905a83d26816accf109e3ea760f4eb0f82d6a2c990b65`;
+release: `dee5d86f96920b8b4e483543ef55f7bc9d1295b514f7d7fae2966737860ef8d9`.
+Public Python tests: 24 passed; staged source audit: 269 files passed. These are
+local working-tree builds following fd36704. The importer factory, MOC inspection,
+editor registration/invalidation and runtime consumption remain pending, along
+with Windows and ASan qualification.

@@ -160,6 +160,8 @@ def main():
     if success:
         success = run("physics-parser", ["--script", "res://physics_parser_checks.gd", "--quit-after", "2"], "CUBISM_PHYSICS_PARSER_PASS")
     if success:
+        success = run("metadata-parser", ["--script", "res://metadata_parser_checks.gd", "--quit-after", "2"], "CUBISM_METADATA_PARSER_PASS")
+    if success:
         success = run("runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS")
     if success:
         success = run("native-processing", ["--fixed-fps", "60", "--quit-after", "600", "--", "--process-checks"], "CUBISM_PROCESS_PASS")
@@ -245,6 +247,8 @@ def main():
             success = run("exported-pose-parser", ["--script", "res://pose_parser_checks.gd", "--quit-after", "2"], "CUBISM_POSE_PARSER_PASS", game)
         if success:
             success = run("exported-physics-parser", ["--script", "res://physics_parser_checks.gd", "--quit-after", "2"], "CUBISM_PHYSICS_PARSER_PASS", game)
+        if success:
+            success = run("exported-metadata-parser", ["--script", "res://metadata_parser_checks.gd", "--quit-after", "2"], "CUBISM_METADATA_PARSER_PASS", game)
         if success:
             success = run("exported-runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS", game)
             if success and args.mask_compositions:

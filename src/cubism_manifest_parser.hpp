@@ -15,6 +15,8 @@ public:
     static godot::Dictionary parse_manifest(const godot::String &json, const godot::String &source_path);
     static godot::Dictionary parse_expression(const godot::String &json, const godot::String &expression_id, const godot::String &source_path);
     static godot::Dictionary parse_motion(const godot::String &json, const godot::String &group, int index, const godot::String &source_path);
+    static godot::Dictionary parse_user_data(const godot::String &json);
+    static godot::Dictionary parse_display_info(const godot::String &json);
     static godot::Dictionary parse_physics(const godot::String &json);
     static godot::Dictionary parse_pose(const godot::String &json);
     static godot::Dictionary read_project_json(const godot::String &path);
