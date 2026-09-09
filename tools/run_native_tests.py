@@ -180,6 +180,8 @@ def main():
             success = run("renderer-blends", ["--quit-after", "600", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=54", graphics=True)
         if success:
             success = run("renderer-offscreen", ["--quit-after", "600", "--", "--offscreen-checks"], "CUBISM_OFFSCREEN_PASS cycles=5 camera_transform=true", graphics=True)
+        if success:
+            success = run("renderer-transforms", ["--quit-after", "600", "--", "--transform-checks"], "CUBISM_TRANSFORM_PASS cases=6 restored_pixels=true", graphics=True)
         if success and args.normal_blend_overlap:
             success = run("renderer-overlap", ["--quit-after", "600", "--", "--overlap-checks", f"--overlap-capture={run_root / 'overlap.png'}"], "CUBISM_OVERLAP_PASS orders=4", graphics=True)
     exported = False
@@ -218,6 +220,8 @@ def main():
                     success = run("exported-renderer-blends", ["--quit-after", "600", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=54", game, graphics=True)
                 if success:
                     success = run("exported-renderer-offscreen", ["--quit-after", "600", "--", "--offscreen-checks"], "CUBISM_OFFSCREEN_PASS cycles=5 camera_transform=true", game, graphics=True)
+                if success:
+                    success = run("exported-renderer-transforms", ["--quit-after", "600", "--", "--transform-checks"], "CUBISM_TRANSFORM_PASS cases=6 restored_pixels=true", game, graphics=True)
                 if success and args.normal_blend_overlap:
                     success = run("exported-renderer-overlap", ["--quit-after", "600", "--", "--overlap-checks", f"--overlap-capture={run_root / 'exported-overlap.png'}"], "CUBISM_OVERLAP_PASS orders=4", game, graphics=True)
             exported = success

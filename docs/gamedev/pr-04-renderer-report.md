@@ -149,3 +149,29 @@ Working-tree libraries based on `89e39b4`:
 
 Evidence is retained under `.local-build/evidence/renderer-offscreen-debug`,
 `renderer-offscreen-release`, and `renderer-offscreen-camera-debug.log`.
+
+## Singular and extreme transforms
+
+A corrected regression assigns transform matrices directly: Redot's scale
+setter clamps zero to epsilon, so its initial scale-property failure was not
+evidence of a truly singular transform. The explicit-matrix test fails against
+the saved offscreen checkpoint and passes with the new determinant guard.
+Only exactly singular viewport transforms suspend masks; reflections and small
+nonzero transforms remain valid.
+
+Six cases cover complete/one-axis collapse, reflection with nonuniform scale,
+and scale factors from 0.000001 to 10000 under a rotated ancestor. Mask sizes
+remain within the configured 128-pixel cap, node counts stay stable, and returning
+to the original transform restores identical image bytes. This does not test
+empty/malformed MOC geometry or establish image parity at every extreme scale.
+
+Debug and release each pass all 33 native/export checks. Working-tree libraries
+based on `1fad223`:
+
+- Debug: `373f68583ef2406d81ce8bc3deb66d71b569f21055da74738ad3637e66bd9dd6`.
+- Release: `93890ee6e5a7e03a4a6dc2b2ac2ea82a2ad24ad325a970a758fa2a087b825434`.
+
+Evidence is retained in `.local-build/evidence/renderer-transform-debug-final`
+and `renderer-transform-release-final`. The corrected before/after probes are
+`renderer-singular-baseline.log` and `renderer-singular-fixed.log`. The earlier
+failed scale-property experiment remains recorded but is not qualifying evidence.

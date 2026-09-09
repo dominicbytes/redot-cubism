@@ -122,6 +122,14 @@ Culling is reevaluated during model advancement; these manual-mode tests advance
 after each model or camera transform change.
 This is a camera/culling smoke check, not exhaustive transform image parity.
 
+The transform regression assigns explicit matrices for complete/one-axis
+collapse, reflection with nonuniform scale, and scale factors from 0.000001 to
+10000. Matrix assignment matters: Redot's `Node2D.set_scale` clamps zero to a
+small nonzero value. Truly singular transforms must suspend masks. The test
+caps mask dimensions at 128, requires stable node counts, and compares the
+restored model image byte-for-byte with its original image. This checks
+transform recovery, not malformed or empty MOC geometry.
+
 ## AddressSanitizer
 
 Build the addon with the usual pinned inputs and `sanitize=address`, using a
