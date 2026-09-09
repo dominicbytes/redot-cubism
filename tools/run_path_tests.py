@@ -34,6 +34,7 @@ def main():
         'config_version=5\n[application]\nconfig/name="Cubism physical path checks"\n'
         '[rendering]\nrenderer/rendering_method="gl_compatibility"\n')
     (project / "path_checks.gd").write_bytes((ROOT / "tests/native/project/path_checks.gd").read_bytes())
+    (project / "json_read_checks.gd").write_bytes((ROOT / "tests/native/project/json_read_checks.gd").read_bytes())
     env = dict(os.environ)
     for name in ("CONFIG", "DATA", "CACHE"):
         env[f"XDG_{name}_HOME"] = str(run / name.lower())
@@ -70,11 +71,37 @@ def main():
         (paths / "sibling-link.txt").symlink_to(sibling / "sibling.txt")
         (paths / "dangling-link.txt").symlink_to(outside / "missing.txt")
         (paths / "loop.txt").symlink_to("loop.txt")
+        sources = paths / "json"
+        sources.mkdir()
+        fixtures = {
+            "unicode": '{"text":"内部😀"}'.encode(),
+            "bom": b"\xef\xbb\xbf{}",
+            "double-bom": b"\xef\xbb\xbf\xef\xbb\xbf{}",
+            "empty": b"",
+            "exact-limit": b" " * (4 * 1024 * 1024),
+            "too-large": b" " * (4 * 1024 * 1024 + 1),
+            "nul": b'{"text":"a\x00b"}',
+            "overlong": b"\xc0\xaf",
+            "overlong-three": b"\xe0\x80\xaf",
+            "overlong-four": b"\xf0\x80\x80\xaf",
+            "surrogate": b"\xed\xa0\x80",
+            "too-high": b"\xf4\x90\x80\x80",
+            "bad-leader": b"\xff",
+            "stray-continuation": b"\x80",
+            "truncated": b"\xf0\x9f\x98",
+            "bad-continuation": b"\xe2ab",
+        }
+        for name, content in fixtures.items():
+            (sources / (name + ".json")).write_bytes(content)
         ok = execute("paths", ["--script", "res://path_checks.gd", "--quit-after", "2"],
                      "CUBISM_PATH_CHECKS cases=18 failures=0")
+        if ok:
+            ok = execute("json-reads", ["--script", "res://json_read_checks.gd", "--quit-after", "2"],
+                         "CUBISM_JSON_READ_PASS")
     report = {"status": "PASS" if ok else "FAIL", "run": str(run),
               "library_sha256": hashlib.sha256((addon / "bin" / args.library.name).read_bytes()).hexdigest(),
               "script_sha256": hashlib.sha256((project / "path_checks.gd").read_bytes()).hexdigest(),
+              "json_read_script_sha256": hashlib.sha256((project / "json_read_checks.gd").read_bytes()).hexdigest(),
               "engine_version": subprocess.check_output([engine, "--version"], text=True, timeout=10).strip(),
               "coverage": "physical filesystem only; not exported virtual resources or concurrent file replacement"}
     (args.output / "physical-path-report.json").write_text(json.dumps(report, indent=2) + "\n")

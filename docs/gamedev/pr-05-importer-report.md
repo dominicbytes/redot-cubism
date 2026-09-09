@@ -182,3 +182,29 @@ Public Python tests: 24 passed; source audit: 265 files passed. These are local
 working-tree builds following 5844244, not a new clean public release. Evidence
 is retained under `.local-build/evidence/motion-parser-*` and
 `all-sdk-motions.log`. ASan and Windows qualification of this code remain pending.
+
+## Bounded JSON source reads
+
+Added `read_project_json(path)`: physical containment, FileAccess rather than
+ResourceLoader, a 4 MiB cap checked before allocation, short-read/length-change
+rejection, strict UTF-8 validation and Redot String decoding. It returns no text
+on failure. BOM handling delegates to Redot so exactly one initial BOM is
+removed. JSON syntax/schema parsing remains a separate required step. The
+physical path check is a snapshot, not an atomic defense against concurrent
+replacement. This helper is not yet wired into the editor importer.
+
+Final debug and release builds passed 27 decoding/read cases and 18 real
+filesystem containment cases each. Tests cover size boundaries, Unicode,
+contained/external links, missing/dangling paths, malformed UTF-8, embedded NUL
+and single/double BOM inputs. Final debug library:
+`3ce61a61f6f89b7ec5c6a0908c76435642785c8d30a835880d21207285e169ea`;
+release: `db8395c0e84e5b1032a7f5e2df73d00bbabe60b4f7ceb9d7ee56d30d0cedc8a3`.
+
+Before the isolated BOM correction, the broader native/export suite passed 49
+checks in each variant (debug
+`56753eeb1504774bb3bab74f40f4e1e8da983de1ec5361f7c2d95aa909239caa`,
+release `ef13acfb4409d42ff81d75e03629899ddd1f82ef5477df0a0052f3a65094a153`).
+Those checks do not invoke the new physical reader; the changed decoding path
+was retested with the final focused suites above. Public Python tests: 24 passed;
+final staged source audit: 266 files passed. Reports/logs are retained locally
+under `.local-build/evidence/json-read-*`. Windows and ASan remain pending.

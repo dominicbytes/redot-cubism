@@ -116,3 +116,22 @@ second, matching the pinned SDK. Per-curve fades remain in the preserved data.
 The importer still needs to apply model-manifest fade overrides and sound
 associations. This helper does not create Redot Animation tracks, play motion,
 or qualify the complete importer/runtime pipeline.
+
+## Bounded physical JSON reads
+
+`read_project_json(path)` returns `ok`, `status`, `path`, `message` and `text`.
+It first applies `validate_project_file`, then opens the physical project path
+with FileAccess, without ResourceLoader or resource remapping. It refuses files
+larger than 4 MiB before allocating a buffer and rejects a short read or a change
+in length during the read. Failed reads always return empty text.
+
+UTF-8 is checked for invalid/truncated sequences, overlong encodings, surrogate
+code points, out-of-range code points and embedded NUL before decoding with a
+Redot String. An initial UTF-8 BOM is accepted and removed. Empty files and
+non-JSON text can be read; the schema parser must subsequently reject invalid
+JSON. The helper does not parse, execute, import or create any resource.
+
+This is an editor source-file operation, not a PCK resource reader. Physical
+containment is a snapshot; the helper does not claim an atomic defense against
+concurrent symlink replacement or same-length content changes. Callers must
+attach the manifest property path to read diagnostics when resolving dependencies.

@@ -2,6 +2,7 @@
 #include "cubism_manifest_parser.hpp"
 #include "cubism_descriptors.hpp"
 #include <godot_cpp/classes/json.hpp>
+#include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/array.hpp>
@@ -172,6 +173,7 @@ struct Validation {
 }
 
 void CubismManifestParser::_bind_methods() {
+    ClassDB::bind_static_method("CubismManifestParser", D_METHOD("read_project_json", "path"), &CubismManifestParser::read_project_json);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_motion", "json", "group", "index", "source_path"), &CubismManifestParser::parse_motion);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_manifest", "json", "source_path"), &CubismManifestParser::parse_manifest);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("validate_project_file", "path"), &CubismManifestParser::validate_project_file);
@@ -560,5 +562,67 @@ Dictionary CubismManifestParser::parse_motion(const String &json, const String &
     result["ok"] = v.ok;
     result["diagnostics"] = v.diagnostics;
     result["motion"] = motion;
+    return result;
+}
+
+Dictionary CubismManifestParser::read_project_json(const String &path) {
+    Dictionary result = validate_project_file(path);
+    result["ok"] = false;
+    result["text"] = String();
+    if (result["status"] != String("file")) return result;
+    result["status"] = "error";
+    // Use the physical path rather than resource remapping or a script-bearing
+    // ResourceLoader. Containment remains a snapshot, not an atomic open policy.
+    const Ref<FileAccess> file = FileAccess::open(ProjectSettings::get_singleton()->globalize_path(path), FileAccess::READ);
+    if (file.is_null()) {
+        result["message"] = "Cannot open the project JSON file.";
+        return result;
+    }
+    const uint64_t length = file->get_length();
+    if (length > MAX_JSON_BYTES) {
+        result["message"] = "JSON source exceeds 4 MiB.";
+        return result;
+    }
+    const PackedByteArray bytes = file->get_buffer(length);
+    if (uint64_t(bytes.size()) != length || file->get_length() != length) {
+        result["message"] = "JSON source changed length or could not be read completely.";
+        return result;
+    }
+    // Reject malformed UTF-8 before Redot's decoder can replace invalid bytes
+    // or print decoding errors. This also rejects embedded NUL without truncation.
+    bool valid = true;
+    for (int64_t i = 0; i < bytes.size() && valid;) {
+        const uint8_t first = bytes[i++];
+        if (first == 0) { valid = false; break; }
+        if (first < 0x80) continue;
+        int continuation = 0;
+        uint32_t point = 0;
+        uint32_t minimum = 0;
+        if (first >= 0xc2 && first <= 0xdf) { continuation = 1; point = first & 0x1f; minimum = 0x80; }
+        else if (first >= 0xe0 && first <= 0xef) { continuation = 2; point = first & 0x0f; minimum = 0x800; }
+        else if (first >= 0xf0 && first <= 0xf4) { continuation = 3; point = first & 0x07; minimum = 0x10000; }
+        else { valid = false; break; }
+        if (i + continuation > bytes.size()) { valid = false; break; }
+        for (int j = 0; j < continuation; ++j) {
+            const uint8_t next = bytes[i++];
+            if ((next & 0xc0) != 0x80) { valid = false; break; }
+            point = (point << 6) | (next & 0x3f);
+        }
+        if (point < minimum || point > 0x10ffff || (point >= 0xd800 && point <= 0xdfff)) valid = false;
+    }
+    if (!valid) {
+        result["message"] = "JSON source must be valid UTF-8 without embedded NUL.";
+        return result;
+    }
+    // Redot removes exactly one initial UTF-8 BOM during decoding.
+    String text;
+    if (!bytes.is_empty() && text.parse_utf8(reinterpret_cast<const char *>(bytes.ptr()), bytes.size()) != OK) {
+        result["message"] = "Cannot decode JSON source as UTF-8.";
+        return result;
+    }
+    result["ok"] = true;
+    result["status"] = "file";
+    result["message"] = String();
+    result["text"] = text;
     return result;
 }
