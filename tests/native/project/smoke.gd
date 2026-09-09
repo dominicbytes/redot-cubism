@@ -76,6 +76,10 @@ func _capture(model: GDCubismUserModel, path: String) -> bool:
 
 func _run() -> void:
 	var fixture: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://fixture.json"))
+	if "--blend-checks" in OS.get_cmdline_user_args():
+		var passed: bool = await preload("res://renderer_blend_checks.gd").run(self)
+		get_tree().quit(0 if passed else 1)
+		return
 	if "--mask-checks" in OS.get_cmdline_user_args():
 		var passed: bool = preload("res://renderer_mask_checks.gd").run(self, fixture)
 		get_tree().quit(0 if passed else 1)
