@@ -152,6 +152,8 @@ def main():
     if success:
         success = run("descriptors", ["--script", "res://descriptor_checks.gd", "--quit-after", "2"], "CUBISM_DESCRIPTORS_PASS")
     if success:
+        success = run("expression-parser", ["--script", "res://expression_parser_checks.gd", "--quit-after", "2"], "CUBISM_EXPRESSION_PARSER_PASS")
+    if success:
         success = run("runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS")
     if success:
         success = run("native-processing", ["--fixed-fps", "60", "--quit-after", "600", "--", "--process-checks"], "CUBISM_PROCESS_PASS")
@@ -229,6 +231,8 @@ def main():
             success = run("exported-model-resource", ["--script", "res://resource_checks.gd", "--quit-after", "2"], "CUBISM_RESOURCE_PASS", game)
         if success:
             success = run("exported-descriptors", ["--script", "res://descriptor_checks.gd", "--quit-after", "2"], "CUBISM_DESCRIPTORS_PASS", game)
+        if success:
+            success = run("exported-expression-parser", ["--script", "res://expression_parser_checks.gd", "--quit-after", "2"], "CUBISM_EXPRESSION_PARSER_PASS", game)
         if success:
             success = run("exported-runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS", game)
             if success and args.mask_compositions:

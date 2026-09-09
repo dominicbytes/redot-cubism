@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "cubism_manifest_parser.hpp"
+#include "cubism_descriptors.hpp"
 #include <godot_cpp/classes/json.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/core/class_db.hpp>
@@ -62,6 +63,36 @@ struct Validation {
             }
         }
         return true;
+    }
+
+    Dictionary object(const String &json) {
+        Dictionary manifest;
+        if (json.utf8().length() > MAX_JSON_BYTES) {
+            error("$", "Manifest exceeds 4 MiB of UTF-8 JSON.");
+        } else {
+            // Redot replaces decoded NUL with U+FFFD. Reject it before decoding so
+            // an invalid reference cannot silently become a different filename.
+            for (int i = 0; i < json.length(); ++i) {
+                if (json[i] == 0) error("$", "NUL characters are forbidden.");
+                if (json[i] == '\\' && i + 1 < json.length()) {
+                    if (json.substr(i + 1, 5) == "u0000") error("$", "NUL escapes are forbidden.");
+                    ++i;
+                }
+            }
+            Ref<JSON> parser;
+            parser.instantiate();
+            if (!ok) {
+                // Do not invoke the decoder on input known to lose information.
+            } else if (parser->parse(json) != OK || parser->get_data().get_type() != Variant::DICTIONARY) {
+                error("$", "Expected a JSON object: " + parser->get_error_message());
+            } else {
+                // Select releasing copy assignment in the pinned redot-cpp binding.
+                const Dictionary parsed = parser->get_data();
+                manifest = parsed;
+                bounded(manifest, "$");
+            }
+        }
+        return manifest;
     }
 
     bool type(const Dictionary &dict, const String &key, Variant::Type expected, const String &path) {
@@ -143,6 +174,76 @@ struct Validation {
 void CubismManifestParser::_bind_methods() {
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_manifest", "json", "source_path"), &CubismManifestParser::parse_manifest);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("validate_project_file", "path"), &CubismManifestParser::validate_project_file);
+    ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_expression", "json", "expression_id", "source_path"), &CubismManifestParser::parse_expression);
+}
+
+Dictionary CubismManifestParser::parse_expression(const String &json, const String &expression_id, const String &source_path) {
+    Validation v;
+    const Dictionary data = v.object(json);
+    String normalized;
+    if (!source_path.begins_with("res://") || !source_path.ends_with(".exp3.json")) {
+        v.error("source_path", "Expected a res:// path ending in .exp3.json.");
+    } else {
+        normalized = v.resolve(source_path.substr(6), "source_path");
+    }
+    if (expression_id.is_empty() || expression_id.length() > MAX_STRING) v.error("expression_id", "Expected a nonempty bounded expression ID.");
+    for (int i = 0; i < expression_id.length(); ++i) {
+        if (expression_id[i] == 0) v.error("expression_id", "NUL characters are forbidden in IDs.");
+    }
+    Ref<CubismExpressionDescriptor> expression;
+    TypedArray<CubismExpressionParameter> parameters;
+    if (v.ok) {
+        if (data.has("Type") && (data["Type"].get_type() != Variant::STRING || String(data["Type"]) != "Live2D Expression")) {
+            v.error("Type", "Expected Live2D Expression when Type is present.");
+        }
+        v.numeric(data, "FadeInTime", "FadeInTime");
+        v.numeric(data, "FadeOutTime", "FadeOutTime");
+        if (v.type(data, "Parameters", Variant::ARRAY, "Parameters")) {
+            const Array entries = data["Parameters"];
+            if (entries.size() > 4096) v.error("Parameters", "At most 4096 expression parameters are supported.");
+            else for (int i = 0; i < entries.size(); ++i) {
+                const String path = "Parameters[" + String::num_int64(i) + String("]");
+                if (entries[i].get_type() != Variant::DICTIONARY) { v.error(path, "Expected a parameter object."); continue; }
+                const Dictionary entry = entries[i];
+                if (!v.type(entry, "Id", Variant::STRING, path + String(".Id"))) continue;
+                if (String(entry["Id"]).is_empty()) v.error(path + String(".Id"), "Parameter ID must be nonempty.");
+                if (!entry.has("Value")) v.error(path + String(".Value"), "Parameter value is required.");
+                else v.numeric(entry, "Value", path + String(".Value"));
+                auto operation = CubismExpressionParameter::ADD;
+                if (entry.has("Blend") && entry["Blend"].get_type() != Variant::NIL) {
+                    if (entry["Blend"].get_type() != Variant::STRING) v.error(path + String(".Blend"), "Expected a blend name.");
+                    else {
+                        const String blend = entry["Blend"];
+                        if (blend == "Multiply") operation = CubismExpressionParameter::MULTIPLY;
+                        else if (blend == "Overwrite") operation = CubismExpressionParameter::OVERWRITE;
+                        else if (blend != "Add") v.error(path + String(".Blend"), "Unsupported expression blend operation.");
+                    }
+                }
+                if (!v.ok) continue;
+                Ref<CubismExpressionParameter> parameter;
+                parameter.instantiate();
+                parameter->set_id(entry["Id"]);
+                parameter->set_value(entry["Value"]);
+                parameter->set_operation(operation);
+                parameters.append(parameter);
+            }
+        }
+    }
+    if (v.ok) {
+        expression.instantiate();
+        expression->set_id(expression_id);
+        expression->set_source_path(normalized);
+        // Pinned Framework R5's DefaultFadeTime is 1 second.
+        expression->set_fade_in_seconds(data.get("FadeInTime", 1.0));
+        expression->set_fade_out_seconds(data.get("FadeOutTime", 1.0));
+        expression->set_parameters(parameters);
+    }
+    Dictionary result;
+    result["ok"] = v.ok;
+    result["diagnostics"] = v.diagnostics;
+    result["expression"] = expression;
+    result["source_data"] = v.ok ? data : Dictionary();
+    return result;
 }
 
 Dictionary CubismManifestParser::validate_project_file(const String &path) {
@@ -226,32 +327,7 @@ Dictionary CubismManifestParser::validate_project_file(const String &path) {
 
 Dictionary CubismManifestParser::parse_manifest(const String &json, const String &source_path) {
     Validation v;
-    Dictionary manifest;
-    if (json.utf8().length() > MAX_JSON_BYTES) {
-        v.error("$", "Manifest exceeds 4 MiB of UTF-8 JSON.");
-    } else {
-        // Redot replaces decoded NUL with U+FFFD. Reject it before decoding so
-        // an invalid reference cannot silently become a different filename.
-        for (int i = 0; i < json.length(); ++i) {
-            if (json[i] == 0) v.error("$", "NUL characters are forbidden.");
-            if (json[i] == '\\' && i + 1 < json.length()) {
-                if (json.substr(i + 1, 5) == "u0000") v.error("$", "NUL escapes are forbidden.");
-                ++i;
-            }
-        }
-        Ref<JSON> parser;
-        parser.instantiate();
-        if (!v.ok) {
-            // Do not invoke the decoder on input known to lose information.
-        } else if (parser->parse(json) != OK || parser->get_data().get_type() != Variant::DICTIONARY) {
-            v.error("$", "Expected a JSON object: " + parser->get_error_message());
-        } else {
-            // Select releasing copy assignment in the pinned redot-cpp binding.
-            const Dictionary parsed = parser->get_data();
-            manifest = parsed;
-            v.bounded(manifest, "$");
-        }
-    }
+    Dictionary manifest = v.object(json);
     if (!source_path.begins_with("res://") || !source_path.ends_with(".model3.json")) {
         v.error("source_path", "Expected a res:// path ending in .model3.json.");
     } else {
