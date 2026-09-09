@@ -112,6 +112,16 @@ unmasked multiply incorrectly behaving like normal blending. Reports record
 the copied shader hashes. These tests qualify the tested blend equations;
 they do not cover all model effects, mask geometry, or full SDK image parity.
 
+The offscreen graphics regression moves the character out of view five times,
+requires mask SubViewports to stop updating, verifies that manual motion still
+advances, and checks suspension under a hidden ancestor and recovery on return.
+It also follows a distant character with a rotated/zoomed camera while the model
+is flipped and nonuniformly scaled. The mask resources remain allocated while
+suspended; returning to view updates their bounds before rendering resumes.
+Culling is reevaluated during model advancement; these manual-mode tests advance
+after each model or camera transform change.
+This is a camera/culling smoke check, not exhaustive transform image parity.
+
 ## AddressSanitizer
 
 Build the addon with the usual pinned inputs and `sanitize=address`, using a
