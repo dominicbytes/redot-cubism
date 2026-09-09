@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: MIT
 #include "cubism_manifest_parser.hpp"
 #include <godot_cpp/classes/json.hpp>
+#include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <cmath>
+#include <filesystem>
 
 using namespace godot;
 
@@ -140,6 +142,86 @@ struct Validation {
 
 void CubismManifestParser::_bind_methods() {
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_manifest", "json", "source_path"), &CubismManifestParser::parse_manifest);
+    ClassDB::bind_static_method("CubismManifestParser", D_METHOD("validate_project_file", "path"), &CubismManifestParser::validate_project_file);
+}
+
+Dictionary CubismManifestParser::validate_project_file(const String &path) {
+    Dictionary result;
+    result["status"] = "unsafe";
+    result["path"] = path;
+    result["message"] = "Expected a normalized res:// file path.";
+    if (!path.begins_with("res://") || path.length() > MAX_STRING) return result;
+    const String relative = path.substr(6);
+    if (relative.is_empty() || relative.begins_with("/") || relative.contains(":") || relative.contains("\\")) return result;
+    for (int i = 0; i < relative.length(); ++i) {
+        if (relative[i] < 32 || relative[i] == 127) return result;
+    }
+    const PackedStringArray parts = relative.split("/", true);
+    for (int i = 0; i < parts.size(); ++i) {
+        if (parts[i].is_empty() || parts[i] == "." || parts[i] == "..") return result;
+    }
+
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const CharString root_utf8 = ProjectSettings::get_singleton()->globalize_path("res://").utf8();
+    const fs::path root = fs::canonical(fs::u8path(root_utf8.get_data()), ec);
+    if (ec) {
+        result["status"] = "error";
+        result["message"] = "Cannot resolve the physical project root.";
+        return result;
+    }
+    fs::path candidate = root;
+    for (int i = 0; i < parts.size(); ++i) {
+        const CharString component = parts[i].utf8();
+        candidate /= fs::u8path(component.get_data());
+        const fs::file_status link_status = fs::symlink_status(candidate, ec);
+        if (ec && ec != std::errc::no_such_file_or_directory) {
+            result["status"] = "error";
+            result["message"] = "Cannot inspect a path component.";
+            return result;
+        }
+        ec.clear();
+        // weakly_canonical alone can leave a dangling symlink unresolved.
+        // Do not classify it as an ordinary, safely contained missing file.
+        if (fs::is_symlink(link_status) && !fs::exists(candidate, ec)) {
+            result["status"] = "error";
+            result["message"] = "A symlink target is missing or cannot be resolved.";
+            return result;
+        }
+        if (ec) {
+            result["status"] = "error";
+            result["message"] = "Cannot resolve a symlink target.";
+            return result;
+        }
+    }
+    const fs::path physical = fs::weakly_canonical(candidate, ec);
+    if (ec) {
+        result["status"] = "error";
+        result["message"] = "Cannot resolve the physical file path.";
+        return result;
+    }
+    auto child = physical.begin();
+    for (auto parent = root.begin(); parent != root.end(); ++parent, ++child) {
+        if (child == physical.end() || *child != *parent) {
+            result["message"] = "Physical path escapes the project root.";
+            return result;
+        }
+    }
+    const fs::file_status status = fs::status(physical, ec);
+    if (ec && ec != std::errc::no_such_file_or_directory) {
+        result["status"] = "error";
+        result["message"] = "Cannot inspect the resolved file.";
+    } else if (!fs::exists(status)) {
+        result["status"] = "missing";
+        result["message"] = "The project file does not exist.";
+    } else if (!fs::is_regular_file(status)) {
+        result["status"] = "error";
+        result["message"] = "The reference is not a regular file.";
+    } else {
+        result["status"] = "file";
+        result["message"] = String();
+    }
+    return result;
 }
 
 Dictionary CubismManifestParser::parse_manifest(const String &json, const String &source_path) {

@@ -5,14 +5,16 @@
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
 
-// Pure syntax validation. The importer must still check physical paths, files,
-// MOC compatibility and imported resource types before constructing a model.
+// Import validation helpers; neither method loads a model or a resource.
 class CubismManifestParser : public godot::RefCounted {
     GDCLASS(CubismManifestParser, godot::RefCounted);
 protected:
     static void _bind_methods();
 public:
+    // Filesystem-independent schema and lexical path validation.
     static godot::Dictionary parse_manifest(const godot::String &json, const godot::String &source_path);
+    // Physical filesystem snapshot, not a virtual/exported resource lookup.
+    static godot::Dictionary validate_project_file(const godot::String &path);
 };
 
 #endif
