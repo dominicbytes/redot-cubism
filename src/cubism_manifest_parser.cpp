@@ -173,6 +173,7 @@ struct Validation {
 }
 
 void CubismManifestParser::_bind_methods() {
+    ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_pose", "json"), &CubismManifestParser::parse_pose);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("read_project_json", "path"), &CubismManifestParser::read_project_json);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_motion", "json", "group", "index", "source_path"), &CubismManifestParser::parse_motion);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_manifest", "json", "source_path"), &CubismManifestParser::parse_manifest);
@@ -624,5 +625,48 @@ Dictionary CubismManifestParser::read_project_json(const String &path) {
     result["status"] = "file";
     result["message"] = String();
     result["text"] = text;
+    return result;
+}
+
+Dictionary CubismManifestParser::parse_pose(const String &json) {
+    Validation v;
+    const Dictionary data = v.object(json);
+    double fade = 0.5;
+    if (v.ok) {
+        if (data.has("Type") && (data["Type"].get_type() != Variant::STRING || String(data["Type"]) != "Live2D Pose")) v.error("Type", "Expected Live2D Pose when Type is present.");
+        // The pinned SDK treats absent/null/negative fade as its 0.5s default.
+        if (data.has("FadeInTime") && data["FadeInTime"].get_type() != Variant::NIL) {
+            v.numeric(data, "FadeInTime", "FadeInTime");
+            if (v.ok) {
+                fade = data["FadeInTime"];
+                if (fade < 0) fade = 0.5;
+            }
+        }
+        if (v.type(data, "Groups", Variant::ARRAY, "Groups")) {
+            const Array groups = data["Groups"];
+            for (int i = 0; i < groups.size(); ++i) {
+                const String path = "Groups[" + String::num_int64(i) + String("]");
+                if (groups[i].get_type() != Variant::ARRAY) { v.error(path, "Expected an array of pose parts."); continue; }
+                const Array parts = groups[i];
+                for (int j = 0; j < parts.size(); ++j) {
+                    const String part_path = path + String("[") + String::num_int64(j) + String("]");
+                    if (parts[j].get_type() != Variant::DICTIONARY) { v.error(part_path, "Expected a pose part object."); continue; }
+                    const Dictionary part = parts[j];
+                    if (v.type(part, "Id", Variant::STRING, part_path + String(".Id")) && String(part["Id"]).is_empty()) v.error(part_path + String(".Id"), "Expected a nonempty part ID.");
+                    if (!part.has("Link") || part["Link"].get_type() == Variant::NIL) continue;
+                    if (!v.type(part, "Link", Variant::ARRAY, part_path + String(".Link"))) continue;
+                    const Array links = part["Link"];
+                    for (int k = 0; k < links.size(); ++k) {
+                        if (links[k].get_type() != Variant::STRING || String(links[k]).is_empty()) v.error(part_path + String(".Link[") + String::num_int64(k) + String("]"), "Expected a nonempty linked part ID.");
+                    }
+                }
+            }
+        }
+    }
+    Dictionary result;
+    result["ok"] = v.ok;
+    result["diagnostics"] = v.diagnostics;
+    result["pose"] = v.ok ? data : Dictionary();
+    result["fade_in_seconds"] = fade;
     return result;
 }

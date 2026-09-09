@@ -135,3 +135,19 @@ This is an editor source-file operation, not a PCK resource reader. Physical
 containment is a snapshot; the helper does not claim an atomic defense against
 concurrent symlink replacement or same-length content changes. Callers must
 attach the manifest property path to read diagnostics when resolving dependencies.
+
+## Pose JSON validation
+
+`parse_pose(json)` returns `ok`, bounded `diagnostics`, `pose` (the original
+parsed dictionary, empty on failure), and `fade_in_seconds`. It uses the shared
+JSON limits, rejects wrong structural types and empty part/link IDs, and requires
+`Groups` to contain arrays of part objects. Optional `Type` must be `Live2D Pose`.
+Missing/null links are accepted. Empty groups and repeated IDs remain ordered
+as in the source; no speculative deduplication or link-graph traversal occurs.
+
+Absent/null/negative fades resolve to 0.5 seconds, matching the pinned SDK.
+Zero is retained, and other fades must fit a finite Framework float. Original
+metadata is preserved; the resolved fade is reported separately. This validates
+JSON structure without reading files, resolving IDs against a MOC, creating a
+live SDK pose or proving pose playback behavior. Those remain importer/runtime
+integration checks.

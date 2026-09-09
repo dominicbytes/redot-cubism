@@ -208,3 +208,27 @@ Those checks do not invoke the new physical reader; the changed decoding path
 was retested with the final focused suites above. Public Python tests: 24 passed;
 final staged source audit: 266 files passed. Reports/logs are retained locally
 under `.local-build/evidence/json-read-*`. Windows and ASan remain pending.
+
+## Pose validation checkpoint
+
+Added `parse_pose(json)` with bounded structural validation for groups, parts,
+linked IDs and fades. It preserves original ordering and unknown metadata.
+Empty groups and repeated IDs are retained because the pinned SDK iterates them
+without recursive link traversal. The separate resolved fade matches its
+absent/null/negative 0.5-second fallback and retains explicit zero. Optional Type
+is validated when present. No SDK pose is created and MOC ID resolution remains
+an importer/runtime integration step.
+
+Added 27 pose assertions to source and exported native tests. All four pose
+files referenced by the eight SDK sample manifests separately passed, with
+parsed source dictionaries compared to the preserved result. Evidence is local
+under `.local-build/evidence/pose-parser-*` and `all-sdk-poses.log`.
+
+Linux debug and release each passed 51 integrated native/export checks including
+27 pose assertions per source/export run. Debug library SHA-256:
+`95ff67bff6cd2df0d79c29d0ca20cf3d2a89add4b7cfb1bc67b122db5e24940e`;
+release: `cf1fa2afd19add7df39a17138d8d9ef67d360a73076fb78c1a92173eeee4a72f`.
+Public Python tests: 24 passed; staged source audit: 267 files passed. These are
+local working-tree builds following 48ed024. The separate physical-reader suite
+was not rerun for this pose-only change. Windows, ASan, editor importer wiring
+and SDK pose playback comparison remain pending.
