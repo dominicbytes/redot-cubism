@@ -2,6 +2,7 @@
   "enabled_classes": [
     "Animation",
     "ArrayMesh",
+    "AudioStream",
     "Button",
     "CanvasGroup",
     "CanvasItem",

@@ -10,6 +10,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import wave
 
 from build_inputs import sha256
 
@@ -79,6 +80,12 @@ def main():
     run_root = Path(tempfile.mkdtemp(prefix="native-", dir=args.output.resolve()))
     project = run_root / "project"
     copy_bytes(ROOT / "tests/native/project", project)
+    # Own synthetic source audio: imported by Redot to test real audio edges.
+    with wave.open(str(project / "synthetic-audio.wav"), "wb") as audio:
+        audio.setnchannels(1)
+        audio.setsampwidth(2)
+        audio.setframerate(8000)
+        audio.writeframes(b"\x00\x00" * 80)
     copy_bytes(args.model.parent, project / "fixture")
     copy_bytes(ROOT / "demo/addons/gd_cubism/res", project / "addons/gd_cubism/res")
     shader_hashes = {path.name: sha256(path) for path in sorted((project / "addons/gd_cubism/res/shader").glob("*.gdshader"))}
@@ -142,6 +149,8 @@ def main():
         success = run("manifest-parser", ["--script", "res://manifest_checks.gd", "--quit-after", "2"], "CUBISM_MANIFEST_PASS cases=49")
     if success:
         success = run("model-resource", ["--script", "res://resource_checks.gd", "--quit-after", "2"], "CUBISM_RESOURCE_PASS")
+    if success:
+        success = run("descriptors", ["--script", "res://descriptor_checks.gd", "--quit-after", "2"], "CUBISM_DESCRIPTORS_PASS")
     if success:
         success = run("runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS")
     if success:
@@ -218,6 +227,8 @@ def main():
             success = run("exported-manifest-parser", ["--script", "res://manifest_checks.gd", "--quit-after", "2"], "CUBISM_MANIFEST_PASS cases=49", game)
         if success:
             success = run("exported-model-resource", ["--script", "res://resource_checks.gd", "--quit-after", "2"], "CUBISM_RESOURCE_PASS", game)
+        if success:
+            success = run("exported-descriptors", ["--script", "res://descriptor_checks.gd", "--quit-after", "2"], "CUBISM_DESCRIPTORS_PASS", game)
         if success:
             success = run("exported-runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS", game)
             if success and args.mask_compositions:
