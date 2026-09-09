@@ -1904,6 +1904,14 @@ Make `model3.json` a first-class Redot-imported model asset.
     foreground mean RGB error against the pinned SDK from 6.10 to 0.38 out of
     255. This evidence establishes the sampling prerequisite, not full renderer
     parity or a universal acceptance tolerance.
+    Preserve straight-alpha source texels for the pinned SDK comparison:
+    disable alpha-border fixing and premultiplication on Cubism-owned texture
+    imports. A seven-model control with mipmaps held constant reduced error
+    when only `process/fix_alpha_border` was disabled; Haru, Hiyori, Natori and
+    Wanko then had maximum RGB channel error no greater than 3/255. Mao, Mark
+    and Rice retained localized differences, so this is an import requirement,
+    not a full parity claim. Provision a separate Cubism-owned texture resource
+    when an existing shared import requires different processing settings.
 
 ### Suggested commits
 

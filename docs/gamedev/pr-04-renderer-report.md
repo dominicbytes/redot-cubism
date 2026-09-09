@@ -214,3 +214,51 @@ Private evidence is retained under `.local-build/evidence/renderer-fallback-*`.
 These are explicit test-harness settings. Public `CubismModel2D.rendering_mode`
 integration, multi-character/destination-dependent fallback composition,
 visibility/resource policy and broader platform qualification remain pending.
+
+## Seven-model matched-state comparison
+
+The pinned SDK OpenGL sample and Redot captured Haru, Hiyori, Mao, Mark,
+Natori, Rice and Wanko at 512 by 512 on a black background. The private sample
+hook records its complete model-view-projection matrix; Redot uses the matching
+affine transform and verifies every parameter and part opacity within 0.00001.
+Motion, physics and pose evaluation are bypassed for this static comparison.
+Ren is excluded because its advanced blend/offscreen features are outside the
+current supported renderer; this experiment does not test its rejection path.
+
+With mipmaps enabled, a controlled reimport changed only
+`process/fix_alpha_border` from true to false, captured each model, verified
+identical runtime state and restored the original import settings. Source
+premultiplication remains disabled, matching this SDK sample build. Results
+below use absolute RGB channel errors on the union of nonblack foreground
+pixels; maximum error includes the whole image, and counts are pixels with any
+channel error greater than 3 on the 0–255 scale.
+
+| Model | Mean, border fix on | Mean, border fix off | Maximum, off | Pixels above 3, off |
+| --- | ---: | ---: | ---: | ---: |
+| Haru | 0.3769 | 0.3589 | 3 | 0 |
+| Hiyori | 0.5997 | 0.5442 | 3 | 0 |
+| Mao | 0.6069 | 0.4262 | 28 | 57 |
+| Mark | 0.2218 | 0.1535 | 15 | 36 |
+| Natori | 0.4205 | 0.3849 | 3 | 0 |
+| Rice | 0.2054 | 0.1774 | 10 | 12 |
+| Wanko | 0.1810 | 0.1553 | 2 | 0 |
+
+The 95th percentile channel error is 1 for every border-fix-disabled capture.
+Haru's reference hash remains identical to the earlier reference, validating
+that the matrix logging hook preserved that capture. Mao's amplified difference
+image and side-by-side crop were inspected; residual errors remain localized,
+including the mouth outline. Their cause is not yet established. The 3/255
+count is a diagnostic, not a newly approved whole-model acceptance threshold.
+These static Linux captures do not establish animated or cross-platform parity.
+
+The importer contract now requires Cubism-owned textures to retain straight
+source texels with mipmaps, without silently changing shared texture consumers.
+Production provisioning remains PR5 work. Stronger mask comparisons and the
+three remaining localized discrepancies remain open.
+
+Private scripts, captures, state logs and hashes are retained in
+`.local-build/evidence/sdk-model-matrix`, with capture scripts in `.local-build`.
+The reference executable SHA-256 is
+`7365b430927f6ccc48a8652c60a77ffdf97e97f4f9a69a0a832403c9b057a775`.
+The native debug library is unchanged from the transform checkpoint above.
+No SDK files, model assets or reference images are part of this source report.
