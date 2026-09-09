@@ -172,6 +172,7 @@ struct Validation {
 }
 
 void CubismManifestParser::_bind_methods() {
+    ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_motion", "json", "group", "index", "source_path"), &CubismManifestParser::parse_motion);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_manifest", "json", "source_path"), &CubismManifestParser::parse_manifest);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("validate_project_file", "path"), &CubismManifestParser::validate_project_file);
     ClassDB::bind_static_method("CubismManifestParser", D_METHOD("parse_expression", "json", "expression_id", "source_path"), &CubismManifestParser::parse_expression);
@@ -433,5 +434,131 @@ Dictionary CubismManifestParser::parse_manifest(const String &json, const String
     result["dependencies"] = v.dependencies;
     // Never offer a partially normalized manifest as usable input.
     result["manifest"] = v.ok ? manifest : Dictionary();
+    return result;
+}
+
+Dictionary CubismManifestParser::parse_motion(const String &json, const String &group, int index, const String &source_path) {
+    Validation v;
+    const Dictionary data = v.object(json);
+    String normalized;
+    if (!source_path.begins_with("res://") || !source_path.ends_with(".motion3.json")) v.error("source_path", "Expected a res:// motion3.json path.");
+    else normalized = v.resolve(source_path.substr(6), "source_path");
+    if (group.is_empty() || group.length() > MAX_STRING || index < 0) v.error("identity", "Expected a nonempty bounded group and nonnegative index.");
+    for (int i = 0; i < group.length(); ++i) if (group[i] == 0) v.error("identity", "NUL characters are forbidden.");
+    Ref<CubismMotionDescriptor> motion;
+    TypedArray<CubismMotionEvent> events;
+    if (v.ok) {
+        const Variant version = data.get("Version", Variant());
+        if ((version.get_type() != Variant::INT && version.get_type() != Variant::FLOAT) || double(version) != 3.0) v.error("Version", "Expected motion version 3.");
+        if (v.type(data, "Meta", Variant::DICTIONARY, "Meta") && v.type(data, "Curves", Variant::ARRAY, "Curves")) {
+            const Dictionary meta = data["Meta"];
+            const Array curves = data["Curves"];
+            auto number = [&](const Dictionary &object, const String &key, const String &path) {
+                if (!object.has(key)) v.error(path, "Required number is missing.");
+                v.numeric(object, key, path);
+            };
+            auto value_or_zero = [](const Dictionary &object, const String &key) -> double {
+                const Variant value = object.get(key, Variant());
+                return value.get_type() == Variant::INT || value.get_type() == Variant::FLOAT ? double(value) : 0.0;
+            };
+            auto count = [&](const String &key, int actual, bool optional = false) {
+                const String path = "Meta." + key;
+                if (optional && !meta.has(key) && actual == 0) return;
+                number(meta, key, path);
+                const Variant declared = meta.get(key, Variant());
+                if ((declared.get_type() == Variant::INT || declared.get_type() == Variant::FLOAT) && double(declared) != actual) v.error(path, "Declared count does not match decoded data.");
+            };
+            number(meta, "Duration", "Meta.Duration");
+            number(meta, "Fps", "Meta.Fps");
+            if (float(value_or_zero(meta, "Duration")) <= 0.0) v.error("Meta.Duration", "Duration must be positive.");
+            if (float(value_or_zero(meta, "Fps")) <= 0.0) v.error("Meta.Fps", "Frame rate must be positive.");
+            v.type(meta, "Loop", Variant::BOOL, "Meta.Loop");
+            if (meta.has("AreBeziersRestricted")) v.type(meta, "AreBeziersRestricted", Variant::BOOL, "Meta.AreBeziersRestricted");
+            for (const String key : {String("FadeInTime"), String("FadeOutTime")}) v.numeric(meta, key, "Meta." + key);
+            int segments = 0;
+            int points = 0;
+            int previous_target = 0;
+            for (int i = 0; i < curves.size(); ++i) {
+                const String path = "Curves[" + String::num_int64(i) + String("]");
+                if (curves[i].get_type() != Variant::DICTIONARY) { v.error(path, "Expected a curve object."); continue; }
+                const Dictionary curve = curves[i];
+                if (v.type(curve, "Target", Variant::STRING, path + String(".Target"))) {
+                    const String target = curve["Target"];
+                    const int target_order = target == "Model" ? 0 : target == "Parameter" ? 1 : 2;
+                    if (target_order < previous_target) v.error(path + String(".Target"), "SDK playback requires Model, Parameter, then PartOpacity curves.");
+                    previous_target = target_order;
+                    if (target != "Model" && target != "Parameter" && target != "PartOpacity") v.error(path + String(".Target"), "Unsupported curve target.");
+                }
+                if (v.type(curve, "Id", Variant::STRING, path + String(".Id")) && String(curve["Id"]).is_empty()) v.error(path + String(".Id"), "Expected a nonempty curve ID.");
+                for (const String key : {String("FadeInTime"), String("FadeOutTime")}) v.numeric(curve, key, path + String(".") + key);
+                if (!v.type(curve, "Segments", Variant::ARRAY, path + String(".Segments"))) continue;
+                const Array values = curve["Segments"];
+                bool numeric_values = true;
+                for (int j = 0; j < values.size(); ++j) {
+                    const Variant value = values[j];
+                    if ((value.get_type() != Variant::INT && value.get_type() != Variant::FLOAT) || !std::isfinite(double(value)) || std::abs(double(value)) > 3.402823466e38) numeric_values = false;
+                }
+                if (!numeric_values || values.size() < 5) { v.error(path + String(".Segments"), "Expected finite points and at least one complete segment."); continue; }
+                ++points;
+                float previous_time = double(values[0]);
+                if (previous_time < 0) v.error(path + String(".Segments"), "Curve time must be nonnegative.");
+                for (int j = 2; j < values.size();) {
+                    const double kind = values[j];
+                    if (kind != 0 && kind != 1 && kind != 2 && kind != 3) { v.error(path + String(".Segments"), "Unknown segment type."); break; }
+                    const int width = kind == 1 ? 7 : 3;
+                    if (j + width > values.size()) { v.error(path + String(".Segments"), "Truncated segment."); break; }
+                    const float end_time = double(values[j + width - 2]);
+                    if (end_time <= previous_time) v.error(path + String(".Segments"), "Segment endpoint times must increase at Framework float precision.");
+                    previous_time = end_time;
+                    ++segments;
+                    points += kind == 1 ? 3 : 1;
+                    j += width;
+                }
+            }
+            count("CurveCount", curves.size());
+            count("TotalSegmentCount", segments);
+            count("TotalPointCount", points);
+            if (data.has("UserData") && v.type(data, "UserData", Variant::ARRAY, "UserData")) {
+                const Array entries = data["UserData"];
+                for (int i = 0; i < entries.size(); ++i) {
+                    const String path = "UserData[" + String::num_int64(i) + String("]");
+                    if (entries[i].get_type() != Variant::DICTIONARY) { v.error(path, "Expected an event object."); continue; }
+                    const Dictionary entry = entries[i];
+                    number(entry, "Time", path + String(".Time"));
+                    if (!v.type(entry, "Value", Variant::STRING, path + String(".Value"))) continue;
+                    const double time = value_or_zero(entry, "Time");
+                    if (time < 0 || time > value_or_zero(meta, "Duration")) v.error(path + String(".Time"), "Event must lie within the motion duration.");
+                    Ref<CubismMotionEvent> event;
+                    event.instantiate();
+                    event->set_time_seconds(time);
+                    event->set_value(entry["Value"]);
+                    events.append(event);
+                }
+            }
+            count("UserDataCount", events.size(), true);
+            // TotalUserDataSize is not consumed by the pinned motion parser.
+            // Preserve it as metadata; do not guess whether it counts bytes or characters.
+            if (meta.has("TotalUserDataSize")) v.numeric(meta, "TotalUserDataSize", "Meta.TotalUserDataSize");
+            if (v.ok) {
+                motion.instantiate();
+                motion->set_id(group + String("/") + String::num_int64(index));
+                motion->set_group(group);
+                motion->set_index(index);
+                motion->set_source_path(normalized);
+                motion->set_duration_seconds(meta["Duration"]);
+                motion->set_loop(meta["Loop"]);
+                const double fade_in = meta.get("FadeInTime", 1.0);
+                const double fade_out = meta.get("FadeOutTime", 1.0);
+                motion->set_fade_in_seconds(fade_in < 0 ? 1.0 : fade_in);
+                motion->set_fade_out_seconds(fade_out < 0 ? 1.0 : fade_out);
+                motion->set_events(events);
+                motion->set_metadata(data);
+            }
+        }
+    }
+    Dictionary result;
+    result["ok"] = v.ok;
+    result["diagnostics"] = v.diagnostics;
+    result["motion"] = motion;
     return result;
 }

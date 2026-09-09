@@ -156,3 +156,29 @@ and `all-sdk-expressions.log`. The public suite passes 24 tests and the staged
 source audit passes 264 files. Motion/physics/pose source validation, bounded
 file reading, importer registration/population and runtime integration remain
 unfinished.
+
+## Motion validation checkpoint
+
+Added `CubismManifestParser.parse_motion` and native descriptor population. The
+validator checks decoded segment lengths/types and allocation counts before
+SDK use, validates SDK curve target ordering, and preserves source curves,
+metadata and typed user-data events. Motion-level default/negative fades match
+the pinned Framework. Manifest fade overrides, sound association and file reads
+remain importer work; no Animation conversion or new playback path is enabled.
+
+The regression adds 63 assertions including all four segment forms, malformed
+counts/segments, event bounds, default fades, Unicode and Haru motion fixtures.
+A separate private check accepted all 50 motions declared across eight SDK
+sample manifests and compared preserved metadata, duration, loop and identity.
+The first run's metadata comparison incorrectly compared pre-JSON integer
+serialization against decoded floats; corrected to compare decoded data. That
+failure was a test oracle issue, not evidence of changed curve values.
+
+Linux debug and release each passed 49 integrated native/export checks, including
+63 motion assertions in both source and exported runs. Debug library SHA-256:
+`96adca488ba21355fa8ec0526da6b0b843cfe3974d67d298a19da0f0484e2df8`;
+release: `28cf495a280ab94be842967399a04e4db82124cf8e2f841e87fde4fbf1c33f7e`.
+Public Python tests: 24 passed; source audit: 265 files passed. These are local
+working-tree builds following 5844244, not a new clean public release. Evidence
+is retained under `.local-build/evidence/motion-parser-*` and
+`all-sdk-motions.log`. ASan and Windows qualification of this code remain pending.

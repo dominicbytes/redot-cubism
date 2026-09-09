@@ -88,3 +88,31 @@ requires host support and permissions; failure is not a passing test.
 The native test script `tests/native/project/manifest_checks.gd` exercises 49
 cases without model files. `tools/run_native_tests.py` runs it in both the
 source project and exported game, alongside the existing licensed native suite.
+
+## Motion JSON validation
+
+`parse_motion(json, group, index, source_path)` returns `ok`, bounded
+`diagnostics`, and a `CubismMotionDescriptor` (null on failure). It shares the
+JSON size, nesting, string and node limits above and validates a project-relative
+`.motion3.json` source path. It does not read files or invoke the SDK.
+
+Version 3, positive finite Framework-float duration/frame rate, boolean loop,
+and typed curves are required. Each curve has a nonempty ID and one of the
+Model, Parameter or PartOpacity targets, in that order as required by the pinned
+SDK's playback loops. Linear, Bezier, stepped and inverse-stepped segments are
+decoded without conversion. Truncated/unknown segments, nonnumeric coordinates,
+and endpoint times that do not increase at float precision are rejected. Each
+curve requires an initial point and at least one segment. Declared curve,
+segment and point counts must match decoded arrays before SDK allocation.
+
+Events retain their input order, Unicode text and time in typed resources;
+times must lie within the motion duration. The event count must match (an absent
+count is accepted only with no events). `TotalUserDataSize` is retained and
+checked as a finite number, but not recomputed: the pinned motion parser does
+not consume it. Unknown metadata and all original curves are retained in the
+descriptor's metadata. Missing or negative motion-level fades resolve to one
+second, matching the pinned SDK. Per-curve fades remain in the preserved data.
+
+The importer still needs to apply model-manifest fade overrides and sound
+associations. This helper does not create Redot Animation tracks, play motion,
+or qualify the complete importer/runtime pipeline.
