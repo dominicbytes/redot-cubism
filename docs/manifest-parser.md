@@ -151,3 +151,26 @@ metadata is preserved; the resolved fade is reported separately. This validates
 JSON structure without reading files, resolving IDs against a MOC, creating a
 live SDK pose or proving pose playback behavior. Those remain importer/runtime
 integration checks.
+
+## Physics JSON validation
+
+`parse_physics(json)` returns `ok`, bounded `diagnostics` and the unchanged
+parsed `physics` dictionary (empty on failure). Version 3 and typed metadata,
+forces, settings, normalization values, particles and input/output objects are
+required. All consumed numeric values must fit finite Framework floats.
+Declared setting/input/output/particle counts must match the actual arrays.
+Each setting requires a root particle and nonempty input/output arrays because
+the pinned SDK takes their addresses before iteration. Output particle indices
+must be integral, non-root and within that setting's particle array.
+
+Only X, Y and Angle callback types and Parameter source/destination targets are
+accepted. IDs must be nonempty and Reflect must be boolean. Absent FPS follows
+the SDK's zero/variable-step default. Explicit FPS is limited to 0–1000 as a fixed
+import policy to bound SDK fixed-step work. Normalization values, weights,
+particle values and source ordering are preserved without speculative clamping.
+Unknown metadata is retained under the shared JSON size/node limits.
+
+This validates structure before SDK allocation. It does not resolve parameter
+IDs against the MOC, run the physics simulation, prove numerical stability for
+all finite inputs, or wire the file into the editor importer. Those remain
+runtime/importer qualification requirements.

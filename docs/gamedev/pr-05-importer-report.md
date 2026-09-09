@@ -232,3 +232,29 @@ Public Python tests: 24 passed; staged source audit: 267 files passed. These are
 local working-tree builds following 48ed024. The separate physical-reader suite
 was not rerun for this pose-only change. Windows, ASan, editor importer wiring
 and SDK pose playback comparison remain pending.
+
+## Physics validation checkpoint
+
+Added `parse_physics(json)` to validate SDK-consumed structure, numeric types,
+exact allocation counts, particle indices, callbacks and parameter targets.
+Nonempty per-setting arrays prevent the pinned SDK's pre-loop address access
+from addressing empty storage. FPS has a documented 0–1000 import cap to bound
+fixed-step work; absent/zero retains the SDK's variable-step behavior. Other
+finite authored values and unknown metadata remain unchanged. The helper does
+not create or evaluate SDK physics or resolve parameter IDs against the MOC.
+
+All eight physics files referenced by the SDK sample manifests passed and their
+parsed dictionaries were preserved. Native regression checks cover corrupt
+counts, FPS limits, empty arrays, unknown callback types, invalid indices,
+particle numbers, forces, normalization, IDs and unsupported target types.
+Evidence is retained locally under `.local-build/evidence/physics-parser-*`
+and `all-sdk-physics.log`.
+
+Linux debug and release each passed 53 integrated native/export checks, including
+52 physics assertions in each source/export run. Debug library SHA-256:
+`a7a5230751b7792656a7f2107aaf25745b551e3540ab093e97190d29f1003632`;
+release: `cbdca416b394f1e6a9d319b5f9b1e9310fb472f5b53115671d41aacd3f78b647`.
+Public Python tests: 24 passed; staged source audit: 268 files passed. These are
+local working-tree builds following 761d825. Physics simulation stability,
+MOC parameter resolution, Windows, ASan and editor importer integration are
+not established by these parser tests.
