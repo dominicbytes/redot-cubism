@@ -262,3 +262,26 @@ The reference executable SHA-256 is
 `7365b430927f6ccc48a8652c60a77ffdf97e97f4f9a69a0a832403c9b057a775`.
 The native debug library is unchanged from the transform checkpoint above.
 No SDK files, model assets or reference images are part of this source report.
+
+### Mask-resolution control
+
+A second private SDK sample hook changes only the drawable mask buffer size.
+At 256 pixels it reproduces the original Mao, Mark and Rice reference images
+byte-for-byte. At 2048 pixels it retains identical logged parameters, parts and
+MVP matrices. Against the unchanged Redot captures with alpha-border fixing
+disabled, pixels above 3/255 drop from 57 to 3 for Mao, 36 to 11 for Mark and
+12 to 4 for Rice. Maximum errors become 6, 15 and 6 respectively.
+
+This isolates SDK mask resolution as a contributor, without claiming that all
+remaining errors share that cause. The SDK packs masks using clipped drawable
+bounds with proportional padding; the current renderer uses separate mask
+viewports sized from mask-source bounds with fixed padding. The two pipelines
+therefore sample masks differently. Independently capping Redot's Mao mask
+viewports at 256 changes 172 image pixels and reduces its original-reference
+count above 3 from 57 to 43, but does not eliminate the difference.
+
+No production mask setting was changed or tolerance relaxed. Private control
+captures and exact executable identity are retained in each affected model's
+`sdk-mask-control` evidence directory; the sample patch is
+`.local-build/evidence/reference-mask-size-hook.patch`. Residual edge errors,
+animated comparisons and the final parity gate remain open.
