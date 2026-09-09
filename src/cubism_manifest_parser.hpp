@@ -13,6 +13,7 @@ protected:
 public:
     // Filesystem-independent schema and lexical path validation.
     static godot::Dictionary parse_manifest(const godot::String &json, const godot::String &source_path);
+    static godot::Dictionary parse_expression(const godot::String &json, const godot::String &expression_id, const godot::String &source_path);
     // Physical filesystem snapshot, not a virtual/exported resource lookup.
     static godot::Dictionary validate_project_file(const godot::String &path);
 };

@@ -38,6 +38,26 @@ whether a model permits them requires MOC inspection. Raw JSON duplicate object
 keys follow Redot's parser behavior; this layer checks semantic IDs represented
 in arrays, not raw duplicate JSON keys.
 
+## Expression JSON conversion
+
+`CubismManifestParser.parse_expression(json, expression_id, source_path)`
+returns `ok`, bounded `diagnostics`, a typed `expression` resource (null on
+failure), and parsed `source_data` (empty on failure). `source_path` must be a
+contained lexical `res://` path ending in `.exp3.json`. No file is opened.
+
+`Parameters` must be an array of at most 4096 objects with nonempty String IDs
+and finite Framework-float values. Ordered repeated IDs are retained. Blend
+names are Add, Multiply or Overwrite; absent/null Blend defaults to Add,
+matching the pinned SDK. Unknown blend names are rejected rather than silently
+using the SDK's fallback. Optional fade values must be finite numbers; absent
+values resolve to the pinned Framework's 1-second expression default. If `Type`
+is present it must equal `Live2D Expression`; an absent Type remains compatible.
+
+The common JSON size, string, nesting, node and NUL checks apply. Unknown data
+is preserved in `source_data` for importer metadata handling. Physical file
+checks, descriptor registration in the model catalog and expression playback
+are separate steps. Source values are not applied to a live Cubism model here.
+
 ## Physical file validation
 
 `CubismManifestParser.validate_project_file(path)` checks a normalized `res://`

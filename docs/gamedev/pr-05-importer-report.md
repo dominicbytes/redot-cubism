@@ -126,3 +126,33 @@ The public suite passes 24 tests and the staged source audit passes 263 files.
 Private reports and logs are retained under `.local-build/evidence/descriptors-*`
 and matching persistent VM result directories. Descriptor source parsing,
 stable-ID generation/validation and runtime consumption remain pending.
+
+## Expression source validation
+
+`CubismManifestParser.parse_expression` now validates expression JSON and
+constructs a typed expression resource. Shared object parsing retains the
+existing size, nesting, node, finite-number and NUL safeguards. Parameter
+objects, values, fades, optional Type and blend names receive field-specific
+diagnostics; failures return no partial descriptor. Ordered repeated IDs and
+unknown source metadata are retained. Default fades and absent/null blend
+behavior follow the pinned Framework; unknown blend names are rejected instead
+of silently falling back to Add. The API opens no files and applies no values
+to a model.
+
+Thirty-six expression checks pass in source and exported execution, including
+the fixture's eight expressions and malformed/bounded input cases. Separately,
+all 32 expressions declared across the eight SDK sample manifests parse with
+matching IDs, values, operations and fades. This is source-to-descriptor
+validation, not expression playback equivalence.
+
+Debug and release each pass all 47 integrated native/export checks. Working-tree
+library hashes:
+
+- Debug: `8e200e8dcaec41cb37c016383154712d511b412bc7770bf3005016dc1a770fbd`.
+- Release: `5ed30f2df506a7c5026bcc96439cb3ca55c0a7d47e0c833ffa9d6a785c0afe9a`.
+
+Private evidence is retained under `.local-build/evidence/expression-parser-*`
+and `all-sdk-expressions.log`. The public suite passes 24 tests and the staged
+source audit passes 264 files. Motion/physics/pose source validation, bounded
+file reading, importer registration/population and runtime integration remain
+unfinished.
