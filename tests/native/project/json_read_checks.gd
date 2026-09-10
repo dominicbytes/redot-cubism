@@ -14,10 +14,16 @@ func _initialize() -> void:
 	checks += 1
 	if unicode.text != '{"text":"内部😀"}':
 		failures.append("Unicode preserved")
+	checks += 1
+	if unicode.sha256 != FileAccess.get_sha256("res://paths/json/unicode.json") or unicode.byte_length != unicode.text.to_utf8_buffer().size():
+		failures.append("Raw byte fingerprint and length")
 	var bom := CubismManifestParser.read_project_json("res://paths/json/bom.json")
 	checks += 1
 	if bom.text != "{}":
 		failures.append("BOM stripped")
+	checks += 1
+	if bom.sha256 != FileAccess.get_sha256("res://paths/json/bom.json") or bom.byte_length != 5:
+		failures.append("Fingerprint includes original BOM bytes")
 	var double_bom := CubismManifestParser.read_project_json("res://paths/json/double-bom.json")
 	checks += 1
 	if double_bom.text != "\ufeff{}":

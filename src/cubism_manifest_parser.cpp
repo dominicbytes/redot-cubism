@@ -3,6 +3,7 @@
 #include "cubism_descriptors.hpp"
 #include <godot_cpp/classes/json.hpp>
 #include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/hashing_context.hpp>
 #include <godot_cpp/classes/project_settings.hpp>
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/variant/array.hpp>
@@ -628,6 +629,12 @@ Dictionary CubismManifestParser::read_project_json(const String &path) {
     result["status"] = "file";
     result["message"] = String();
     result["text"] = text;
+    Ref<HashingContext> hash;
+    hash.instantiate();
+    hash->start(HashingContext::HASH_SHA256);
+    if (!bytes.is_empty()) hash->update(bytes);
+    result["sha256"] = hash->finish().hex_encode();
+    result["byte_length"] = bytes.size();
     return result;
 }
 
