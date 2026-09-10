@@ -27,6 +27,7 @@
 #include <cubism_build_info.hpp>
 #include <cubism_manifest_parser.hpp>
 #include <cubism_model_resource.hpp>
+#include <cubism_model_factory.hpp>
 #include <cubism_descriptors.hpp>
 #include <cubism_build_info.gen.h>
 
@@ -85,6 +86,7 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     GDREGISTER_CLASS(CubismMotionDescriptor);
     GDREGISTER_CLASS(CubismExpressionDescriptor);
     GDREGISTER_CLASS(CubismModelResource);
+    GDREGISTER_CLASS(CubismModelFactory);
 
     GDREGISTER_VIRTUAL_CLASS(GDCubismEffect);
     GDREGISTER_CLASS(GDCubismEffectBreath);

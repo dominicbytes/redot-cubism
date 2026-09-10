@@ -162,6 +162,8 @@ def main():
     if success:
         success = run("metadata-parser", ["--script", "res://metadata_parser_checks.gd", "--quit-after", "2"], "CUBISM_METADATA_PARSER_PASS")
     if success:
+        success = run("model-factory", ["--script", "res://model_factory_checks.gd", "--quit-after", "2"], "CUBISM_MODEL_FACTORY_PASS")
+    if success:
         success = run("runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS")
     if success:
         success = run("native-processing", ["--fixed-fps", "60", "--quit-after", "600", "--", "--process-checks"], "CUBISM_PROCESS_PASS")

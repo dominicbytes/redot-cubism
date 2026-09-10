@@ -194,3 +194,7 @@ and unknown metadata are retained. IDs may repeat across different collections.
 Both use the shared JSON bounds. Neither resolves IDs against the MOC, traverses
 or validates group relationships, loads files, or creates SDK/runtime objects.
 Consumers must validate relationships before treating group metadata as a tree.
+
+Successful `read_project_json` results also include `sha256` and `byte_length`
+from the exact raw bytes decoded. The hash includes any initial BOM even though
+the returned text omits that BOM. Failed reads do not supply a fingerprint.
