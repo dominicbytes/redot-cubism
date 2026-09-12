@@ -7,6 +7,9 @@ model's PNG and audio assets must already have finished importing. The saved
 resource references. Repeating the action replaces the chosen resource after
 the editor's save dialog confirmation. Factory diagnostics appear in the
 editor output; optional missing-file warnings are stored on the resource.
+The save dialog includes **Strict optional files**, **Import manifest motions**
+and **Import expressions** checkboxes. Motions and expressions are enabled by
+default; strict optional-file validation is disabled by default.
 
 Editor tools can call
 `CubismModelImporter.import_model(source_file, destination, strict_optional_files=false)`.
@@ -14,10 +17,31 @@ It returns a Redot `Error`. Destinations must be physically inside the project
 and end in `.res` or `.tres`. Validation completes before saving. This API is
 editor-only; the saved resource class is available at runtime.
 
+Use `CubismModelImporter.import_model_with_options(source_file, destination, options)`
+to supply the same choices by their keys: `validation/strict_optional_files`,
+`motions/import_manifest_motions`, and `expressions/import`. All require actual
+booleans. Unspecified choices use the defaults. The old boolean-based method
+remains compatible. The factory offers `build_with_options(source_path, options)`
+for unsaved resources with the same validation.
+
+Disabled categories are not cataloged, loaded, or included in dependency hashes;
+their missing content does not warn or fail strict optional-file validation.
+Manifest structure and path safety are still checked before filtering. The source
+manifest is untouched. The saved options survive dependency changes and editor
+restart. Reimport with a category enabled to restore its descriptors and dependencies.
+An independent engine-managed import of the raw `.model3.json` uses its own
+Import dock settings. Creating a separate `.res` does not change those settings.
+If Redot imports that source as well, configure its categories in the Import dock;
+default motion loading can still report a missing declared motion even when a
+separate `.res` intentionally omits motions. Source import settings are never
+silently overwritten to match one of potentially several derived resources.
+`motions/convert_to_redot_animation=false` is accepted; true reports that P1
+conversion is unavailable. Other unsupported or misspelled options fail explicitly.
+
 The native importer advertises only `model3.json`, priority 2, import order 100
-(after default texture/audio imports), format version 2, and disables threaded
-import. It currently exposes only strict optional-file validation. Other planned
-options are not yet implemented.
+(after default texture/audio imports), format version 4, and disables threaded
+import. The Import dock exposes the same three implemented choices. Remaining
+planned settings, including motion discovery and mask quality, are not implemented.
 
 ## Stock discovery limitation
 
@@ -40,8 +64,9 @@ The report records `automatic_discovery` separately
 from explicit import checks. Ordinary JSON and backup files must remain unclaimed.
 Coexistence with a generic JSON importer and automatic UID discovery are pending.
 The template check loads and animates the resource from the isolated test project; it does
-not claim selective PCK export. Dialog callbacks are exercised in a headless
-editor; manual visual UI verification remains pending.
+not claim full-model selective PCK export. Dialog callbacks are exercised in a headless
+editor. The new checkbox layout and defaults have also been checked in a rendered
+Linux X11/GL editor; full interactive workflow and other platform checks remain pending.
 
 This action is the plan's provisional fallback. Its saved resources now participate
 in [dependency tracking](dependency-tracking.md). The editor refreshes them after

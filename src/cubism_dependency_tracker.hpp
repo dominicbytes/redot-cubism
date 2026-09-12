@@ -56,7 +56,7 @@ public:
     void _exit_tree() override;
     void _process(double delta) override;
     void request_scan();
-    void track(const String &source, const String &destination, bool strict_optional_files = false);
+    void track(const String &source, const String &destination, const Dictionary &options = Dictionary());
     Dictionary get_status() const;
 };
 #endif

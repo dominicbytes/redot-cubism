@@ -4,6 +4,7 @@
 #include "cubism_model_resource.hpp"
 #include "cubism_descriptors.hpp"
 #include "cubism_build_info.hpp"
+#include "cubism_import_options.hpp"
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/hashing_context.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
@@ -35,8 +36,25 @@ struct Inspection {
 }
 void CubismModelFactory::_bind_methods() {
     ClassDB::bind_static_method("CubismModelFactory", D_METHOD("build", "source_path", "strict_optional_files"), &CubismModelFactory::build, DEFVAL(false));
+    ClassDB::bind_static_method("CubismModelFactory", D_METHOD("build_with_options", "source_path", "options"), &CubismModelFactory::build_with_options);
 }
 Dictionary CubismModelFactory::build(const String &source_path, bool strict_optional_files) {
+    Dictionary options;
+    options["validation/strict_optional_files"] = strict_optional_files;
+    return build_with_options(source_path, options);
+}
+Dictionary CubismModelFactory::build_with_options(const String &source_path, const Dictionary &input_options) {
+    const Dictionary checked = validate_cubism_import_options(input_options);
+    if (!bool(checked["ok"])) {
+        Dictionary result;
+        result["ok"] = false;
+        result["diagnostics"] = checked["diagnostics"];
+        result["warnings"] = PackedStringArray();
+        result["model"] = Variant();
+        return result;
+    }
+    const Dictionary options = checked["options"];
+    const bool strict_optional_files = options["validation/strict_optional_files"];
     Array diagnostics;
     PackedStringArray warnings;
     Dictionary fingerprints;
@@ -90,7 +108,7 @@ Dictionary CubismModelFactory::build(const String &source_path, bool strict_opti
     Ref<CubismModelResource> resource;
     if (exists(source_path, "source_path", false)) {
         const String source = json(source_path, "source_path");
-        const Dictionary parsed = CubismManifestParser::parse_manifest(source, source_path);
+        const Dictionary parsed = parse_cubism_import_manifest(source, source_path, options);
         if (ok && validated(parsed, "source_path")) {
             const Dictionary manifest = parsed["manifest"];
             const Dictionary files = manifest["FileReferences"];
@@ -103,7 +121,6 @@ Dictionary CubismModelFactory::build(const String &source_path, bool strict_opti
             resource->set_layout(manifest.get("Layout", Dictionary()));
             resource->set_metadata(manifest);
             resource->set_sdk_compatibility(CubismBuildInfo::get_versions());
-            Dictionary options; options["validation/strict_optional_files"] = strict_optional_files;
             resource->set_import_options(options);
             // Validate every physical reference before ResourceLoader sees any asset.
             for (int i = 0; i < dependencies.size(); ++i) {
