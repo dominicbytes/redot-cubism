@@ -12,6 +12,8 @@ files, explicit missing-file markers, texture/audio import sidecars, all stored
 import options with their defaults, importer format and resource schema versions, and pinned
 addon/SDK/Redot API identity. Import sidecars remain owned by Redot: the plugin
 reads them and asks EditorFileSystem to reimport assets. It does not rewrite them.
+The current project-wide file-count limit also participates in the fingerprint,
+so changing that policy revalidates existing model resources without a source edit.
 Disabled motion/expression catalogs are filtered from both the factory dependency
 list and the tracker scan. Changing their files does not invalidate that model.
 Existing engine-managed import parameters and explicit-resource options are

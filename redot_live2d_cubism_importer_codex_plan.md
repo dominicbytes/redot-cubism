@@ -849,9 +849,14 @@ Default to strict mode for required runtime assets and lenient behavior for opti
 | `rendering/premultiplied_alpha` | false initially | Change only after reference comparison |
 | `textures/load_as_resources` | true, fixed in P0 | Required imported resource edges; not a user-disableable export dependency |
 | `validation/check_moc_consistency` | true when SDK supports it | Guard with feature detection |
-| `validation/maximum_file_count` | safe fixed default | Project setting may lower or raise within a hard cap |
+| `cubism/import/maximum_file_count` | 1024 | Project-wide setting; 1–4096 unique normalized enabled source paths, including the manifest |
 | `compatibility/allow_newer_manifest_version` | false | Fail closed initially |
 | `diagnostics/store_unknown_fields` | true | Supports future analysis |
+
+The file-count policy is project-wide so per-model choices cannot bypass it.
+Its current value participates in import fingerprints: lowering or raising the
+setting revalidates saved resources. The pure parser retains its separate hard
+limit on declared references, including duplicates and disabled catalogs.
 
 ## 9.7 Reimport behavior
 

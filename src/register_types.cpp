@@ -29,6 +29,7 @@
 #include <cubism_model_resource.hpp>
 #include <cubism_model_factory.hpp>
 #include <cubism_descriptors.hpp>
+#include <cubism_import_options.hpp>
 #include <cubism_build_info.gen.h>
 
 // --------------------------------------------------------------- namespace(s)
@@ -89,6 +90,7 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     GDREGISTER_CLASS(CubismExpressionDescriptor);
     GDREGISTER_CLASS(CubismModelResource);
     GDREGISTER_CLASS(CubismModelFactory);
+    register_cubism_import_settings();
 
     GDREGISTER_VIRTUAL_CLASS(GDCubismEffect);
     GDREGISTER_CLASS(GDCubismEffectBreath);

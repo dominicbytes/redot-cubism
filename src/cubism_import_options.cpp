@@ -3,8 +3,33 @@
 #include "cubism_manifest_parser.hpp"
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
+#include <godot_cpp/classes/project_settings.hpp>
+#include <godot_cpp/classes/global_constants.hpp>
 
 using namespace godot;
+
+namespace {
+const char *MAXIMUM_FILES_SETTING = "cubism/import/maximum_file_count";
+constexpr int DEFAULT_MAXIMUM_FILES = 1024;
+constexpr int HARD_MAXIMUM_FILES = 4096;
+}
+
+void register_cubism_import_settings() {
+    auto *settings = ProjectSettings::get_singleton();
+    if (!settings->has_setting(MAXIMUM_FILES_SETTING)) settings->set_setting(MAXIMUM_FILES_SETTING, DEFAULT_MAXIMUM_FILES);
+    settings->set_initial_value(MAXIMUM_FILES_SETTING, DEFAULT_MAXIMUM_FILES);
+    Dictionary info;
+    info["name"] = MAXIMUM_FILES_SETTING;
+    info["type"] = Variant::INT;
+    info["hint"] = PROPERTY_HINT_RANGE;
+    info["hint_string"] = "1,4096,1";
+    settings->add_property_info(info);
+    settings->set_as_basic(MAXIMUM_FILES_SETTING, true);
+}
+
+Variant cubism_maximum_file_count() {
+    return ProjectSettings::get_singleton()->get_setting(MAXIMUM_FILES_SETTING, DEFAULT_MAXIMUM_FILES);
+}
 
 Dictionary cubism_import_defaults() {
     Dictionary options;
@@ -74,5 +99,22 @@ Dictionary parse_cubism_import_manifest(const String &text, const String &path, 
         if (!omitted.has(original[i])) dependencies.push_back(original[i]);
     }
     parsed["dependencies"] = dependencies;
+    const Variant limit = cubism_maximum_file_count();
+    String message;
+    if (limit.get_type() != Variant::INT || int64_t(limit) < 1 || int64_t(limit) > HARD_MAXIMUM_FILES) {
+        message = "Expected an integer file limit between 1 and 4096.";
+    } else if (dependencies.size() + 1 > int64_t(limit)) {
+        message = "Model requires " + String::num_int64(dependencies.size() + 1) + String(" files, exceeding the project import limit of ") + String::num_int64(limit) + String(".");
+    }
+    if (!message.is_empty()) {
+        Dictionary diagnostic;
+        diagnostic["path"] = String("project_settings.") + MAXIMUM_FILES_SETTING;
+        diagnostic["message"] = message;
+        Array diagnostics;
+        diagnostics.push_back(diagnostic);
+        parsed["ok"] = false;
+        parsed["diagnostics"] = diagnostics;
+        parsed["manifest"] = Dictionary();
+    }
     return parsed;
 }

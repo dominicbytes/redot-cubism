@@ -89,6 +89,12 @@ def main():
             log, code = log + "\n" + str(exc), 124
         (run / (name + ".log")).write_text(log)
         diagnostics = log
+        if name == "import-limit":
+            diagnostics = re.sub(
+                r"EXPECTED_IMPORT_LIMIT_FAILURE_BEGIN.*?EXPECTED_IMPORT_LIMIT_FAILURE_END",
+                lambda match: match[0].replace("ERROR: Cubism import failed:", "EXPECTED_IMPORT_LIMIT_FAILURE:").replace(
+                    f"ERROR: Error importing '{model}'.", "EXPECTED_ENGINE_IMPORT_LIMIT_FAILURE"),
+                log, flags=re.DOTALL)
         if name == "texture-policy":
             diagnostics = re.sub(
                 r"EXPECTED_TEXTURE_FAILURE_BEGIN.*?EXPECTED_TEXTURE_FAILURE_END",
@@ -138,7 +144,8 @@ def main():
     for phase, script, marker in (
             ("import-options", "import_options_checks.gd", "CUBISM_IMPORT_OPTIONS_PASS"),
             ("import-options-restart", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS"),
-            ("import-options-without-cache", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS")):
+            ("import-options-without-cache", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS"),
+            ("import-limit", "import_limit_checks.gd", "CUBISM_IMPORT_LIMIT_PASS")):
         if not ok:
             break
         switches = ["--editor", "--quit-after", "10000"]
