@@ -44,6 +44,10 @@ def main():
             target = addon / "res" / path.relative_to(ROOT / "demo/addons/gd_cubism/res")
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(path.read_bytes())
+    for path in (ROOT / "demo/addons/gd_cubism/editor").glob("*.gd"):
+        target = addon / "editor" / path.name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(path.read_bytes())
     feature = "windows" if os.name == "nt" else "linux"
     (addon / "gd_cubism.gdextension").write_text(
         '[configuration]\nentry_symbol="gd_cubism_library_init"\n'

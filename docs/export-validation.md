@@ -40,8 +40,35 @@ and includes the ten known runtime shaders. It avoids duplicate raw entries when
 normal export selection already includes those files. Texture/audio and native
 extension references go through Redot's normal dependency/remap/export process.
 
-The checked editor/CLI action, complete pre-export selection validation, and
-verified output promotion are still unfinished.
+The shared editor preflight is in `addons/gd_cubism/editor/export_preflight.gd`.
+It reads the named preset without rewriting it, follows the scanned resource
+dependency graph, includes autoloads with the target preset's feature overrides,
+and applies include/exclude filters. It supports selected scenes/resources,
+all resources, exclude-selected and customized modes on Linux/Windows Desktop
+presets. Customized directory rules inherit as in pinned Redot. Missing selected
+files, unresolved dependency UIDs, directory symlinks, stale models, missing
+shaders and filters that cut required resource edges produce diagnostics with no
+partial file/hash list. File enumeration is bounded at 100,000 entries.
+Linux execution is covered by the integration matrix; Windows execution remains
+a separate required platform gate.
+
+Run the preflight through the normal editor lifecycle (after installing the
+matching native addon and these editor scripts):
+
+```sh
+"$REDOT_BIN" --headless --editor --path /path/to/project --quit-after 10000 -- \
+  --cubism-preflight "Existing preset name" /path/to/fresh-preflight-report.json
+```
+
+The command returns zero with `CUBISM_EXPORT_PREFLIGHT_PASS` only when validation
+succeeds; invalid input returns nonzero. The JSON report contains the selected
+files, validated resource/scene files, model count and raw/shader hashes. CI
+callers must also require the marker and report, reject engine diagnostics, and
+enforce a wall-clock timeout; an interrupted editor can leave no final report.
+This command validates only. It does not start packaging or replace any build.
+
+The combined checked editor/CLI export action and verified output promotion
+are still unfinished.
 Ordinary Export-menu callbacks cannot be assumed to abort an invalid export.
 Full-model export remains unfinished until those components and their integration
 tests are implemented. Linux debug and release tests now cover selected resources,
