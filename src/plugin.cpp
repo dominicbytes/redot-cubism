@@ -5,6 +5,10 @@
 #include <godot_cpp/classes/editor_plugin.hpp>
 #include <godot_cpp/classes/editor_selection.hpp>
 #include <godot_cpp/classes/editor_settings.hpp>
+#include <godot_cpp/classes/editor_file_system.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+#include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <godot_cpp/classes/geometry2d.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/input_event_mouse_motion.hpp>
@@ -85,6 +89,27 @@ bool GDCubismPlugin::update_selected_info() {
 
 
 void GDCubismPlugin::_enter_tree() {
+    model_importer.instantiate();
+    add_import_plugin(model_importer);
+    cubism_source_dialog = memnew(EditorFileDialog);
+    cubism_source_dialog->set_access(EditorFileDialog::ACCESS_RESOURCES);
+    cubism_source_dialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
+    cubism_source_dialog->set_title("Import Cubism Model");
+    PackedStringArray source_filters;
+    source_filters.push_back("*.model3.json ; Cubism Model");
+    cubism_source_dialog->set_filters(source_filters);
+    get_editor_interface()->get_base_control()->add_child(cubism_source_dialog);
+    cubism_source_dialog->connect("file_selected", callable_mp(this, &GDCubismPlugin::select_cubism_source));
+    cubism_save_dialog = memnew(EditorFileDialog);
+    cubism_save_dialog->set_access(EditorFileDialog::ACCESS_RESOURCES);
+    cubism_save_dialog->set_file_mode(EditorFileDialog::FILE_MODE_SAVE_FILE);
+    cubism_save_dialog->set_title("Save Imported Cubism Resource");
+    PackedStringArray save_filters;
+    save_filters.push_back("*.res ; Cubism Resource");
+    cubism_save_dialog->set_filters(save_filters);
+    get_editor_interface()->get_base_control()->add_child(cubism_save_dialog);
+    cubism_save_dialog->connect("file_selected", callable_mp(this, &GDCubismPlugin::save_cubism_resource));
+    add_tool_menu_item("Import Cubism Model", callable_mp(this, &GDCubismPlugin::show_cubism_import_dialog));
 
     this->drag = false;
 
@@ -107,6 +132,13 @@ void GDCubismPlugin::_enter_tree() {
 
 
 void GDCubismPlugin::_exit_tree() {
+    remove_tool_menu_item("Import Cubism Model");
+    memdelete(cubism_source_dialog);
+    cubism_source_dialog = nullptr;
+    memdelete(cubism_save_dialog);
+    cubism_save_dialog = nullptr;
+    remove_import_plugin(model_importer);
+    model_importer.unref();
 
     if (this->p_snapsize_spinbox != nullptr) {
         this->remove_control_from_container(CONTAINER_CANVAS_EDITOR_MENU, this->p_snapsize_spinbox);
@@ -119,6 +151,27 @@ void GDCubismPlugin::_exit_tree() {
         memdelete(this->p_snapmode_button);
         this->p_snapmode_button = nullptr;
     }
+}
+
+void GDCubismPlugin::show_cubism_import_dialog() {
+    cubism_source_path = String();
+    cubism_source_dialog->popup_file_dialog();
+}
+
+void GDCubismPlugin::select_cubism_source(const String &path) {
+    cubism_source_path = path;
+    cubism_save_dialog->set_current_file(path.get_file().trim_suffix(".model3.json") + String(".res"));
+    cubism_save_dialog->popup_file_dialog();
+}
+
+void GDCubismPlugin::save_cubism_resource(const String &path) {
+    const Error error = CubismModelImporter::import_model(cubism_source_path, path);
+    if (error != OK) {
+        UtilityFunctions::push_error("Cubism resource import failed with error ", error, ": ", cubism_source_path);
+        return;
+    }
+    get_editor_interface()->get_resource_filesystem()->update_file(path);
+    get_editor_interface()->edit_resource(ResourceLoader::get_singleton()->load(path, "CubismModelResource", ResourceLoader::CACHE_MODE_IGNORE));
 }
 
 

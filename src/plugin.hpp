@@ -10,6 +10,8 @@
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/spin_box.hpp>
+#include "cubism_model_importer.hpp"
+#include <godot_cpp/classes/editor_file_dialog.hpp>
 
 // ------------------------------------------------------------------ define(s)
 // --------------------------------------------------------------- namespace(s)
@@ -25,6 +27,13 @@ class GDCubismPlugin : public EditorPlugin {
     GDCLASS(GDCubismPlugin, EditorPlugin);
 
 private:
+    Ref<CubismModelImporter> model_importer;
+    EditorFileDialog *cubism_source_dialog = nullptr;
+    EditorFileDialog *cubism_save_dialog = nullptr;
+    String cubism_source_path;
+    void show_cubism_import_dialog();
+    void select_cubism_source(const String &path);
+    void save_cubism_resource(const String &path);
     const Color selected_border_color = Color(239.0 / 255.0, 120.0 / 255.0, 62.0 / 255.0, 1.0);
 
     GDCubismUserModel *selected_model;

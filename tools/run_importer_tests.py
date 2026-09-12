@@ -1,0 +1,106 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""Exercise explicit editor import and record stock compound-suffix discovery."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import subprocess
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--library", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--template", type=Path, help="Matching template for editor-class isolation checks")
+    args = parser.parse_args()
+    engine = os.environ["REDOT_BIN"]
+    version = subprocess.check_output([engine, "--version"], text=True, timeout=10).strip()
+    if version != json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]:
+        parser.error("REDOT_BIN does not match the pinned Redot version")
+    if args.template and subprocess.check_output([str(args.template.resolve()), "--version"], text=True, timeout=10).strip() != version:
+        parser.error("Template version does not match REDOT_BIN")
+    args.output.mkdir(parents=True, exist_ok=True)
+    run = Path(tempfile.mkdtemp(prefix="editor-import-", dir=args.output.resolve()))
+    project = run / "project"
+    addon = project / "addons/gd_cubism"
+    (addon / "bin").mkdir(parents=True)
+    (addon / "bin" / args.library.name).write_bytes(args.library.read_bytes())
+    feature = "windows" if os.name == "nt" else "linux"
+    (addon / "gd_cubism.gdextension").write_text(
+        '[configuration]\nentry_symbol="gd_cubism_library_init"\n'
+        'compatibility_minimum="26.2"\ndisable_godot_checks=true\nreloadable=false\n'
+        f'[libraries]\n{feature}.x86_64="res://addons/gd_cubism/bin/{args.library.name}"\n')
+    (project / "project.godot").write_text(
+        'config_version=5\n[application]\nconfig/name="Cubism editor import checks"\n'
+        '[rendering]\nrenderer/rendering_method="gl_compatibility"\n')
+    # Byte copies also support model sources on shared VM filesystems.
+    for path in args.model.parent.rglob("*"):
+        if path.is_file() and ".godot" not in path.parts and path.suffix != ".import":
+            target = project / "model" / path.relative_to(args.model.parent)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(path.read_bytes())
+    model = "res://model/" + args.model.name
+    (project / "fixture.json").write_text(json.dumps({"model": model}))
+    (project / "hero.json").write_text("{}")
+    (project / "not_model3.json.backup").write_text("{}")
+    # Install editor-only script after scanning, so runtime projects never parse it.
+    env = dict(os.environ)
+    for key in ("CONFIG", "DATA", "CACHE"):
+        env[f"XDG_{key}_HOME"] = str(run / key.lower())
+    checks = []
+
+    def execute(name, switches, marker=None, executable=None):
+        try:
+            result = subprocess.run([str(executable or engine), "--headless", "--path", str(project), *switches],
+                                    env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=180)
+            log, code = result.stdout, result.returncode
+        except subprocess.TimeoutExpired as exc:
+            log, code = str(exc), 124
+        (run / (name + ".log")).write_text(log)
+        ok = code == 0 and not re.search(r"SCRIPT ERROR|ERROR:|WARNING:|crashed", log)
+        ok = ok and (marker is None or marker in log)
+        checks.append({"test": name, "status": "PASS" if ok else "FAIL", "exit_code": code})
+        print(name, checks[-1]["status"], flush=True)
+        if not ok:
+            print(log)
+        return ok
+
+    ok = execute("fresh-import", ["--editor", "--import", "--quit-after", "1000"])
+    automatic = (project / "model" / (args.model.name + ".import")).exists()
+    negatives = not any((project / name).exists() for name in ("hero.json.import", "not_model3.json.backup.import"))
+    checks.append({"test": "ordinary-files-unclaimed", "status": "PASS" if negatives else "FAIL"})
+    ok = ok and negatives
+    if ok:
+        driver = project / "addons/import_test"
+        driver.mkdir()
+        editor_script = driver / "checks.gd"
+        editor_script.write_bytes((ROOT / "tests/editor/editor_import_checks.gd").read_bytes())
+        (driver / "plugin.cfg").write_text('[plugin]\nname="Importer Test"\ndescription="Test driver"\nauthor="Tests"\nversion="1"\nscript="checks.gd"\n')
+        project_config = (project / "project.godot").read_text()
+        (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
+        ok = execute("explicit-import", ["--editor", "--quit-after", "1000"], "CUBISM_EDITOR_IMPORT_PASS")
+        (project / "project.godot").write_text(project_config)
+        editor_script.unlink()
+        (driver / "plugin.cfg").unlink()
+    if ok:
+        ok = execute("editor-restart", ["--editor", "--import", "--quit-after", "1000"])
+    if ok:
+        (project / "imported_resource_checks.gd").write_bytes((ROOT / "tests/native/project/imported_resource_checks.gd").read_bytes())
+        ok = execute("runtime-resource", ["--script", "res://imported_resource_checks.gd", "--quit-after", "2"], "CUBISM_IMPORTED_RESOURCE_PASS")
+    if ok and args.template:
+        ok = execute("template-resource", ["--script", "res://imported_resource_checks.gd", "--quit-after", "2"], "CUBISM_IMPORTED_RESOURCE_PASS", args.template.resolve())
+    report = {"status": "PASS" if ok else "FAIL", "automatic_discovery": automatic, "engine_version": version,
+              "library_sha256": hashlib.sha256((addon / "bin" / args.library.name).read_bytes()).hexdigest(), "run": str(run), "checks": checks}
+    (args.output / "importer-report.json").write_text(json.dumps(report, indent=2) + "\n")
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
