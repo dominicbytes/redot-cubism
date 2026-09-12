@@ -104,6 +104,17 @@ containing helpers (including compiled scripts), covering manually configured
 presets that bypass discovery. A late export callback alone cannot undo scripts
 already compiled by Redot's earlier GDScript exporter.
 
+Before launching template playback, the matching editor reads the packaged
+Cubism library's identity through a separate external probe. The checker compares
+its platform, architecture and debug/release target with the requested package.
+The template smoke repeats the comparison against its actual runtime features.
+A renamed library or incorrect descriptor entry must not qualify a
+release package using a debug library (or the reverse), even when dependency
+revisions match. `tools/run_export_identity_tests.py` verifies both correct and
+deliberately mismatched native variants, artifact hashes, rejection before playback,
+and preservation of the previous output. Its Linux debug/release coverage does
+not establish Windows qualification.
+
 Only a passing build is promoted as a complete directory. Existing managed builds
 are retained as `previous` inside that run's work directory, including when a
 failed promotion must roll back. Nonempty unmanaged directories are refused.

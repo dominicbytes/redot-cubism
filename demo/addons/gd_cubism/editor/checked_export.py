@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import platform
 import re
+import shutil
 import signal
 import struct
 import subprocess
@@ -84,6 +85,12 @@ def check_sources(project, hashes):
             raise ValueError('Project input changed during checked export: ' + name)
 
 
+def check_native_build(build, target, mode):
+    for key, value in {'platform': target.lower(), 'arch': 'x86_64', 'target': 'template_' + mode}.items():
+        if build.get(key) != value:
+            raise ValueError('Exported native build ' + key + ' mismatch: expected ' + value + ', got ' + str(build.get(key)))
+
+
 def checked_export(args):
     project = args.project.resolve(strict=True)
     output = args.output.absolute()
@@ -153,6 +160,29 @@ def checked_export(args):
         if any(p.startswith('addons/gd_cubism/editor/') for p in archive['files']):
             raise ValueError('Editor-only Cubism helpers were included in the game')
         (work / 'archive.json').write_text(json.dumps(archive, indent=2) + '\n')
+        # A debug native library can abort in a release template even without
+        # constructing a model. Inspect the packaged extension with the matched
+        # editor (which supports both addon variants) before launching the game.
+        identity_file = work / 'native-identity.json'
+        # Exported extension paths resolve beside the executable, so the probe
+        # editor must reside beside the staged game, not at its installed path.
+        editor = Path(shutil.which(args.redot_bin) or args.redot_bin).resolve(strict=True)
+        probe = stage / ('.cubism-identity-editor.exe' if target == 'Windows' else '.cubism-identity-editor')
+        if probe.exists():
+            raise ValueError('Reserved identity-probe filename is already present in the staged export')
+        try:
+            try:
+                os.link(editor, probe)
+            except OSError:
+                shutil.copyfile(editor, probe)
+                probe.chmod(editor.stat().st_mode)
+            execute([str(probe), '--headless', '--main-pack', str(game.with_suffix('.pck')),
+                     '--script', str(HERE / 'export_identity.gd'), '--quit-after', '2', '--', str(identity_file)],
+                    work / 'native-identity.log', stage, env, args.timeout, 'CUBISM_EXPORT_IDENTITY_PASS')
+        finally:
+            probe.unlink(missing_ok=True)
+        if preflight['models'] > 0:
+            check_native_build(json.loads(identity_file.read_text()), target, args.mode)
         smoke_file = work / 'smoke.json'
         execute([str(game), '--headless', '--script', str(HERE / 'export_smoke.gd'), '--quit-after', '10000', '--',
                  str(preflight_file), str(smoke_file)], work / 'smoke.log', stage, env, args.timeout, 'CUBISM_EXPORTED_SMOKE_PASS')
