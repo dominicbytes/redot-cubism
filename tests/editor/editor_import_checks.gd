@@ -35,7 +35,7 @@ func _run() -> void:
 	assert(model.source_hash == FileAccess.get_sha256(source))
 	assert(not model.textures.is_empty())
 	for texture: Texture2D in model.textures:
-		assert(texture != null and texture.resource_path.begins_with("res://model/"))
+		assert(texture is PortableCompressedTexture2D and texture.resource_path.begins_with("res://cubism_generated/textures/"))
 	assert(not ResourceLoader.get_dependencies("res://imported-model.res").is_empty())
 	print("CUBISM_EDITOR_IMPORT_PASS")
 	await get_tree().process_frame
