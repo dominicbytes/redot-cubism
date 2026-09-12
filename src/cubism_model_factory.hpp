@@ -9,5 +9,6 @@ protected:
     static void _bind_methods();
 public:
     static godot::Dictionary build(const godot::String &source_path, bool strict_optional_files = false);
+    static godot::Dictionary build_with_options(const godot::String &source_path, const godot::Dictionary &options);
 };
 #endif

@@ -108,6 +108,9 @@ void GDCubismPlugin::_enter_tree() {
     cubism_save_dialog->set_access(EditorFileDialog::ACCESS_RESOURCES);
     cubism_save_dialog->set_file_mode(EditorFileDialog::FILE_MODE_SAVE_FILE);
     cubism_save_dialog->set_title("Save Imported Cubism Resource");
+    cubism_save_dialog->add_option("Strict optional files", PackedStringArray(), 0);
+    cubism_save_dialog->add_option("Import manifest motions", PackedStringArray(), 1);
+    cubism_save_dialog->add_option("Import expressions", PackedStringArray(), 1);
     PackedStringArray save_filters;
     save_filters.push_back("*.res ; Cubism Resource");
     cubism_save_dialog->set_filters(save_filters);
@@ -172,8 +175,13 @@ void GDCubismPlugin::select_cubism_source(const String &path) {
 }
 
 void GDCubismPlugin::save_cubism_resource(const String &path) {
-    dependency_tracker->track(cubism_source_path, path);
-    const Error error = CubismModelImporter::import_model(cubism_source_path, path);
+    const Dictionary selected = cubism_save_dialog->get_selected_options();
+    Dictionary options;
+    options["validation/strict_optional_files"] = selected.get("Strict optional files", false);
+    options["motions/import_manifest_motions"] = selected.get("Import manifest motions", true);
+    options["expressions/import"] = selected.get("Import expressions", true);
+    dependency_tracker->track(cubism_source_path, path, options);
+    const Error error = CubismModelImporter::import_model_with_options(cubism_source_path, path, options);
     if (error != OK) {
         UtilityFunctions::push_error("Cubism resource import failed with error ", error, ": ", cubism_source_path);
         return;

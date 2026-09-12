@@ -8,10 +8,14 @@ Import errors appear in the editor output; the last successfully saved resource
 is preserved when validation fails.
 
 The fingerprint covers exact source bytes, referenced MOC/JSON/texture/audio
-files, explicit missing-file markers, texture/audio import sidecars, the strict
-validation option, importer format and resource schema versions, and pinned
+files, explicit missing-file markers, texture/audio import sidecars, all stored
+import options with their defaults, importer format and resource schema versions, and pinned
 addon/SDK/Redot API identity. Import sidecars remain owned by Redot: the plugin
 reads them and asks EditorFileSystem to reimport assets. It does not rewrite them.
+Disabled motion/expression catalogs are filtered from both the factory dependency
+list and the tracker scan. Changing their files does not invalidate that model.
+Existing engine-managed import parameters and explicit-resource options are
+retained when rebuilding; the tracker does not reset them to the default choices.
 Changed PNG or audio content is reimported by the engine before the model is
 saved, even when no filesystem notification arrives. Already loaded model
 resources are refreshed in place after a successful save.

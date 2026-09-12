@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--model", type=Path, required=True)
+    parser.add_argument("--model", type=Path, required=True, help="Private fixture with declared motions and expressions, such as Haru")
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--template", type=Path, help="Matching template for editor-class isolation checks")
@@ -97,7 +97,8 @@ def main():
         if args.dependencies and name == "dependency-changes":
             diagnostics = re.sub(
                 r"EXPECTED_DEPENDENCY_FAILURE_BEGIN.*?EXPECTED_DEPENDENCY_FAILURE_END",
-                lambda match: match[0].replace("ERROR: Cubism import failed:", "EXPECTED_IMPORT_FAILURE:"),
+                lambda match: match[0].replace("ERROR: Cubism import failed:", "EXPECTED_IMPORT_FAILURE:").replace(
+                    f"ERROR: Error importing '{model}'.", "EXPECTED_ENGINE_IMPORT_FAILURE"),
                 log, flags=re.DOTALL)
         ok = code == 0 and not re.search(r"SCRIPT ERROR|ERROR:|WARNING:|crashed", diagnostics)
         ok = ok and (marker is None or marker in log)
@@ -131,6 +132,23 @@ def main():
         (driver / "plugin.cfg").write_text('[plugin]\nname="Texture Policy Test"\ndescription="Test driver"\nauthor="Tests"\nversion="1"\nscript="checks.gd"\n')
         (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
         ok = execute("texture-policy", ["--editor", "--quit-after", "10000"], "CUBISM_TEXTURE_POLICY_PASS")
+        (project / "project.godot").write_text(project_config)
+        editor_script.unlink()
+        (driver / "plugin.cfg").unlink()
+    for phase, script, marker in (
+            ("import-options", "import_options_checks.gd", "CUBISM_IMPORT_OPTIONS_PASS"),
+            ("import-options-restart", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS"),
+            ("import-options-without-cache", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS")):
+        if not ok:
+            break
+        switches = ["--editor", "--quit-after", "10000"]
+        if phase == "import-options-without-cache":
+            shutil.rmtree(project / ".godot")
+            switches += ["--", "--cleanup-options"]
+        editor_script.write_bytes((ROOT / "tests/editor" / script).read_bytes())
+        (driver / "plugin.cfg").write_text('[plugin]\nname="Import Options Test"\ndescription="Test driver"\nauthor="Tests"\nversion="1"\nscript="checks.gd"\n')
+        (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
+        ok = execute(phase, switches, marker)
         (project / "project.godot").write_text(project_config)
         editor_script.unlink()
         (driver / "plugin.cfg").unlink()

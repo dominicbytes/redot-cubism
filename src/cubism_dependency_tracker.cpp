@@ -3,6 +3,7 @@
 #include "cubism_manifest_parser.hpp"
 #include "cubism_model_importer.hpp"
 #include "cubism_model_resource.hpp"
+#include "cubism_import_options.hpp"
 #include <godot_cpp/classes/editor_interface.hpp>
 #include <godot_cpp/classes/editor_file_system.hpp>
 #include <godot_cpp/classes/editor_file_system_directory.hpp>
@@ -52,11 +53,11 @@ void CubismDependencyTracker::after_import(const PackedStringArray &resources) {
     }
     requested = true;
 }
-void CubismDependencyTracker::track(const String &source, const String &destination, bool strict_optional_files) {
+void CubismDependencyTracker::track(const String &source, const String &destination, const Dictionary &options) {
     Entry &entry = entries[destination];
     entry.source = source;
     entry.destination = destination;
-    entry.options["validation/strict_optional_files"] = strict_optional_files;
+    entry.options = options.duplicate();
     requested = true;
 }
 void CubismDependencyTracker::collect(EditorFileSystemDirectory *directory) {
@@ -80,7 +81,11 @@ void CubismDependencyTracker::collect(EditorFileSystemDirectory *directory) {
             Ref<ConfigFile> config;
             config.instantiate();
             if (config->parse(metadata->get_as_text(), false) != OK || config->get_value("remap", "importer", "") != String("redot.cubism.model")) continue;
-            automatic_options["validation/strict_optional_files"] = config->get_value("params", "validation/strict_optional_files", false);
+            automatic_options = cubism_import_defaults();
+            if (config->has_section("params")) {
+                const PackedStringArray keys = config->get_section_keys("params");
+                for (int j = 0; j < keys.size(); ++j) automatic_options[keys[j]] = config->get_value("params", keys[j]);
+            }
             const String generated = config->get_value("remap", "path", "");
             if (!directory->get_file_import_is_valid(i) || generated.is_empty() ||
                     CubismManifestParser::validate_project_file(generated)["status"] != String("file")) {
@@ -144,7 +149,8 @@ void CubismDependencyTracker::begin_entry() {
     // Parsing the current source retains newly declared missing files after failure.
     const Dictionary text = CubismManifestParser::read_project_json(entry.source);
     if (text["status"] == String("file")) {
-        const Dictionary parsed = CubismManifestParser::parse_manifest(text["text"], entry.source);
+        const Dictionary checked = validate_cubism_import_options(entry.options);
+        const Dictionary parsed = parse_cubism_import_manifest(text["text"], entry.source, checked["options"]);
         if (bool(parsed["ok"])) {
             const PackedStringArray dependencies = parsed["dependencies"];
             for (int i = 0; i < dependencies.size(); ++i) {
@@ -239,8 +245,7 @@ void CubismDependencyTracker::finish_entry() {
             fs->reimport_files(sources);
             entry.status = "reimport-requested";
         } else {
-            const Error error = CubismModelImporter::import_model(entry.source, entry.destination,
-                entry.options.get("validation/strict_optional_files", false));
+            const Error error = CubismModelImporter::import_model_with_options(entry.source, entry.destination, entry.options);
             entry.status = error == OK ? "current" : "failed";
             if (error == OK) fs->update_file(entry.destination);
         }
