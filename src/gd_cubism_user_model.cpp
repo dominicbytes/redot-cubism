@@ -5,6 +5,7 @@
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/ref.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/sprite2d.hpp>
 #include <godot_cpp/classes/window.hpp>
 
@@ -99,6 +100,11 @@ void GDCubismUserModel::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_model", "resource"), &GDCubismUserModel::set_model);
     ClassDB::bind_method(D_METHOD("get_model"), &GDCubismUserModel::get_model);
     ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "model", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource"), "set_model", "get_model");
+    ClassDB::bind_method(D_METHOD("_set_legacy_model", "resource"), &GDCubismUserModel::set_legacy_model);
+    ClassDB::bind_method(D_METHOD("_get_legacy_model"), &GDCubismUserModel::get_legacy_model);
+    // Keep the original assets API while giving saved legacy scenes a real
+    // imported-resource edge for dependency discovery and selective export.
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "_legacy_model", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource", PROPERTY_USAGE_STORAGE), "_set_legacy_model", "_get_legacy_model");
 
     // Enable Load Expressions
     ClassDB::bind_method(D_METHOD("set_load_expressions", "enable"), &GDCubismUserModel::set_load_expressions);
@@ -302,7 +308,21 @@ GDCubismUserModel::moc3FileFormatVersion GDCubismUserModel::csm_get_moc_version(
 void GDCubismUserModel::set_assets(const String assets) {
     model_resource.unref();
     this->assets = assets;
-    this->load_model(assets);
+    auto *loader = ResourceLoader::get_singleton();
+    if (assets.begins_with("res://") && assets.ends_with(".model3.json") && loader->exists(assets, "CubismModelResource")) {
+        const Ref<CubismModelResource> imported = loader->load(assets, "CubismModelResource");
+        if (imported.is_valid() && imported->get_source_model_path() == assets) model_resource = imported;
+    }
+    this->load_model(assets, model_resource);
+}
+
+void GDCubismUserModel::set_legacy_model(const Ref<CubismModelResource> &resource) {
+    // Serialized scene properties may arrive in either order. The assets path
+    // remains authoritative; never apply a bridge for a different source.
+    if (assets.is_empty() || resource.is_null() || resource->get_source_model_path() != assets) return;
+    if (resource == model_resource) return;
+    model_resource = resource;
+    load_model(assets, resource);
 }
 
 void GDCubismUserModel::set_model(const Ref<CubismModelResource> &resource) {

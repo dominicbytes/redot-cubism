@@ -19,6 +19,11 @@ It returns a Redot `Error`. Destinations must be physically inside the project
 and end in `.res` or `.tres`. Validation completes before saving. This API is
 editor-only; the saved resource class is available at runtime.
 
+For existing `assets` paths, **Prepare Legacy Cubism Model** imports the original
+source through Redot instead of asking for a separate destination. See the
+[legacy preparation workflow](legacy-compatibility.md) and its `import_source`
+editor API. Reopen and save legacy scenes to retain their export dependencies.
+
 Use `CubismModelImporter.import_model_with_options(source_file, destination, options)`
 to supply the same choices by their keys: `validation/strict_optional_files`,
 `motions/import_manifest_motions`, and `expressions/import`. All require actual
@@ -88,4 +93,6 @@ This action is the plan's provisional fallback. Its saved resources now particip
 in [dependency tracking](dependency-tracking.md). The editor refreshes them after
 source changes; **Project → Tools → Validate Cubism Models** requests a scan.
 Assign the result to `GDCubismUserModel.model` for [runtime playback](resource-runtime.md).
-The preferred `CubismModel2D` API and checked export remain unfinished.
+The preferred `CubismModel2D` API remains unfinished. The
+[checked export workflow](export-validation.md) has Linux integration coverage;
+Windows and the complete release gates remain pending.

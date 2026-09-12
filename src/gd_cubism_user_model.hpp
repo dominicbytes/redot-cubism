@@ -180,7 +180,9 @@ private:
 
 public:
     void set_model(const Ref<CubismModelResource> &resource);
-    Ref<CubismModelResource> get_model() const { return model_resource; }
+    Ref<CubismModelResource> get_model() const { return assets.is_empty() ? model_resource : Ref<CubismModelResource>(); }
+    void set_legacy_model(const Ref<CubismModelResource> &resource);
+    Ref<CubismModelResource> get_legacy_model() const { return assets.is_empty() ? Ref<CubismModelResource>() : model_resource; }
     ModelState get_model_state() const { return model_state; }
     Dictionary get_last_error() const { return last_error.duplicate(); }
     bool is_native_busy() const { return native_busy || disposing; }

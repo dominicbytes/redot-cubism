@@ -10,6 +10,7 @@ protected:
 public:
     static godot::String fingerprint(const godot::Dictionary &files, const godot::Dictionary &options);
     static godot::Error import_model(const godot::String &source_file, const godot::String &destination, bool strict_optional_files = false);
+    static godot::Error import_source(const godot::String &source_file);
     static godot::Error import_model_with_options(const godot::String &source_file, const godot::String &destination, const godot::Dictionary &options);
     godot::String _get_importer_name() const override;
     godot::String _get_visible_name() const override;

@@ -122,6 +122,7 @@ void GDCubismPlugin::_enter_tree() {
     get_editor_interface()->get_base_control()->add_child(cubism_save_dialog);
     cubism_save_dialog->connect("file_selected", callable_mp(this, &GDCubismPlugin::save_cubism_resource));
     add_tool_menu_item("Import Cubism Model", callable_mp(this, &GDCubismPlugin::show_cubism_import_dialog));
+    add_tool_menu_item("Prepare Legacy Cubism Model", callable_mp(this, &GDCubismPlugin::show_legacy_cubism_import_dialog));
     add_tool_menu_item("Validate and Export Cubism", callable_mp(this, &GDCubismPlugin::show_checked_export));
 
     // Use the normal editor main loop for CLI validation. A custom SceneTree
@@ -160,6 +161,7 @@ void GDCubismPlugin::_enter_tree() {
 
 
 void GDCubismPlugin::_exit_tree() {
+    remove_tool_menu_item("Prepare Legacy Cubism Model");
     remove_export_plugin(export_plugin);
     export_plugin.unref();
     remove_inspector_plugin(model_inspector);
@@ -194,7 +196,16 @@ void GDCubismPlugin::_exit_tree() {
 }
 
 void GDCubismPlugin::show_cubism_import_dialog() {
+    legacy_source_import = false;
+    cubism_source_dialog->set_title("Import Cubism Model");
     cubism_source_path = String();
+    cubism_source_dialog->popup_file_dialog();
+}
+
+void GDCubismPlugin::show_legacy_cubism_import_dialog() {
+    legacy_source_import = true;
+    cubism_source_path = String();
+    cubism_source_dialog->set_title("Prepare Legacy Cubism Model");
     cubism_source_dialog->popup_file_dialog();
 }
 
@@ -210,6 +221,15 @@ void GDCubismPlugin::show_checked_export() {
 }
 
 void GDCubismPlugin::select_cubism_source(const String &path) {
+    if (legacy_source_import) {
+        const Error error = CubismModelImporter::import_source(path);
+        if (error != OK) {
+            UtilityFunctions::push_error("Cannot prepare legacy Cubism source (", error, "): ", path);
+            return;
+        }
+        get_editor_interface()->edit_resource(ResourceLoader::get_singleton()->load(path, "CubismModelResource"));
+        return;
+    }
     cubism_source_path = path;
     cubism_save_dialog->set_current_file(path.get_file().trim_suffix(".model3.json") + String(".res"));
     cubism_save_dialog->popup_file_dialog();

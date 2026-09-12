@@ -181,6 +181,7 @@
 		<member name="assets" type="String" setter="set_assets" getter="get_assets" default="&quot;&quot;">
 			By specifying a file with the [code]*.model3.json[/code] extension, you can load the Live2D model. As soon as you specify a file, it will be loaded immediately.
 			if you want to switch the Live2D model, you can do so by simply specifying a new file.
+			Prepared Cubism sources load through their imported resources. Use Project → Tools → Prepare Legacy Cubism Model, then reopen and save legacy scenes to retain their export dependencies. Unprepared sources retain raw-file loading; checked export requires a saved imported-resource bridge.
 		</member>
 		<member name="load_expressions" type="bool" setter="set_load_expressions" getter="get_load_expressions" default="true">
 			If set to [code]false[/code], it will not load [i]Expressions[/i] when loading the Live2D Model.

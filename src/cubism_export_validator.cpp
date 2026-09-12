@@ -202,7 +202,13 @@ Dictionary CubismExportValidator::validate_file(const String &path) {
                         const String node_path = state->get_node_path(i);
                         const StringName type = node_type(state, node_path, depth + 1);
                         if (!String(type).is_empty() && ClassDBSingleton::get_singleton()->is_parent_class(type, "GDCubismUserModel")) {
-                            error("Legacy Cubism assets on node " + node_path + String(" has no imported resource dependency. Import the model, assign its resource to the node's model property, and save the scene before export."));
+                            Ref<CubismModelResource> bridge;
+                            for (int k = 0; k < state->get_node_property_count(i); ++k) {
+                                if (--remaining < 0) { error("Scene graph exceeds export validation limits."); return; }
+                                if (state->get_node_property_name(i, k) == StringName("_legacy_model")) bridge = state->get_node_property_value(i, k);
+                            }
+                            if (bridge.is_valid() && bridge->get_source_model_path() == String(assets) && bridge->get_path() == String(assets)) continue;
+                            error("Legacy Cubism assets on node " + node_path + String(" has no matching imported resource dependency. Prepare the legacy source, reload and save the scene, or assign an imported model resource before export."));
                             return;
                         }
                     }
