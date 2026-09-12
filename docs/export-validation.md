@@ -1,7 +1,7 @@
 # Export validation groundwork
 
 `CubismExportValidator.validate_model(model)` is an editor-only, read-only
-precondition for the planned checked export action and the raw-file injection plugin.
+precondition shared by the checked export action and the raw-file injection plugin.
 It returns `ok`, structured `diagnostics` (`path` and `message`), and a sorted
 `raw_files` list. Any failure returns an empty list, never a partial package.
 Call it on the editor main thread after asset importing finishes.
@@ -67,11 +67,56 @@ callers must also require the marker and report, reject engine diagnostics, and
 enforce a wall-clock timeout; an interrupted editor can leave no final report.
 This command validates only. It does not start packaging or replace any build.
 
-The combined checked editor/CLI export action and verified output promotion
-are still unfinished.
+The combined pipeline is available from **Project → Tools → Validate and Export
+Cubism**. Save project changes first, choose an existing preset and build mode,
+then choose a directory for the complete build. Python 3.10 or newer is required;
+the dialog accepts its executable path (`CUBISM_PYTHON_BIN` supplies the default).
+The same pipeline can be run from a source checkout:
+
+```sh
+python tools/checked_export.py --project /path/to/project \
+  --preset "Existing preset name" --mode release --output /path/to/complete-build
+```
+
+Set `REDOT_BIN` or pass `--redot-bin`. Installed addons ship the equivalent
+`addons/gd_cubism/editor/checked_export.py`. The output argument names a directory,
+not an executable. `--name` sets the executable filename. The checker currently
+requires an x86_64 runner on the target Linux/Windows OS and an unencrypted,
+standalone PCK; unsupported layouts fail explicitly without changing presets.
+Windows execution still requires separate platform validation.
+
+The pipeline runs preflight, packages into a fresh sibling work directory,
+checks raw/shader hashes and executable/shared-library architecture, and runs an
+external smoke script against the staged game/PCK. The smoke loads selected and
+embedded models, starts a motion from each populated group, exercises expressions,
+checks finite parameters and verifies native dependency identity. It does not
+require every valid motion to visibly move parameters. Renderer parity is a
+separate graphics test. The helper directory's addon-owned `.gdignore` excludes
+editor scripts from normal export discovery. The checker also rejects archives
+containing helpers (including compiled scripts), covering manually configured
+presets that bypass discovery. A late export callback alone cannot undo scripts
+already compiled by Redot's earlier GDScript exporter.
+
+Only a passing build is promoted as a complete directory. Existing managed builds
+are retained as `previous` inside that run's work directory, including when a
+failed promotion must roll back. Nonempty unmanaged directories are refused.
+Failed validation, packaging, archive inspection or playback returns nonzero;
+the prior output remains intact. Reports and logs remain in the adjacent hidden
+`.OUTPUT.cubism-export-*` directory. `cubism-export.json` in successful output
+records dependency revisions and artifact hashes. `--report` writes a final
+status JSON for automation; `--timeout` controls each engine phase's wall limit.
+Concurrent exports to the same output are refused by a lock file. If a host crash
+leaves that lock behind, verify its recorded process has stopped before removing it.
+
+Linux debug/release integration tests cover a Unicode project/output/executable
+path, complete build replacement, and preservation of the previous output after
+missing-MOC, packaging and smoke-test failures. The actual editor menu action and
+rendered dialogs are also tested. This qualification covers imported
+`CubismModelResource` workflows; legacy scenes using only the `assets` string
+have not been qualified by this checker.
 Ordinary Export-menu callbacks cannot be assumed to abort an invalid export.
-Full-model export remains unfinished until those components and their integration
-tests are implemented. Linux debug and release tests now cover selected resources,
+The complete PR9 release gate remains open until the combined-action tests and
+remaining package/platform checks pass. Linux debug and release tests cover selected resources,
 selected scenes, embedded models and all resources. They inspect raw archive
 hashes and launch the exported model with the source project unavailable, including
 actual parameter changes during motion playback. This does not qualify checked

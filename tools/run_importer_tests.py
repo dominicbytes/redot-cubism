@@ -44,7 +44,9 @@ def main():
             target = addon / "res" / path.relative_to(ROOT / "demo/addons/gd_cubism/res")
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(path.read_bytes())
-    for path in (ROOT / "demo/addons/gd_cubism/editor").glob("*.gd"):
+    for path in (ROOT / "demo/addons/gd_cubism/editor").glob("*"):
+        if path.suffix not in {".gd", ".py"} and path.name != ".gdignore":
+            continue
         target = addon / "editor" / path.name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(path.read_bytes())

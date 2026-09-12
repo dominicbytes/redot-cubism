@@ -122,6 +122,7 @@ void GDCubismPlugin::_enter_tree() {
     get_editor_interface()->get_base_control()->add_child(cubism_save_dialog);
     cubism_save_dialog->connect("file_selected", callable_mp(this, &GDCubismPlugin::save_cubism_resource));
     add_tool_menu_item("Import Cubism Model", callable_mp(this, &GDCubismPlugin::show_cubism_import_dialog));
+    add_tool_menu_item("Validate and Export Cubism", callable_mp(this, &GDCubismPlugin::show_checked_export));
 
     // Use the normal editor main loop for CLI validation. A custom SceneTree
     // passed through --editor --script does not clean up Redot's editor objects.
@@ -167,6 +168,11 @@ void GDCubismPlugin::_exit_tree() {
     memdelete(dependency_tracker);
     dependency_tracker = nullptr;
     remove_tool_menu_item("Import Cubism Model");
+    remove_tool_menu_item("Validate and Export Cubism");
+    if (checked_export_ui != nullptr) {
+        memdelete(checked_export_ui);
+        checked_export_ui = nullptr;
+    }
     memdelete(cubism_source_dialog);
     cubism_source_dialog = nullptr;
     memdelete(cubism_save_dialog);
@@ -190,6 +196,17 @@ void GDCubismPlugin::_exit_tree() {
 void GDCubismPlugin::show_cubism_import_dialog() {
     cubism_source_path = String();
     cubism_source_dialog->popup_file_dialog();
+}
+
+void GDCubismPlugin::show_checked_export() {
+    if (checked_export_ui == nullptr) {
+        const Ref<Resource> script = ResourceLoader::get_singleton()->load("res://addons/gd_cubism/editor/export_dialog.gd");
+        if (script.is_null()) { UtilityFunctions::push_error("Cannot load Cubism checked export dialog."); return; }
+        checked_export_ui = memnew(Node);
+        checked_export_ui->set_script(script);
+        add_child(checked_export_ui);
+    }
+    checked_export_ui->call("show_export_dialog");
 }
 
 void GDCubismPlugin::select_cubism_source(const String &path) {

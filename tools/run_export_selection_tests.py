@@ -45,6 +45,7 @@ def main():
         parser.error('Fixture library hash mismatch')
     (project/'export_selection_checks.gd').write_bytes((ROOT/'tests/native/project/export_selection_checks.gd').read_bytes())
     if args.preflight:
+        (project/'addons/gd_cubism/editor/.gdignore').write_bytes((ROOT/'demo/addons/gd_cubism/editor/.gdignore').read_bytes())
         for path in (ROOT/'demo/addons/gd_cubism/editor').glob('*.gd'):
             destination = project/'addons/gd_cubism/editor'/path.name
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -131,6 +132,7 @@ def main():
                 (run/(mode+'-observed.json')).write_text(json.dumps(observed,indent=2)+'\n')
             archive = inspect_pack(output/'game.pck')
             files = archive['files']
+            assert not any(name.startswith('addons/gd_cubism/editor/') for name in files), 'Editor helpers must not be packaged'
             for name, digest in expected['raw'].items():
                 assert files[name.removeprefix('res://')]['sha256'] == digest, name
             if args.preflight:
