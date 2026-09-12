@@ -96,6 +96,9 @@ void GDCubismUserModel::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_assets", "assets"), &GDCubismUserModel::set_assets);
     ClassDB::bind_method(D_METHOD("get_assets"), &GDCubismUserModel::get_assets);
     ADD_PROPERTY(PropertyInfo(Variant::STRING, "assets", PROPERTY_HINT_FILE, "*.model3.json"), "set_assets", "get_assets");
+    ClassDB::bind_method(D_METHOD("set_model", "resource"), &GDCubismUserModel::set_model);
+    ClassDB::bind_method(D_METHOD("get_model"), &GDCubismUserModel::get_model);
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "model", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource"), "set_model", "get_model");
 
     // Enable Load Expressions
     ClassDB::bind_method(D_METHOD("set_load_expressions", "enable"), &GDCubismUserModel::set_load_expressions);
@@ -229,13 +232,13 @@ void GDCubismUserModel::_bind_methods() {
 void GDCubismUserModel::_notification(int p_what) {
     switch (p_what) {
         case NOTIFICATION_READY:
-            if (!this->assets.is_empty() && !this->is_initialized()) {
-                this->load_model(this->assets);
+            if ((!this->assets.is_empty() || model_resource.is_valid()) && !this->is_initialized()) {
+                this->load_model(this->assets, model_resource);
             }
             break;
         case NOTIFICATION_ENTER_TREE:
-            if ((!this->is_initialized() || pending_unload) && !assets.is_empty()) {
-                this->load_model(assets);
+            if ((!this->is_initialized() || pending_unload) && (!assets.is_empty() || model_resource.is_valid())) {
+                this->load_model(assets, model_resource);
             }
             this->set_process_callback(this->playback_process_mode);
             break;
@@ -297,8 +300,15 @@ GDCubismUserModel::moc3FileFormatVersion GDCubismUserModel::csm_get_moc_version(
 
 
 void GDCubismUserModel::set_assets(const String assets) {
+    model_resource.unref();
     this->assets = assets;
     this->load_model(assets);
+}
+
+void GDCubismUserModel::set_model(const Ref<CubismModelResource> &resource) {
+    model_resource = resource;
+    assets = String();
+    load_model(String(), resource);
 }
 
 String GDCubismUserModel::get_assets() const {
@@ -858,6 +868,7 @@ void GDCubismUserModel::clear(GDCubismMotionQueueEntryHandle::FinishReason reaso
         pending_unload = true;
         pending_clear_reason = reason;
         pending_load = false;
+        pending_resource.unref();
         return;
     }
     disposing = true;
@@ -907,9 +918,11 @@ void GDCubismUserModel::apply_pending_operation() {
     if (destroying || is_queued_for_deletion() || is_native_busy()) return;
     if (pending_load) {
         const String path = pending_asset;
+        const Ref<CubismModelResource> resource = pending_resource;
+        pending_resource.unref();
         pending_load = false;
         pending_unload = false;
-        load_model(path);
+        load_model(path, resource);
     } else if (pending_unload) {
         pending_unload = false;
         clear(pending_clear_reason);
@@ -939,10 +952,11 @@ void GDCubismUserModel::dispatch_model_signals() {
     }
 }
 
-void GDCubismUserModel::load_model(const String assets) {
+void GDCubismUserModel::load_model(const String assets, Ref<CubismModelResource> resource) {
     if (destroying) return;
     if (is_native_busy()) {
         pending_asset = assets;
+        pending_resource = resource;
         pending_load = true;
         pending_unload = false;
         return;
@@ -950,7 +964,7 @@ void GDCubismUserModel::load_model(const String assets) {
     this->clear(GDCubismMotionQueueEntryHandle::RELOADED);
     last_error.clear();
 
-    if (assets.is_empty()) {
+    if (assets.is_empty() && resource.is_null()) {
         return;
     }
 
@@ -961,7 +975,7 @@ void GDCubismUserModel::load_model(const String assets) {
     this->internal_model = CSM_NEW InternalCubismUserModel(this);
 
     if(
-        this->internal_model->model_load(assets) == false ||
+        this->internal_model->model_load(resource.is_valid() ? resource->get_source_model_path() : assets, resource) == false ||
         this->internal_model->IsInitialized() == false
     ) { 
         // The pinned binding's Dictionary move assignment overwrites its old

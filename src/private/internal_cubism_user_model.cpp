@@ -8,6 +8,10 @@
 #include <godot_cpp/classes/image_texture.hpp>
 #include <godot_cpp/classes/image.hpp>
 #include <godot_cpp/classes/json.hpp>
+#include <godot_cpp/classes/hashing_context.hpp>
+#include <cubism_manifest_parser.hpp>
+#include <private/redot_cubism_model_setting.hpp>
+#include <cmath>
 
 #ifdef GD_CUBISM_USE_RENDERER_2D
     #include <private/internal_cubism_renderer_2d.hpp>
@@ -53,12 +57,37 @@ bool InternalCubismUserModel::fail_load(const String &path, const String &messag
 bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &buffer, bool json) {
     Ref<FileAccess> file = FileAccess::open(path, FileAccess::READ);
     if (file.is_null()) return fail_load(path, "Cannot open the declared Cubism file.", ERR_FILE_CANT_OPEN);
-    buffer = file->get_buffer(file->get_length());
+    const uint64_t length = file->get_length();
+    if (resource_mode && (length > uint64_t(json ? 4 : 64) * 1024 * 1024 || processed_bytes + length > 512ULL * 1024 * 1024)) {
+        return fail_load(path, "Imported Cubism source exceeds the runtime input limit.");
+    }
+    buffer = file->get_buffer(length);
+    if (buffer.size() != int64_t(length) || file->get_length() != length) return fail_load(path, "Cubism file changed while reading.");
     if (buffer.is_empty()) return fail_load(path, "The declared Cubism file is empty.", ERR_FILE_CORRUPT);
+    if (resource_mode) {
+        processed_bytes += length;
+        Ref<HashingContext> hash;
+        hash.instantiate();
+        hash->start(HashingContext::HASH_SHA256);
+        hash->update(buffer);
+        if (source_fingerprints.get(path, String()) != Variant(hash->finish().hex_encode())) {
+            return fail_load(path, "Imported Cubism source is stale or untracked. Reimport the model.");
+        }
+    }
     if (json) {
+        String text;
+        if (text.parse_utf8(reinterpret_cast<const char *>(buffer.ptr()), buffer.size()) != OK) return fail_load(path, "Invalid UTF-8 in Cubism JSON.", ERR_PARSE_ERROR);
+        if (resource_mode) {
+            const Dictionary validation = path.ends_with(".motion3.json") ? CubismManifestParser::parse_motion(text, "runtime", 0, path)
+                : path.ends_with(".exp3.json") ? CubismManifestParser::parse_expression(text, "runtime", path)
+                : path.ends_with(".physics3.json") ? CubismManifestParser::parse_physics(text)
+                : path.ends_with(".pose3.json") ? CubismManifestParser::parse_pose(text)
+                : path.ends_with(".userdata3.json") ? CubismManifestParser::parse_user_data(text) : Dictionary();
+            if (!bool(validation.get("ok", false))) return fail_load(path, "Imported Cubism JSON no longer passes schema validation.", ERR_PARSE_ERROR);
+        }
         Ref<JSON> parser;
         parser.instantiate();
-        if (parser->parse(buffer.get_string_from_utf8()) != OK || parser->get_data().get_type() != Variant::DICTIONARY) {
+        if (parser->parse(text) != OK || parser->get_data().get_type() != Variant::DICTIONARY) {
             return fail_load(path, "Expected a JSON object: " + parser->get_error_message(), ERR_PARSE_ERROR);
         }
         // R5's numeric parser requires a newline/comma terminator and cannot read
@@ -71,9 +100,13 @@ bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &b
     return true;
 }
 
+String InternalCubismUserModel::resolve_file(const char *filename) const {
+    const String path = String::utf8(filename);
+    return resource_mode ? path : _model_pathname.get_base_dir().path_join(path);
+}
 
 bool InternalCubismUserModel::model_load(
-    const String &model_pathname
+    const String &model_pathname, const Ref<CubismModelResource> &resource
 ) {
 
     this->_model_pathname = model_pathname;
@@ -81,19 +114,29 @@ bool InternalCubismUserModel::model_load(
     this->_initialized = false;
     this->clear();
     load_error.clear();
+    resource_mode = resource.is_valid();
+    processed_bytes = 0;
     PackedByteArray buffer;
-    if (!read_buffer(model_pathname, buffer)) return false;
-
-    this->_model_setting = CSM_NEW CubismModelSettingJson(buffer.ptr(), buffer.size());
+    if (resource_mode) {
+        String error;
+        this->_model_setting = CSM_NEW RedotCubismModelSetting(resource, error);
+        if (!error.is_empty()) return fail_load(model_pathname, error);
+        const Dictionary fingerprints = resource->get_dependency_fingerprints().duplicate();
+        source_fingerprints = fingerprints;
+        imported_textures = resource->get_textures().duplicate();
+    } else {
+        if (!read_buffer(model_pathname, buffer)) return false;
+        this->_model_setting = CSM_NEW CubismModelSettingJson(buffer.ptr(), buffer.size());
+    }
 
     // setup Live2D model
     if (strcmp(this->_model_setting->GetModelFileName(), "") == 0) {
         return fail_load(model_pathname, "FileReferences.Moc must name a MOC3 file.");
     } else {
-        String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetModelFileName());
-        String moc3_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
+        const String moc3_pathname = resolve_file(this->_model_setting->GetModelFileName());
 
         if (!read_buffer(moc3_pathname, buffer, false)) return false;
+        if (buffer.size() < 64) return fail_load(moc3_pathname, "MOC3 header is truncated.", ERR_FILE_CORRUPT);
         const auto version = CubismMoc::GetMocVersionFromBuffer(buffer.ptr(), buffer.size());
         if (version == Live2D::Cubism::Core::csmMocVersion_Unknown || version > Live2D::Cubism::Core::csmGetLatestMocVersion()) {
             return fail_load(moc3_pathname, "MOC3 version is invalid or newer than this Cubism Core.", ERR_FILE_UNRECOGNIZED);
@@ -121,6 +164,10 @@ bool InternalCubismUserModel::model_load(
                 && blend.GetAlphaBlendType() == Live2D::Cubism::Core::csmAlphaBlendType_Over);
         if (!compatible) {
             return fail_load(model_pathname, "This Cubism model uses a blend mode unsupported by the Redot canvas renderer.", ERR_UNAVAILABLE);
+        }
+        if (resource_mode && (blend.GetAlphaBlendType() != Live2D::Cubism::Core::csmAlphaBlendType_Over
+            || _model->GetDrawableTextureIndex(i) < 0 || _model->GetDrawableTextureIndex(i) >= _model_setting->GetTextureCount())) {
+            return fail_load(model_pathname, "Imported texture indices or alpha blend mode are unsupported.");
         }
     }
 
@@ -156,6 +203,24 @@ bool InternalCubismUserModel::model_load(
 
     if(this->_model_setting == nullptr || this->_modelMatrix == nullptr) {
         return fail_load(model_pathname, "Cubism did not create model settings and its model matrix.");
+    }
+
+    if (resource_mode) {
+        Csm::csmMap<Csm::csmString, float> layout;
+        if (_model_setting->GetLayoutMap(layout)) {
+            const float base_x = _modelMatrix->GetScaleX();
+            const float base_y = _modelMatrix->GetScaleY();
+            _modelMatrix->SetupFromLayout(layout);
+            // Undo the SDK's default normalization so an empty layout keeps the
+            // existing pixel-sized model. Layout coordinates use SDK normalized units.
+            const float scale_x = _modelMatrix->GetScaleX() / base_x;
+            const float scale_y = _modelMatrix->GetScaleY() / base_y;
+            const float x = _modelMatrix->GetTranslateX() / base_x * _model->GetPixelsPerUnit();
+            const float y = -_modelMatrix->GetTranslateY() / base_y * _model->GetPixelsPerUnit();
+            if (!std::isfinite(scale_x) || !std::isfinite(scale_y) || !std::isfinite(x) || !std::isfinite(y)
+                || scale_x == 0 || scale_y == 0) return fail_load(model_pathname, "Cubism layout produces a non-finite or singular transform.");
+            _renderer_resource.layout_transform = Transform2D(Vector2(scale_x, 0), Vector2(0, scale_y), Vector2(x, y));
+        }
     }
 
     this->_model->SaveParameters();
@@ -198,6 +263,10 @@ bool InternalCubismUserModel::model_load(
 
 bool InternalCubismUserModel::model_load_resource()
 {
+    if (resource_mode) {
+        this->_renderer_resource.ary_texture = imported_textures.duplicate();
+        return true;
+    }
     ResourceLoader *res_loader = ResourceLoader::get_singleton();
 
     this->_renderer_resource.ary_texture.clear();
@@ -417,8 +486,7 @@ bool InternalCubismUserModel::expression_load() {
     {
         csmString name = this->_model_setting->GetExpressionName(i);
 
-        String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetExpressionFileName(i));
-        String expression_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
+        const String expression_pathname = resolve_file(this->_model_setting->GetExpressionFileName(i));
 
         PackedByteArray buffer;
         if (!read_buffer(expression_pathname, buffer)) return false;
@@ -443,8 +511,7 @@ bool InternalCubismUserModel::expression_load() {
 bool InternalCubismUserModel::physics_load() {
     if(strcmp(this->_model_setting->GetPhysicsFileName(), "") == 0) return true;
 
-    String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetPhysicsFileName());
-    String physics_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
+    const String physics_pathname = resolve_file(this->_model_setting->GetPhysicsFileName());
 
     PackedByteArray buffer;
     if (!read_buffer(physics_pathname, buffer)) return false;
@@ -456,8 +523,7 @@ bool InternalCubismUserModel::physics_load() {
 bool InternalCubismUserModel::pose_load() {
     if(strcmp(this->_model_setting->GetPoseFileName(), "") == 0) return true;
 
-    String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetPoseFileName());
-    String pose_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
+    const String pose_pathname = resolve_file(this->_model_setting->GetPoseFileName());
 
     PackedByteArray buffer;
     if (!read_buffer(pose_pathname, buffer)) return false;
@@ -469,8 +535,7 @@ bool InternalCubismUserModel::pose_load() {
 bool InternalCubismUserModel::userdata_load() {
     if(strcmp(this->_model_setting->GetUserDataFile(), "") == 0) return true;
 
-    String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetUserDataFile());
-    String userdata_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
+    const String userdata_pathname = resolve_file(this->_model_setting->GetUserDataFile());
 
     PackedByteArray buffer;
     if (!read_buffer(userdata_pathname, buffer)) return false;
@@ -494,8 +559,7 @@ bool InternalCubismUserModel::motion_load() {
         {
             csmString name = Utils::CubismString::GetFormatedString("%s_%d", group, im);
 
-            String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetMotionFileName(group, im));
-            String motion_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
+            const String motion_pathname = resolve_file(this->_model_setting->GetMotionFileName(group, im));
 
             PackedByteArray buffer;
             if (!read_buffer(motion_pathname, buffer)) return false;

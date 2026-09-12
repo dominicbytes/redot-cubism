@@ -15,6 +15,7 @@
 #include <CubismModelSettingJson.hpp>
 
 #include <private/internal_cubism_renderer_resource.hpp>
+#include <cubism_model_resource.hpp>
 
 
 // ------------------------------------------------------------------ define(s)
@@ -62,11 +63,16 @@ private:
     Csm::csmMap<Csm::csmString,Csm::CubismExpressionMotion*> _map_expression;
     Csm::csmMap<Csm::csmString,Csm::CubismMotion*> _map_motion;
     Dictionary load_error;
+    bool resource_mode = false;
+    uint64_t processed_bytes = 0;
+    Dictionary source_fingerprints;
+    TypedArray<Texture2D> imported_textures;
+    String resolve_file(const char *filename) const;
     bool fail_load(const String &path, const String &message, Error code = ERR_INVALID_DATA);
     bool read_buffer(const String &path, PackedByteArray &buffer, bool json = true);
 
 public:
-    bool model_load(const String &model_pathname);
+    bool model_load(const String &model_pathname, const Ref<CubismModelResource> &resource = Ref<CubismModelResource>());
     bool model_load_resource();
     Dictionary get_load_error() const { return load_error.duplicate(); }
     void pro_update(const double delta);

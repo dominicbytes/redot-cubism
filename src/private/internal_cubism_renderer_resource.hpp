@@ -61,6 +61,7 @@ public:
     Vector2i vct_canvas_size;
     float CALCULATED_PPUNIT_C;
     Vector2 CALCULATED_ORIGIN_C;
+    Transform2D layout_transform;
 };
 
 

@@ -15,6 +15,7 @@ Current evidence: [bootstrap](docs/gamedev/pr-01-report.md) and
 
 - [Implementation plan](redot_live2d_cubism_importer_codex_plan.md)
 - [Provisional editor model import](docs/editor-import.md)
+- [Imported resource runtime loading](docs/resource-runtime.md)
 - [Preflight findings, sources and remaining gates](docs/gamedev/preflight-report.md)
 - Local source, decision and risk index: `docs/gamedev/source-of-truth.xlsx`
   (excluded from the public source branch).

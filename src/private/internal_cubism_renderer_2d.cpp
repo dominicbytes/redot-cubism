@@ -33,7 +33,7 @@ using namespace godot;
 // ------------------------------------------------------------------ static(s)
 PackedInt32Array make_Indices(const csmUint16 *ptr, const int32_t &size);
 PackedVector2Array make_UVs(const Live2D::Cubism::Core::csmVector2 *ptr, const int32_t &size);
-PackedVector2Array make_Vertices(const Live2D::Cubism::Core::csmVector2 *ptr, const int32_t &size, const Csm::csmFloat32 &ppunit);
+PackedVector2Array make_Vertices(const Live2D::Cubism::Core::csmVector2 *ptr, const int32_t &size, const Csm::csmFloat32 &ppunit, const Transform2D &layout);
 const Vector4 make_vector4(const Live2D::Cubism::Core::csmVector4 &src_vec4);
 
 // ----------------------------------------------------------- class:forward(s)
@@ -89,26 +89,28 @@ void InternalCubismRenderer2D::update_mesh(
         PackedByteArray ary;
         ary.resize(size * stride);
 
-        Vector3 vct_min(ptr[0].X * pp_unit, ptr[0].Y * pp_unit, 0.0);
+        const Vector2 first = res.layout_transform.xform(Vector2(ptr[0].X, -ptr[0].Y) * pp_unit);
+        Vector3 vct_min(first.x, first.y, 0.0);
         Vector3 vct_max = vct_min;
 
         for (int i = 0; i < size; i++)
         {
-            float x = ptr[i].X * pp_unit;
-            float y = ptr[i].Y * pp_unit;
+            const Vector2 vertex = res.layout_transform.xform(Vector2(ptr[i].X, -ptr[i].Y) * pp_unit);
+            float x = vertex.x;
+            float y = vertex.y;
             vct_min.x = Math::min(vct_min.x, x); // left
             vct_min.y = Math::min(vct_min.y, y); // top
             vct_max.x = Math::max(vct_max.x, x); // right
             vct_max.y = Math::max(vct_max.y, y); // bottom
             
             ary.encode_float(offset + i * stride, x);
-            ary.encode_float(offset + i * stride + sizeof(float), -y);
+            ary.encode_float(offset + i * stride + sizeof(float), y);
         }
 
         ary_mesh->surface_update_vertex_region(0, 0, ary);
 
         // aabb does not get automatically updated when directly updating the vertex region
-        AABB aabb(Vector3(vct_min.x, -vct_max.y, 0), vct_max - vct_min);
+        AABB aabb(vct_min, vct_max - vct_min);
         ary_mesh->set_custom_aabb(aabb);
 
         return;
@@ -121,7 +123,7 @@ void InternalCubismRenderer2D::update_mesh(
     ary[Mesh::ARRAY_VERTEX] = make_Vertices(
         model->GetDrawableVertexPositions(index),
         model->GetDrawableVertexCount(index),
-        pp_unit);
+        pp_unit, res.layout_transform);
 
     ary[Mesh::ARRAY_TEX_UV] = make_UVs(
         model->GetDrawableVertexUvs(index),
@@ -201,7 +203,7 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
             continue;
         
         CubismIdHandle handle = model->GetDrawableId(index);
-        String node_name(handle->GetString().GetRawString());
+        String node_name = String::utf8(handle->GetString().GetRawString());
         MeshInstance2D *node = Object::cast_to<MeshInstance2D>(res.dict_mesh[node_name]);
         if (node == nullptr) {
             continue;
@@ -324,7 +326,7 @@ void InternalCubismRenderer2D::build_model(InternalCubismRendererResource &res, 
             continue;
 
         CubismIdHandle handle = model->GetDrawableId(index);
-        String node_name(handle->GetString().GetRawString());
+        String node_name = String::utf8(handle->GetString().GetRawString());
 
         MeshInstance2D* node = res.request_mesh_instance();
         // share drawable mesh between nodes and masks so we only have to update once
@@ -359,7 +361,7 @@ void InternalCubismRenderer2D::build_model(InternalCubismRendererResource &res, 
                 continue;
     
             CubismIdHandle handle = model->GetDrawableId(j);
-            String mask_name(handle->GetString().GetRawString());
+            String mask_name = String::utf8(handle->GetString().GetRawString());
             mask_names.append(mask_name);
         }
 
@@ -405,7 +407,7 @@ void InternalCubismRenderer2D::build_model(InternalCubismRendererResource &res, 
                     continue;
         
                 CubismIdHandle handle = model->GetDrawableId(j);
-                String mask_name(handle->GetString().GetRawString());
+                String mask_name = String::utf8(handle->GetString().GetRawString());
 
                 MeshInstance2D* node = res.request_mesh_instance();
                 if (meshes[j]) {
@@ -484,13 +486,13 @@ PackedVector2Array make_UVs(const Live2D::Cubism::Core::csmVector2 *ptr, const i
     return ary;
 }
 
-PackedVector2Array make_Vertices(const Live2D::Cubism::Core::csmVector2 *ptr, const int32_t &size, const Csm::csmFloat32 &ppunit)
+PackedVector2Array make_Vertices(const Live2D::Cubism::Core::csmVector2 *ptr, const int32_t &size, const Csm::csmFloat32 &ppunit, const Transform2D &layout)
 {
     PackedVector2Array ary;
     ary.resize(size);
     for (int i = 0; i < size; i++)
     {
-        ary.set(i, Vector2(ptr[i].X, ptr[i].Y * -1.0) * ppunit);
+        ary.set(i, layout.xform(Vector2(ptr[i].X, ptr[i].Y * -1.0) * ppunit));
     }
     return ary;
 }
