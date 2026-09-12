@@ -5,9 +5,12 @@
 #include "cubism_manifest_parser.hpp"
 #include "cubism_descriptors.hpp"
 #include "private/redot_cubism_model_setting.hpp"
+#include <godot_cpp/classes/class_db_singleton.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/json.hpp>
+#include <godot_cpp/classes/packed_scene.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/classes/scene_state.hpp>
 #include <functional>
 #include <set>
 #include <godot_cpp/classes/portable_compressed_texture2d.hpp>
@@ -150,6 +153,31 @@ Dictionary CubismExportValidator::validate_file(const String &path) {
         item["message"] = message;
         diagnostics.push_back(item);
     };
+    // Resolve native node types through inherited scenes and instance overrides.
+    // Never instantiate a user's scene (which can execute scripts) for preflight.
+    std::function<StringName(const Ref<SceneState> &, const String &, int)> node_type;
+    node_type = [&](const Ref<SceneState> &state, const String &node_path, int depth) -> StringName {
+        if (state.is_null() || !diagnostics.is_empty()) return StringName();
+        if (--remaining < 0 || depth > 64) { error("Scene graph exceeds export validation limits."); return StringName(); }
+        for (int i = 0; i < state->get_node_count(); ++i) {
+            if (--remaining < 0) { error("Scene graph exceeds export validation limits."); return StringName(); }
+            const String candidate = state->get_node_path(i);
+            if (candidate == node_path && !String(state->get_node_type(i)).is_empty()) return state->get_node_type(i);
+        }
+        for (int i = 0; i < state->get_node_count(); ++i) {
+            if (--remaining < 0) { error("Scene graph exceeds export validation limits."); return StringName(); }
+            const String candidate = state->get_node_path(i);
+            const Ref<PackedScene> instance = state->get_node_instance(i);
+            if (instance.is_null()) continue;
+            if (candidate == node_path || candidate == "." || node_path.begins_with(candidate + String("/"))) {
+                const String relative = candidate == node_path ? String(".") : candidate == "." ? node_path
+                    : String("./") + node_path.substr(candidate.length() + 1);
+                const StringName type = node_type(instance->get_state(), relative, depth + 1);
+                if (!String(type).is_empty() || !diagnostics.is_empty()) return type;
+            }
+        }
+        return StringName();
+    };
     std::function<void(const Variant &, int)> visit;
     visit = [&](const Variant &value, int depth) {
         if (!diagnostics.is_empty()) return;
@@ -162,6 +190,24 @@ Dictionary CubismExportValidator::validate_file(const String &path) {
             const String owner = resource->get_path().get_slice("::", 0);
             if (!owner.is_empty() && owner != path) return;
             if (!visited.insert(resource->get_instance_id()).second) return;
+            const Ref<PackedScene> scene = resource;
+            if (scene.is_valid()) {
+                const Ref<SceneState> state = scene->get_state();
+                for (int i = 0; i < state->get_node_count() && diagnostics.is_empty(); ++i) {
+                    for (int j = 0; j < state->get_node_property_count(i); ++j) {
+                        if (--remaining < 0) { error("Scene graph exceeds export validation limits."); return; }
+                        if (state->get_node_property_name(i, j) != StringName("assets")) continue;
+                        const Variant assets = state->get_node_property_value(i, j);
+                        if (assets.get_type() != Variant::STRING || String(assets).is_empty()) continue;
+                        const String node_path = state->get_node_path(i);
+                        const StringName type = node_type(state, node_path, depth + 1);
+                        if (!String(type).is_empty() && ClassDBSingleton::get_singleton()->is_parent_class(type, "GDCubismUserModel")) {
+                            error("Legacy Cubism assets on node " + node_path + String(" has no imported resource dependency. Import the model, assign its resource to the node's model property, and save the scene before export."));
+                            return;
+                        }
+                    }
+                }
+            }
             const Ref<CubismModelResource> model = resource;
             if (model.is_valid()) {
                 ++models;
