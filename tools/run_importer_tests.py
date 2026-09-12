@@ -48,7 +48,9 @@ def main():
     (addon / "gd_cubism.gdextension").write_text(
         '[configuration]\nentry_symbol="gd_cubism_library_init"\n'
         'compatibility_minimum="26.2"\ndisable_godot_checks=true\nreloadable=false\n'
-        f'[libraries]\n{feature}.x86_64="res://addons/gd_cubism/bin/{args.library.name}"\n')
+        f'[libraries]\n{feature}.x86_64="res://addons/gd_cubism/bin/{args.library.name}"\n'
+        '[icons]\nCubismModelResource="res://addons/gd_cubism/res/icons/cubism_model_resource.svg"\n'
+        'GDCubismUserModel="res://addons/gd_cubism/res/icons/cubism_model_resource.svg"\n')
     (project / "project.godot").write_text(
         'config_version=5\n[application]\nconfig/name="Cubism editor import checks"\n'
         '[rendering]\nrenderer/rendering_method="gl_compatibility"\n')
@@ -142,6 +144,7 @@ def main():
         editor_script.unlink()
         (driver / "plugin.cfg").unlink()
     for phase, script, marker in (
+            ("model-inspector", "model_inspector_checks.gd", "CUBISM_MODEL_INSPECTOR_PASS"),
             ("import-options", "import_options_checks.gd", "CUBISM_IMPORT_OPTIONS_PASS"),
             ("import-options-restart", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS"),
             ("import-options-without-cache", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS"),

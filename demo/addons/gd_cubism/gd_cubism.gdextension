@@ -5,6 +5,11 @@ compatibility_minimum = "26.2"
 disable_godot_checks = true
 reloadable = false
 
+[icons]
+
+CubismModelResource = "res://addons/gd_cubism/res/icons/cubism_model_resource.svg"
+GDCubismUserModel = "res://addons/gd_cubism/res/icons/cubism_model_resource.svg"
+
 [libraries]
 
 macos.debug = "bin/libgd_cubism.macos.debug.framework"

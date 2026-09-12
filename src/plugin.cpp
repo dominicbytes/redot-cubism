@@ -91,6 +91,8 @@ bool GDCubismPlugin::update_selected_info() {
 void GDCubismPlugin::_enter_tree() {
     model_importer.instantiate();
     add_import_plugin(model_importer);
+    model_inspector.instantiate();
+    add_inspector_plugin(model_inspector);
     dependency_tracker = memnew(CubismDependencyTracker);
     dependency_tracker->set_name("CubismDependencies");
     add_child(dependency_tracker);
@@ -139,6 +141,8 @@ void GDCubismPlugin::_enter_tree() {
 
 
 void GDCubismPlugin::_exit_tree() {
+    remove_inspector_plugin(model_inspector);
+    model_inspector.unref();
     remove_tool_menu_item("Validate Cubism Models");
     memdelete(dependency_tracker);
     dependency_tracker = nullptr;
@@ -187,7 +191,7 @@ void GDCubismPlugin::save_cubism_resource(const String &path) {
         return;
     }
     get_editor_interface()->get_resource_filesystem()->update_file(path);
-    get_editor_interface()->edit_resource(ResourceLoader::get_singleton()->load(path, "CubismModelResource", ResourceLoader::CACHE_MODE_IGNORE));
+    get_editor_interface()->edit_resource(ResourceLoader::get_singleton()->load(path, "CubismModelResource"));
 }
 
 

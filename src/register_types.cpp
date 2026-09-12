@@ -62,6 +62,8 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
         ClassDB::register_class<CubismModelImporter>();
         ClassDB::register_class<CubismDependencyTracker>();
+        ClassDB::register_internal_class<CubismModelSummary>();
+        ClassDB::register_internal_class<CubismModelInspector>();
         ClassDB::register_class<GDCubismPlugin>();
         EditorPlugins::add_by_type<GDCubismPlugin>();
     }

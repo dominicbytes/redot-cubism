@@ -11,10 +11,12 @@ func _initialize() -> void:
 		printerr("IMPORTED_RESOURCE_DATA_MISMATCH")
 		quit(1)
 		return
-	if not OS.has_feature("editor") and ClassDB.class_exists("CubismModelImporter"):
-		printerr("EDITOR_IMPORTER_PRESENT_IN_TEMPLATE")
-		quit(1)
-		return
+	if not OS.has_feature("editor"):
+		for editor_class: String in ["CubismModelImporter", "CubismDependencyTracker", "CubismModelInspector", "CubismModelSummary", "GDCubismPlugin"]:
+			if ClassDB.class_exists(editor_class):
+				printerr("EDITOR_CLASS_PRESENT_IN_TEMPLATE: ", editor_class)
+				quit(1)
+				return
 	var runtime := GDCubismUserModel.new()
 	runtime.playback_process_mode = GDCubismUserModel.MANUAL
 	runtime.model = model
