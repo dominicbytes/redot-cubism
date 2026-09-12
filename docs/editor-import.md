@@ -7,6 +7,8 @@ model's PNG and audio assets must already have finished importing. The saved
 resource references. Repeating the action replaces the chosen resource after
 the editor's save dialog confirmation. Factory diagnostics appear in the
 editor output; optional missing-file warnings are stored on the resource.
+The [model Inspector](model-inspector.md) summarizes those warnings and model
+metadata, updating when the selected resource is reimported.
 The save dialog includes **Strict optional files**, **Import manifest motions**
 and **Import expressions** checkboxes. Motions and expressions are enabled by
 default; strict optional-file validation is disabled by default.

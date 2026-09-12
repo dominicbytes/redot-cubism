@@ -13,6 +13,7 @@
     "EditorFileSystemDirectory",
     "ConfigFile",
     "EditorImportPlugin",
+    "EditorInspectorPlugin",
     "EditorInterface",
     "EditorPlugin",
     "EditorSelection",
@@ -27,6 +28,7 @@
     "InputEventMouseButton",
     "InputEventMouseMotion",
     "JSON",
+    "Label",
     "MeshInstance2D",
     "Node",
     "Node2D",
@@ -45,6 +47,8 @@
     "Sprite2D",
     "SubViewport",
     "Texture2D",
+    "TextServer",
+    "VBoxContainer",
     "ViewportTexture",
     "Window"
   ]

@@ -30,6 +30,7 @@ func _run() -> void:
 	save_dialog.file_selected.emit("res://menu-model.res")
 	save_dialog.hide()
 	assert(ResourceLoader.load("res://menu-model.res") is CubismModelResource)
+	assert(EditorInterface.get_inspector().get_edited_object() == ResourceLoader.load("res://menu-model.res"))
 	assert(save_dialog.get_option_count() == 3)
 	save_dialog.set_option_default(0, 1)
 	save_dialog.set_option_default(1, 0)
