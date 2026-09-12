@@ -55,6 +55,36 @@ func _initialize() -> void:
 		var copy := info.duplicate(true)
 		copy.Parameters[0][field] = 1
 		rejected(display_info(copy), "display_info", "Parameters[0]." + field)
+	var grouped := {"Version": 3, "Parameters": [{"Id": "P", "Name": "角度", "GroupId": "子"}], "ParameterGroups": [{"Id": "子", "Name": "Child", "GroupId": "root"}, {"Id": "root", "Name": "Root", "GroupId": ""}]}
+	var grouped_result := display_info(grouped)
+	expect(grouped_result.ok and grouped_result.display_info.Parameters == grouped.Parameters and grouped_result.display_info.ParameterGroups == grouped.ParameterGroups, "forward group references preserve order and names")
+	var invalid := grouped.duplicate(true)
+	invalid.Parameters[0].GroupId = "missing"
+	rejected(display_info(invalid), "display_info", "Parameters[0].GroupId")
+	invalid = grouped.duplicate(true)
+	invalid.ParameterGroups[0].GroupId = "missing"
+	rejected(display_info(invalid), "display_info", "ParameterGroups[0].GroupId")
+	invalid = grouped.duplicate(true)
+	invalid.ParameterGroups[0].GroupId = "子"
+	rejected(display_info(invalid), "display_info", "ParameterGroups[0].GroupId")
+	invalid = grouped.duplicate(true)
+	invalid.ParameterGroups[1].GroupId = "子"
+	rejected(display_info(invalid), "display_info", "ParameterGroups[0].GroupId")
+	invalid = grouped.duplicate(true)
+	invalid.erase("ParameterGroups")
+	rejected(display_info(invalid), "display_info", "Parameters[0].GroupId")
+	invalid.Parameters[0].GroupId = ""
+	expect(display_info(invalid).ok, "empty group reference does not require groups")
+	invalid.Parameters[0].erase("GroupId")
+	expect(display_info(invalid).ok, "omitted group reference is a root")
+	# Long flat parent chains must not recurse or repeatedly walk the same suffix.
+	var chain: Array = []
+	for i in 4096:
+		chain.append({"Id": str(i), "Name": "", "GroupId": str(i + 1) if i < 4095 else ""})
+	var deep := {"Version": 3, "ParameterGroups": chain}
+	expect(display_info(deep).ok, "4096-level forward chain")
+	chain[4095].GroupId = "2048"
+	rejected(display_info(deep), "display_info", "ParameterGroups[2048].GroupId")
 	info.CombinedParameters = [[1]]
 	rejected(display_info(info), "display_info", "CombinedParameters[0][0]")
 	info.CombinedParameters = ["P"]
