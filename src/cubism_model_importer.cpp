@@ -46,7 +46,7 @@ bool CubismModelImporter::_get_option_visibility(const String &, const StringNam
 float CubismModelImporter::_get_priority() const { return 2.0f; }
 // Imported texture/audio resources must exist before factory assembly.
 int32_t CubismModelImporter::_get_import_order() const { return 100; }
-int32_t CubismModelImporter::_get_format_version() const { return 5; }
+int32_t CubismModelImporter::_get_format_version() const { return 6; }
 bool CubismModelImporter::_can_import_threaded() const { return false; }
 Error CubismModelImporter::_import(const String &source_file, const String &save_path,
         const Dictionary &options, const TypedArray<String> &, const TypedArray<String> &) const {
@@ -104,7 +104,7 @@ Error CubismModelImporter::import_model_with_options(const String &source_file, 
 String CubismModelImporter::fingerprint(const Dictionary &files, const Dictionary &options) {
     const Dictionary versions = CubismBuildInfo::get_versions();
     Dictionary data;
-    data["format_version"] = 5;
+    data["format_version"] = 6;
     data["maximum_file_count"] = cubism_maximum_file_count();
     data["texture_policy"] = "lossless_source_rgba_mipmaps_v1";
     data["resource_schema"] = 1;

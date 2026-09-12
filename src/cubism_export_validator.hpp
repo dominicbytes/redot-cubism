@@ -10,6 +10,7 @@ class CubismExportValidator : public godot::RefCounted {
 protected:
     static void _bind_methods();
 public:
+    static godot::Dictionary validate_file(const godot::String &path);
     static godot::Dictionary validate_model(const godot::Ref<CubismModelResource> &model);
 };
 #endif

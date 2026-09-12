@@ -3,6 +3,11 @@
 #include <godot_cpp/core/class_db.hpp>
 
 void CubismModelResource::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("set_runtime_extension", "value"), &CubismModelResource::set_runtime_extension);
+    ClassDB::bind_method(D_METHOD("get_runtime_extension"), &CubismModelResource::get_runtime_extension);
+    // A real serialized edge lets Redot select/export the descriptor and native
+    // library, and retain it in the generated extension startup list.
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "runtime_extension", PROPERTY_HINT_RESOURCE_TYPE, "GDExtension", PROPERTY_USAGE_STORAGE), "set_runtime_extension", "get_runtime_extension");
     ClassDB::bind_method(D_METHOD("set_source_model_path", "value"), &CubismModelResource::set_source_model_path);
     ClassDB::bind_method(D_METHOD("get_source_model_path"), &CubismModelResource::get_source_model_path);
     ADD_PROPERTY(PropertyInfo(Variant::STRING, "source_model_path"), "set_source_model_path", "get_source_model_path");

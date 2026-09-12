@@ -144,6 +144,7 @@ def main():
         editor_script.unlink()
         (driver / "plugin.cfg").unlink()
     for phase, script, marker in (
+            ("export-graph", "export_graph_checks.gd", "CUBISM_EXPORT_GRAPH_PASS"),
             ("export-validator", "export_validator_checks.gd", "CUBISM_EXPORT_VALIDATOR_PASS"),
             ("model-inspector", "model_inspector_checks.gd", "CUBISM_MODEL_INSPECTOR_PASS"),
             ("import-options", "import_options_checks.gd", "CUBISM_IMPORT_OPTIONS_PASS"),
@@ -209,7 +210,7 @@ def main():
             template = json.dumps(str(args.template.resolve()))
             (project / "export_presets.cfg").write_text(
                 f'[preset.0]\nname="Textures"\nplatform="{platform}"\nrunnable=true\nexport_filter="resources"\n'
-                'export_files=PackedStringArray("res://imported-model.res", "res://texture_export_checks.gd", "res://texture_export_scene.tscn", "res://addons/gd_cubism/gd_cubism.gdextension")\n'
+                'export_files=PackedStringArray("res://imported-model.res", "res://texture_export_checks.gd", "res://imported_resource_checks.gd", "res://texture_export_scene.tscn")\n'
                 'include_filter="texture-expected.json"\nexclude_filter="addons/import_test/*"\nexport_path=""\nscript_export_mode=2\n'
                 f'[preset.0.options]\ncustom_template/debug={template}\ncustom_template/release={template}\n'
                 'binary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
@@ -220,6 +221,8 @@ def main():
             if ok:
                 project.rename(run / "source-not-available")
                 ok = execute("exported-textures", ["--script", "res://texture_export_checks.gd", "--quit-after", "2"], "CUBISM_TEXTURE_EXPORT_PASS", game, exported=True)
+    if ok and args.template:
+        ok = execute("exported-model", ["--script", "res://imported_resource_checks.gd", "--quit-after", "2"], "CUBISM_IMPORTED_RESOURCE_PASS", game, exported=True)
     report = {"status": "PASS" if ok else "FAIL", "automatic_discovery": automatic, "engine_version": version,
               "library_sha256": library_hash, "run": str(run), "checks": checks}
     (args.output / "importer-report.json").write_text(json.dumps(report, indent=2) + "\n")

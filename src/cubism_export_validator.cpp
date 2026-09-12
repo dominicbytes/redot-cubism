@@ -7,12 +7,16 @@
 #include "private/redot_cubism_model_setting.hpp"
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/json.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
+#include <functional>
+#include <set>
 #include <godot_cpp/classes/portable_compressed_texture2d.hpp>
 #include <godot_cpp/core/class_db.hpp>
 
 using namespace godot;
 
 void CubismExportValidator::_bind_methods() {
+    ClassDB::bind_static_method("CubismExportValidator", D_METHOD("validate_file", "path"), &CubismExportValidator::validate_file);
     ClassDB::bind_static_method("CubismExportValidator", D_METHOD("validate_model", "model"), &CubismExportValidator::validate_model);
 }
 
@@ -36,6 +40,12 @@ Dictionary CubismExportValidator::validate_model(const Ref<CubismModelResource> 
     };
     if (model.is_null()) { error("model", "Expected an imported CubismModelResource."); return finish(); }
     if (!model->get_source_model_path().ends_with(".model3.json")) { error("source_model_path", "Expected a model3.json import source."); return finish(); }
+    const Ref<Resource> extension = model->get_runtime_extension();
+    if (extension.is_null() || extension->get_class() != StringName("GDExtension")
+            || extension->get_path() != "res://addons/gd_cubism/gd_cubism.gdextension") {
+        error("runtime_extension", "Missing native extension resource edge. Reimport before export.");
+        return finish();
+    }
     String settings_error;
     RedotCubismModelSetting settings(model, settings_error);
     if (!settings_error.is_empty()) { error("model", settings_error); return finish(); }
@@ -126,4 +136,76 @@ Dictionary CubismExportValidator::validate_model(const Ref<CubismModelResource> 
         }
     }
     return finish();
+}
+
+Dictionary CubismExportValidator::validate_file(const String &path) {
+    Array diagnostics;
+    Dictionary hashes;
+    int models = 0, remaining = 100000;
+    std::set<uint64_t> visited;
+    auto error = [&](const String &message) {
+        if (diagnostics.size() >= 32) return;
+        Dictionary item;
+        item["path"] = path;
+        item["message"] = message;
+        diagnostics.push_back(item);
+    };
+    std::function<void(const Variant &, int)> visit;
+    visit = [&](const Variant &value, int depth) {
+        if (!diagnostics.is_empty()) return;
+        if (--remaining < 0 || depth > 64) { error("Resource graph exceeds export validation limits."); return; }
+        if (value.get_type() == Variant::OBJECT) {
+            const Ref<Resource> resource = value;
+            if (resource.is_null()) return;
+            // External resources receive their own engine export callback. Do not
+            // pull excluded files back into a selected export through this graph.
+            const String owner = resource->get_path().get_slice("::", 0);
+            if (!owner.is_empty() && owner != path) return;
+            if (!visited.insert(resource->get_instance_id()).second) return;
+            const Ref<CubismModelResource> model = resource;
+            if (model.is_valid()) {
+                ++models;
+                const Dictionary result = validate_model(model);
+                if (!bool(result["ok"])) { diagnostics = result["diagnostics"]; return; }
+                const PackedStringArray raw = result["raw_files"];
+                const Dictionary fingerprints = model->get_dependency_fingerprints();
+                for (int i = 0; i < raw.size(); ++i) {
+                    const String hash = fingerprints.get(raw[i], String());
+                    if (hash.is_empty() || (hashes.has(raw[i]) && hashes[raw[i]] != Variant(hash))) {
+                        error("Conflicting or missing raw source fingerprint: " + raw[i]);
+                        return;
+                    }
+                    hashes[raw[i]] = hash;
+                }
+                return;
+            }
+            const TypedArray<Dictionary> properties = resource->get_property_list();
+            for (int i = 0; i < properties.size(); ++i) {
+                const Dictionary property = properties[i];
+                if (int64_t(property["usage"]) & PROPERTY_USAGE_STORAGE) visit(resource->get(property["name"]), depth + 1);
+            }
+        } else if (value.get_type() == Variant::ARRAY) {
+            const Array array = value;
+            for (int i = 0; i < array.size() && diagnostics.is_empty(); ++i) visit(array[i], depth + 1);
+        } else if (value.get_type() == Variant::DICTIONARY) {
+            const Dictionary dictionary = value;
+            const Array keys = dictionary.keys();
+            for (int i = 0; i < keys.size() && diagnostics.is_empty(); ++i) {
+                visit(keys[i], depth + 1);
+                visit(dictionary[keys[i]], depth + 1);
+            }
+        }
+    };
+    if (CubismManifestParser::validate_project_file(path)["status"] != String("file")) error("Expected a contained resource file.");
+    if (diagnostics.is_empty()) {
+        const Ref<Resource> resource = ResourceLoader::get_singleton()->load(path, "", ResourceLoader::CACHE_MODE_IGNORE);
+        if (resource.is_null()) error("Cannot load the selected resource for export validation.");
+        else visit(resource, 0);
+    }
+    Dictionary result;
+    result["ok"] = diagnostics.is_empty();
+    result["diagnostics"] = diagnostics;
+    result["models"] = models;
+    result["raw_hashes"] = diagnostics.is_empty() ? hashes : Dictionary();
+    return result;
 }
