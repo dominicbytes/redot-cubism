@@ -832,6 +832,44 @@ Dictionary CubismManifestParser::parse_display_info(const String &json) {
                 if (entry.has("GroupId")) v.type(entry, "GroupId", Variant::STRING, path + String(".GroupId"));
             }
         }
+        if (v.ok) {
+            const Array groups = data.get("ParameterGroups", Array());
+            Dictionary parents, indices;
+            for (int i = 0; i < groups.size(); ++i) {
+                const Dictionary group = groups[i];
+                parents[group["Id"]] = group.get("GroupId", String());
+                indices[group["Id"]] = i;
+            }
+            for (const String key : {String("Parameters"), String("ParameterGroups")}) {
+                const Array entries = data.get(key, Array());
+                for (int i = 0; i < entries.size(); ++i) {
+                    const Dictionary entry = entries[i];
+                    const String parent = entry.get("GroupId", String());
+                    if (!parent.is_empty() && !parents.has(parent)) {
+                        v.error(key + String("[") + String::num_int64(i) + String("].GroupId"), "Unknown parameter group: " + parent);
+                    }
+                }
+            }
+            if (v.ok) {
+                // Each group has at most one parent. Mark completed walks so long
+                // flat chains take linear work and never recurse on source data.
+                Dictionary states;
+                for (int i = 0; i < groups.size(); ++i) {
+                    const Dictionary group = groups[i];
+                    String current = group["Id"];
+                    PackedStringArray walk;
+                    while (!current.is_empty() && int(states.get(current, 0)) == 0) {
+                        states[current] = 1;
+                        walk.push_back(current);
+                        current = parents[current];
+                    }
+                    if (!current.is_empty() && int(states[current]) == 1) {
+                        v.error(String("ParameterGroups[") + String::num_int64(indices[current]) + String("].GroupId"), "Parameter group parent cycle includes: " + current);
+                    }
+                    for (int j = 0; j < walk.size(); ++j) states[walk[j]] = 2;
+                }
+            }
+        }
         if (data.has("CombinedParameters") && v.type(data, "CombinedParameters", Variant::ARRAY, "CombinedParameters")) {
             const Array combinations = data["CombinedParameters"];
             for (int i = 0; i < combinations.size(); ++i) {

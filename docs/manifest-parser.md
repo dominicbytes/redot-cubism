@@ -187,13 +187,19 @@ the pinned consumer does not use it, and byte/character semantics are not assume
 `parse_display_info(json)` returns `ok`, `diagnostics` and `display_info` (empty
 on failure). Version 3 is required. Optional Parameters, ParameterGroups and
 Parts arrays contain objects with unique nonempty IDs per collection and string
-Names. Optional GroupId is a string and may be empty. CombinedParameters, when
+Names. Optional GroupId is a string and may be empty. In Parameters and
+ParameterGroups, a nonempty GroupId must name a declared parameter group.
+Forward parent references are allowed; missing parents and parent cycles are
+rejected with the offending GroupId path. Iterative traversal visits each group
+a bounded number of times, including long flat chains. Parts metadata does not
+acquire a parameter-group relationship merely by containing a GroupId field.
+CombinedParameters, when
 present, is an array of arrays of nonempty parameter IDs. Original names, order
 and unknown metadata are retained. IDs may repeat across different collections.
 
-Both use the shared JSON bounds. Neither resolves IDs against the MOC, traverses
-or validates group relationships, loads files, or creates SDK/runtime objects.
-Consumers must validate relationships before treating group metadata as a tree.
+Both use the shared JSON bounds. Neither resolves parameter/part/drawable IDs
+against the MOC, loads files, or creates SDK/runtime objects. Display group
+validation does not prove that a parameter or part exists in the model.
 
 Successful `read_project_json` results also include `sha256` and `byte_length`
 from the exact raw bytes decoded. The hash includes any initial BOM even though

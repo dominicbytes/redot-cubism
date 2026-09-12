@@ -24,9 +24,13 @@ before ResourceLoader. Decoding still belongs to Redot. JSON fingerprints use
 the exact bytes decoded, including any initial BOM. Physical containment remains
 a snapshot; simultaneous source replacement is not an atomic transaction.
 
-The factory requires already imported PNG/WAV/OGG assets. It does not yet provision
-the Cubism-owned texture sampling policy, validate all IDs against the MOC,
-resolve display group graphs, apply the full planned importer option set, register
-an automatic importer, or track changes. See the [explicit editor import](editor-import.md)
+Display-info parameter-group references must resolve, and parent cycles fail
+before the data reaches the editor. This does not validate all IDs against the MOC.
+
+The factory requires already imported PNG/WAV/OGG assets. It does not itself
+provision the Cubism-owned texture sampling policy, apply the full planned importer
+option set, register an automatic importer, or track changes. The importer applies
+the [texture policy](texture-import.md) after factory validation succeeds.
+See the [explicit editor import](editor-import.md)
 and [runtime resource adapter](resource-runtime.md) for the current integration.
 Saving a factory result does not establish checked export or full rendering parity.
