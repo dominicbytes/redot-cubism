@@ -19,6 +19,7 @@ void CubismExportPlugin::_export_end() {
     shaders_added = false;
 }
 void CubismExportPlugin::_export_file(const String &path, const String &type, const PackedStringArray &) {
+    if (path.begins_with("res://addons/gd_cubism/editor/")) { skip(); return; }
     // Avoid duplicate PCK entries when an include filter/all-resources selection
     // already exports raw files or shaders. Imported files still need normal remaps.
     if (!FileAccess::file_exists(path + String(".import"))) {

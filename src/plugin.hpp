@@ -36,10 +36,12 @@ private:
     CubismDependencyTracker *dependency_tracker = nullptr;
     EditorFileDialog *cubism_source_dialog = nullptr;
     EditorFileDialog *cubism_save_dialog = nullptr;
+    Node *checked_export_ui = nullptr;
     String cubism_source_path;
     void show_cubism_import_dialog();
     void select_cubism_source(const String &path);
     void save_cubism_resource(const String &path);
+    void show_checked_export();
     const Color selected_border_color = Color(239.0 / 255.0, 120.0 / 255.0, 62.0 / 255.0, 1.0);
 
     GDCubismUserModel *selected_model;

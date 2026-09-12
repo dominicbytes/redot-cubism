@@ -10,6 +10,7 @@ var _diagnostics: Array[Dictionary] = []
 var _indexed: Dictionary = {}
 var _selected: Dictionary = {}
 var _validated: PackedStringArray = []
+var _preset: Dictionary = {}
 
 func _error(path: String, message: String) -> void:
 	if _diagnostics.size() < 32:
@@ -105,6 +106,7 @@ func validate_preset(preset_name: String) -> Dictionary:
 	_indexed.clear()
 	_selected.clear()
 	_validated.clear()
+	_preset.clear()
 	var hashes: Dictionary = {}
 	var models: int = 0
 	var config := ConfigFile.new()
@@ -129,6 +131,13 @@ func validate_preset(preset_name: String) -> Dictionary:
 		_error(platform, "Checked export currently requires a Linux or Windows Desktop preset.")
 		return _result(models, hashes)
 	var options: String = section + ".options"
+	_preset = {"name": preset_name, "platform": platform,
+		"architecture": config.get_value(options, "binary_format/architecture", "x86_64"),
+		"embedded_pck": config.get_value(options, "binary_format/embed_pck", false),
+		"encrypted_pck": config.get_value(section, "encrypt_pck", false),
+		"encrypted_directory": config.get_value(section, "encrypt_directory", false),
+		"project_hash": FileAccess.get_sha256("res://project.godot"),
+		"presets_hash": FileAccess.get_sha256("res://export_presets.cfg")}
 	# Match EditorExportPreset.get_project_setting's platform/preset features,
 	# which intentionally do not include template_debug/template_release.
 	var features: PackedStringArray = ["pc", "linux" if platform == "Linux" else "windows", config.get_value(options, "binary_format/architecture", "x86_64")]
@@ -180,6 +189,9 @@ func validate_preset(preset_name: String) -> Dictionary:
 	_filters(includes, str(config.get_value(section, "exclude_filter", "")).split(","))
 	# Redot skips these before invoking any export plugin callback.
 	for path: String in _selected.keys():
+		if path.begins_with("res://addons/gd_cubism/editor/"):
+			_selected.erase(path)
+			continue
 		if FileAccess.file_exists(path + ".import"):
 			var sidecar := ConfigFile.new()
 			if sidecar.load(path + ".import") != OK:
@@ -225,4 +237,4 @@ func _result(models: int, hashes: Dictionary) -> Dictionary:
 	var files: Array = _selected.keys()
 	files.sort()
 	_validated.sort()
-	return {"ok": _diagnostics.is_empty(), "diagnostics": _diagnostics.duplicate(true), "models": models, "files": files if _diagnostics.is_empty() else [], "validated_files": _validated if _diagnostics.is_empty() else PackedStringArray(), "raw_hashes": hashes if _diagnostics.is_empty() else {}}
+	return {"ok": _diagnostics.is_empty(), "diagnostics": _diagnostics.duplicate(true), "models": models, "files": files if _diagnostics.is_empty() else [], "validated_files": _validated if _diagnostics.is_empty() else PackedStringArray(), "raw_hashes": hashes if _diagnostics.is_empty() else {}, "preset": _preset, "build": CubismBuildInfo.get_versions()}
