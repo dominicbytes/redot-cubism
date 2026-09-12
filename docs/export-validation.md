@@ -33,6 +33,15 @@ against changes after validation.
 and returns `models` and `raw_hashes`. External resource references are left to
 their own engine export callbacks, preserving export exclusions. Stored arrays,
 dictionaries and resource properties are traversed with cycle/size/depth bounds.
+For packed scenes, validation also inspects stored node properties and resolves
+native node types through inherited scenes and instance overrides. A nonempty
+legacy Cubism `assets` string is rejected with the scene and node path: it does
+not provide the resource edge needed for selective export. Import the model,
+assign the resulting resource to the node's `model` property and save the scene
+before exporting. Empty Cubism nodes and unrelated scripts' `assets` properties
+are allowed. Validation inspects scene state without instantiating scene nodes.
+This diagnostic closes a false-success case; it does not implement the planned
+legacy compatibility bridge, which remains required work.
 
 The native export plugin calls this validation for included model/resource/scene
 files, stages verified raw payloads with their original paths and `remap=false`,
@@ -113,11 +122,13 @@ path, complete build replacement, and preservation of the previous output after
 missing-MOC, packaging and smoke-test failures. The actual editor menu action and
 rendered dialogs are also tested. This qualification covers imported
 `CubismModelResource` workflows; legacy scenes using only the `assets` string
-have not been qualified by this checker.
+are now rejected before packaging. `tools/run_legacy_export_tests.py` covers
+direct, inherited, instanced and embedded legacy scenes, unrelated properties,
+absence of node instantiation and preservation of a previous build.
 Ordinary Export-menu callbacks cannot be assumed to abort an invalid export.
 The complete PR9 release gate remains open until the combined-action tests and
 remaining package/platform checks pass. Linux debug and release tests cover selected resources,
 selected scenes, embedded models and all resources. They inspect raw archive
 hashes and launch the exported model with the source project unavailable, including
-actual parameter changes during motion playback. This does not qualify checked
-output promotion, Windows or renderer parity.
+actual parameter changes during motion playback. Windows and renderer parity
+remain separate qualification gates.
