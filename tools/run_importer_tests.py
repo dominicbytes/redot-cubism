@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tempfile
 
@@ -19,7 +20,11 @@ def main():
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--template", type=Path, help="Matching template for editor-class isolation checks")
+    parser.add_argument("--dependencies", action="store_true", help="Exercise dependency changes and failed-import recovery")
+    parser.add_argument("--graphics", choices=["gl_compatibility", "forward_plus"], help="Graphics backend for live texture reimport checks")
     args = parser.parse_args()
+    if args.dependencies and not args.graphics:
+        parser.error("Dependency checks require --graphics: the headless renderer does not replace texture pixels")
     engine = os.environ["REDOT_BIN"]
     version = subprocess.check_output([engine, "--version"], text=True, timeout=10).strip()
     if version != json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]:
@@ -61,16 +66,34 @@ def main():
         env[f"XDG_{key}_HOME"] = str(run / key.lower())
     checks = []
 
-    def execute(name, switches, marker=None, executable=None):
+    def execute(name, switches, marker=None, executable=None, graphics=False):
+        command = [str(executable or engine), "--path", str(project)]
+        if graphics:
+            command += ["--rendering-method", args.graphics, "--audio-driver", "Dummy"]
+            if os.name != "nt":
+                command += ["--display-driver", "x11"]
+        else:
+            command += ["--headless"]
         try:
-            result = subprocess.run([str(executable or engine), "--headless", "--path", str(project), *switches],
+            result = subprocess.run([*command, *switches],
                                     env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=180)
             log, code = result.stdout, result.returncode
         except subprocess.TimeoutExpired as exc:
-            log, code = str(exc), 124
+            log = exc.stdout or ""
+            if isinstance(log, bytes):
+                log = log.decode("utf-8", errors="replace")
+            log, code = log + "\n" + str(exc), 124
         (run / (name + ".log")).write_text(log)
-        ok = code == 0 and not re.search(r"SCRIPT ERROR|ERROR:|WARNING:|crashed", log)
+        diagnostics = log
+        if args.dependencies and name == "dependency-changes":
+            diagnostics = re.sub(
+                r"EXPECTED_DEPENDENCY_FAILURE_BEGIN.*?EXPECTED_DEPENDENCY_FAILURE_END",
+                lambda match: match[0].replace("ERROR: Cubism import failed:", "EXPECTED_IMPORT_FAILURE:"),
+                log, flags=re.DOTALL)
+        ok = code == 0 and not re.search(r"SCRIPT ERROR|ERROR:|WARNING:|crashed", diagnostics)
         ok = ok and (marker is None or marker in log)
+        if graphics:
+            ok = ok and f"CUBISM_DEPENDENCY_GRAPHICS={args.graphics}" in log
         checks.append({"test": name, "status": "PASS" if ok else "FAIL", "exit_code": code})
         print(name, checks[-1]["status"], flush=True)
         if not ok:
@@ -94,6 +117,35 @@ def main():
         (project / "project.godot").write_text(project_config)
         editor_script.unlink()
         (driver / "plugin.cfg").unlink()
+    if ok and args.dependencies:
+        editor_script.write_bytes((ROOT / "tests/editor/dependency_tracker_checks.gd").read_bytes())
+        (driver / "plugin.cfg").write_text('[plugin]\nname="Dependency Test"\ndescription="Test driver"\nauthor="Tests"\nversion="1"\nscript="checks.gd"\n')
+        (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
+        ok = execute("dependency-changes", ["--editor", "--quit-after", "10000"], "CUBISM_DEPENDENCY_TRACKER_PASS", graphics=True)
+        (project / "project.godot").write_text(project_config)
+        editor_script.unlink()
+        (driver / "plugin.cfg").unlink()
+        if ok:
+            # Preserve mtime to prove hashing, not only EditorFileSystem timestamps.
+            manifest = json.loads((project / "model" / args.model.name).read_text())
+            dependency = Path("model") / manifest["FileReferences"]["Physics"]
+            raw = project / dependency
+            for phase in ("dependency-restart", "dependency-without-cache"):
+                stamp = raw.stat()
+                raw.write_bytes(raw.read_bytes() + b"\n ")
+                os.utime(raw, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+                (project / "fixture.json").write_text(json.dumps({"model": model, "changed_dependency": "res://" + dependency.as_posix(), "expected_hash": hashlib.sha256(raw.read_bytes()).hexdigest()}))
+                if phase == "dependency-without-cache":
+                    shutil.rmtree(project / ".godot")
+                editor_script.write_bytes((ROOT / "tests/editor/dependency_restart_checks.gd").read_bytes())
+                (driver / "plugin.cfg").write_text('[plugin]\nname="Dependency Restart Test"\ndescription="Test driver"\nauthor="Tests"\nversion="1"\nscript="checks.gd"\n')
+                (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
+                ok = execute(phase, ["--editor", "--quit-after", "10000"], "CUBISM_DEPENDENCY_RESTART_PASS")
+                (project / "project.godot").write_text(project_config)
+                editor_script.unlink()
+                (driver / "plugin.cfg").unlink()
+                if not ok:
+                    break
     if ok:
         ok = execute("editor-restart", ["--editor", "--import", "--quit-after", "1000"])
     if ok:

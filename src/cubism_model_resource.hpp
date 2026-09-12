@@ -17,6 +17,7 @@ protected:
 private:
     String source_model_path;
     String source_hash;
+    String import_fingerprint;
     String moc_path;
     int moc_version = 0;
     PackedStringArray texture_paths;
@@ -46,6 +47,8 @@ public:
     String get_source_model_path() const { return source_model_path; }
     void set_source_hash(const String &value) { source_hash = value; emit_changed(); }
     String get_source_hash() const { return source_hash; }
+    void set_import_fingerprint(const String &value) { import_fingerprint = value; emit_changed(); }
+    String get_import_fingerprint() const { return import_fingerprint; }
     void set_moc_path(const String &value) { moc_path = value; emit_changed(); }
     String get_moc_path() const { return moc_path; }
     void set_moc_version(int value) { moc_version = value; emit_changed(); }

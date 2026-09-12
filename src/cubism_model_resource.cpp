@@ -9,6 +9,9 @@ void CubismModelResource::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_source_hash", "value"), &CubismModelResource::set_source_hash);
     ClassDB::bind_method(D_METHOD("get_source_hash"), &CubismModelResource::get_source_hash);
     ADD_PROPERTY(PropertyInfo(Variant::STRING, "source_hash"), "set_source_hash", "get_source_hash");
+    ClassDB::bind_method(D_METHOD("set_import_fingerprint", "value"), &CubismModelResource::set_import_fingerprint);
+    ClassDB::bind_method(D_METHOD("get_import_fingerprint"), &CubismModelResource::get_import_fingerprint);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "import_fingerprint"), "set_import_fingerprint", "get_import_fingerprint");
     ClassDB::bind_method(D_METHOD("set_moc_path", "value"), &CubismModelResource::set_moc_path);
     ClassDB::bind_method(D_METHOD("get_moc_path"), &CubismModelResource::get_moc_path);
     ADD_PROPERTY(PropertyInfo(Variant::STRING, "moc_path"), "set_moc_path", "get_moc_path");
