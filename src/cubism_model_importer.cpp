@@ -4,6 +4,7 @@
 #include "cubism_model_resource.hpp"
 #include "cubism_manifest_parser.hpp"
 #include "cubism_build_info.hpp"
+#include "cubism_texture_import.hpp"
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/json.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
@@ -38,7 +39,7 @@ bool CubismModelImporter::_get_option_visibility(const String &, const StringNam
 float CubismModelImporter::_get_priority() const { return 2.0f; }
 // Imported texture/audio resources must exist before factory assembly.
 int32_t CubismModelImporter::_get_import_order() const { return 100; }
-int32_t CubismModelImporter::_get_format_version() const { return 2; }
+int32_t CubismModelImporter::_get_format_version() const { return 3; }
 bool CubismModelImporter::_can_import_threaded() const { return false; }
 Error CubismModelImporter::_import(const String &source_file, const String &save_path,
         const Dictionary &options, const TypedArray<String> &, const TypedArray<String> &) const {
@@ -63,6 +64,8 @@ Error CubismModelImporter::import_model(const String &source_file, const String 
         return ERR_PARSE_ERROR;
     }
     const Ref<CubismModelResource> model = result["model"];
+    const Error texture_error = provision_cubism_textures(model);
+    if (texture_error != OK) return texture_error;
     // The engine owns these sidecars; reading them detects texture/audio import
     // setting changes without modifying their contents or treating them as outputs.
     Dictionary files = model->get_dependency_fingerprints();
@@ -88,7 +91,8 @@ Error CubismModelImporter::import_model(const String &source_file, const String 
 String CubismModelImporter::fingerprint(const Dictionary &files, const Dictionary &options) {
     const Dictionary versions = CubismBuildInfo::get_versions();
     Dictionary data;
-    data["format_version"] = 2;
+    data["format_version"] = 3;
+    data["texture_policy"] = "lossless_source_rgba_mipmaps_v1";
     data["resource_schema"] = 1;
     for (const String key : {String("addon_version"), String("addon_commit"), String("framework_commit"), String("core_version"), String("redot_api_sha256")}) data[key] = versions[key];
     data["files"] = files;

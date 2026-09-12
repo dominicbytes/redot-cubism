@@ -20,6 +20,7 @@ def main():
     parser.add_argument("--library", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--template", type=Path, help="Matching template for editor-class isolation checks")
+    parser.add_argument("--export-mode", choices=["debug", "release"], default="debug", help="Export mode matching the supplied template")
     parser.add_argument("--dependencies", action="store_true", help="Exercise dependency changes and failed-import recovery")
     parser.add_argument("--graphics", choices=["gl_compatibility", "forward_plus"], help="Graphics backend for live texture reimport checks")
     args = parser.parse_args()
@@ -37,6 +38,7 @@ def main():
     addon = project / "addons/gd_cubism"
     (addon / "bin").mkdir(parents=True)
     (addon / "bin" / args.library.name).write_bytes(args.library.read_bytes())
+    library_hash = hashlib.sha256((addon / "bin" / args.library.name).read_bytes()).hexdigest()
     for path in (ROOT / "demo/addons/gd_cubism/res").rglob("*"):
         if path.is_file() and path.suffix not in {".import", ".uid"}:
             target = addon / "res" / path.relative_to(ROOT / "demo/addons/gd_cubism/res")
@@ -66,8 +68,10 @@ def main():
         env[f"XDG_{key}_HOME"] = str(run / key.lower())
     checks = []
 
-    def execute(name, switches, marker=None, executable=None, graphics=False):
-        command = [str(executable or engine), "--path", str(project)]
+    def execute(name, switches, marker=None, executable=None, graphics=False, exported=False):
+        command = [str(executable or engine)]
+        if not exported:
+            command += ["--path", str(project)]
         if graphics:
             command += ["--rendering-method", args.graphics, "--audio-driver", "Dummy"]
             if os.name != "nt":
@@ -76,7 +80,7 @@ def main():
             command += ["--headless"]
         try:
             result = subprocess.run([*command, *switches],
-                                    env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=180)
+                                    cwd=run, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=180)
             log, code = result.stdout, result.returncode
         except subprocess.TimeoutExpired as exc:
             log = exc.stdout or ""
@@ -85,6 +89,11 @@ def main():
             log, code = log + "\n" + str(exc), 124
         (run / (name + ".log")).write_text(log)
         diagnostics = log
+        if name == "texture-policy":
+            diagnostics = re.sub(
+                r"EXPECTED_TEXTURE_FAILURE_BEGIN.*?EXPECTED_TEXTURE_FAILURE_END",
+                lambda match: match[0].replace("ERROR: Cubism texture import failed:", "EXPECTED_TEXTURE_IMPORT_FAILURE:"),
+                log, flags=re.DOTALL)
         if args.dependencies and name == "dependency-changes":
             diagnostics = re.sub(
                 r"EXPECTED_DEPENDENCY_FAILURE_BEGIN.*?EXPECTED_DEPENDENCY_FAILURE_END",
@@ -114,6 +123,14 @@ def main():
         project_config = (project / "project.godot").read_text()
         (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
         ok = execute("explicit-import", ["--editor", "--quit-after", "1000"], "CUBISM_EDITOR_IMPORT_PASS")
+        (project / "project.godot").write_text(project_config)
+        editor_script.unlink()
+        (driver / "plugin.cfg").unlink()
+    if ok:
+        editor_script.write_bytes((ROOT / "tests/editor/texture_policy_checks.gd").read_bytes())
+        (driver / "plugin.cfg").write_text('[plugin]\nname="Texture Policy Test"\ndescription="Test driver"\nauthor="Tests"\nversion="1"\nscript="checks.gd"\n')
+        (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
+        ok = execute("texture-policy", ["--editor", "--quit-after", "10000"], "CUBISM_TEXTURE_POLICY_PASS")
         (project / "project.godot").write_text(project_config)
         editor_script.unlink()
         (driver / "plugin.cfg").unlink()
@@ -153,8 +170,29 @@ def main():
         ok = execute("runtime-resource", ["--script", "res://imported_resource_checks.gd", "--quit-after", "2"], "CUBISM_IMPORTED_RESOURCE_PASS")
     if ok and args.template:
         ok = execute("template-resource", ["--script", "res://imported_resource_checks.gd", "--quit-after", "2"], "CUBISM_IMPORTED_RESOURCE_PASS", args.template.resolve())
+    if ok and args.template:
+        (project / "texture_export_checks.gd").write_bytes((ROOT / "tests/native/project/texture_export_checks.gd").read_bytes())
+        ok = execute("texture-export-prepare", ["--script", "res://texture_export_checks.gd", "--quit-after", "2", "--", "--prepare"], "CUBISM_TEXTURE_EXPORT_PREPARED")
+        if ok:
+            (project / "texture_export_scene.tscn").write_text('[gd_scene format=3]\n[node name="TextureTest" type="Node"]\n')
+            (project / "project.godot").write_text(project_config.replace('[application]', '[application]\nrun/main_scene="res://texture_export_scene.tscn"'))
+            platform = "Windows Desktop" if feature == "windows" else "Linux"
+            template = json.dumps(str(args.template.resolve()))
+            (project / "export_presets.cfg").write_text(
+                f'[preset.0]\nname="Textures"\nplatform="{platform}"\nrunnable=true\nexport_filter="resources"\n'
+                'export_files=PackedStringArray("res://imported-model.res", "res://texture_export_checks.gd", "res://texture_export_scene.tscn", "res://addons/gd_cubism/gd_cubism.gdextension")\n'
+                'include_filter="texture-expected.json"\nexclude_filter="addons/import_test/*"\nexport_path=""\nscript_export_mode=2\n'
+                f'[preset.0.options]\ncustom_template/debug={template}\ncustom_template/release={template}\n'
+                'binary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
+            exported = run / "export"
+            exported.mkdir()
+            game = exported / ("texture_game.exe" if feature == "windows" else "texture_game")
+            ok = execute("texture-export", [f"--export-{args.export_mode}", "Textures", str(game)])
+            if ok:
+                project.rename(run / "source-not-available")
+                ok = execute("exported-textures", ["--script", "res://texture_export_checks.gd", "--quit-after", "2"], "CUBISM_TEXTURE_EXPORT_PASS", game, exported=True)
     report = {"status": "PASS" if ok else "FAIL", "automatic_discovery": automatic, "engine_version": version,
-              "library_sha256": hashlib.sha256((addon / "bin" / args.library.name).read_bytes()).hexdigest(), "run": str(run), "checks": checks}
+              "library_sha256": library_hash, "run": str(run), "checks": checks}
     (args.output / "importer-report.json").write_text(json.dumps(report, indent=2) + "\n")
     return 0 if ok else 1
 

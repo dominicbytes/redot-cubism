@@ -55,3 +55,5 @@ __pycache__/
 *.pyc
 *.xlsx.inspect.ndjson
 .sconsign.*
+# Generated licensed texture assets belong to game projects, not addon source.
+demo/cubism_generated/
