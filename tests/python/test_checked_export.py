@@ -15,6 +15,22 @@ spec.loader.exec_module(checked)
 
 
 class CheckedExportTest(unittest.TestCase):
+    def test_native_build_matches_requested_package(self):
+        for platform in ('Linux', 'Windows'):
+            for mode in ('debug', 'release'):
+                build = {'platform': platform.lower(), 'arch': 'x86_64', 'target': 'template_' + mode}
+                checked.check_native_build(build, platform, mode)
+                for field, incorrect in (('platform', 'macos'), ('arch', 'arm64'), ('target', 'editor'),
+                                         ('target', 'template_debug' if mode == 'release' else 'template_release')):
+                    with self.subTest(platform=platform, mode=mode, field=field, value=incorrect):
+                        with self.assertRaisesRegex(ValueError, 'native build ' + field):
+                            checked.check_native_build(dict(build, **{field: incorrect}), platform, mode)
+                for field in build:
+                    missing = dict(build)
+                    del missing[field]
+                    with self.assertRaisesRegex(ValueError, 'native build ' + field):
+                        checked.check_native_build(missing, platform, mode)
+
     def test_promotes_complete_directory_and_retains_previous(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

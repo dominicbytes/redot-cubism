@@ -94,6 +94,15 @@ func _run() -> void:
 	for editor_class: String in ["CubismExportPlugin", "CubismExportValidator", "CubismModelImporter", "CubismDependencyTracker", "CubismModelInspector", "GDCubismPlugin"]:
 		if ClassDB.class_exists(editor_class):
 			_errors.append("Editor class present in exported template: " + editor_class)
+	var build: Dictionary = ClassDB.class_call_static("CubismBuildInfo", "get_versions") if ClassDB.class_exists("CubismBuildInfo") else {}
+	if int(expected.models) > 0:
+		# Check the loaded library against the actual template before creating a
+		# model. Matching architecture/dependency revisions alone is insufficient.
+		var required := {"target": "template_debug" if OS.has_feature("debug") else "template_release",
+			"platform": OS.get_name().to_lower(), "arch": "x86_64"}
+		for key: String in required:
+			if build.get(key) != required[key]:
+				_errors.append("Exported native build " + key + " mismatch: expected " + str(required[key]) + ", got " + str(build.get(key)))
 	for path: String in expected.raw_hashes:
 		if FileAccess.get_sha256(path) != expected.raw_hashes[path]:
 			_errors.append("Exported source/shader hash mismatch: " + path)
@@ -109,7 +118,6 @@ func _run() -> void:
 		_visit(resource, path, 0)
 	if _models != int(expected.models):
 		_errors.append("Exported model count differs from preflight")
-	var build: Dictionary = ClassDB.class_call_static("CubismBuildInfo", "get_versions") if ClassDB.class_exists("CubismBuildInfo") else {}
 	if _models > 0:
 		for key: String in ["addon_version", "addon_commit", "redot_version", "redot_api_sha256", "redot_cpp_commit", "framework_commit", "core_version", "precision"]:
 			if build.get(key) != expected.build.get(key):
