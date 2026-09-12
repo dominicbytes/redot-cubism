@@ -17,7 +17,13 @@ warn by default and fail in strict-optional mode. Malformed or unsafe references
 always fail. Missing optional paths remain indexed with a `missing` fingerprint
 so a future editor invalidation service can detect their arrival.
 
-Limits: 4 MiB JSON, 64 MiB other source files, 512 MiB cumulative processed source
+The project setting `cubism/import/maximum_file_count` defaults to 1,024 and
+accepts integers from 1 through 4,096. It counts the manifest plus unique
+normalized paths in enabled catalogs before physical dependency reads or MOC
+creation. Missing optional paths count too; repeated paths count once. The pure
+parser separately bounds all declared references, including disabled catalogs.
+
+Other limits: 4 MiB JSON, 64 MiB other source files, 512 MiB cumulative processed source
 bytes; PNG dimensions at most 16384 per axis, 64 megapixels per texture and 128
 megapixels cumulatively (powers of 1024). PNG signature/IHDR dimensions are checked
 before ResourceLoader. Decoding still belongs to Redot. JSON fingerprints use

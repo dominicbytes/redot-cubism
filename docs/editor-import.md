@@ -39,9 +39,23 @@ silently overwritten to match one of potentially several derived resources.
 conversion is unavailable. Other unsupported or misspelled options fail explicitly.
 
 The native importer advertises only `model3.json`, priority 2, import order 100
-(after default texture/audio imports), format version 4, and disables threaded
+(after default texture/audio imports), format version 5, and disables threaded
 import. The Import dock exposes the same three implemented choices. Remaining
 planned settings, including motion discovery and mask quality, are not implemented.
+
+**Project Settings → Cubism → Import → Maximum File Count** limits the manifest
+plus unique normalized source paths in enabled catalogs. The default is 1,024; allowed
+integer values are 1–4,096. Missing optional references still count, while repeated
+references to the same file count once. Disabled motion/expression references
+are excluded. Generated textures and engine import sidecars are not source files
+for this budget. The parser's separate 4,096-reference bound and all byte, pixel,
+type and path limits remain in force regardless of this setting.
+
+The limit applies to factory and editor imports and participates in the import
+fingerprint. Lowering it can fail validation while preserving the last saved
+model; raising it allows reimport without changing source files. It is a project
+policy, not a per-model option. Invalid types or values fail with a diagnostic
+naming `project_settings.cubism/import/maximum_file_count`.
 
 ## Stock discovery limitation
 
