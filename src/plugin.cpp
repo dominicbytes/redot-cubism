@@ -91,6 +91,10 @@ bool GDCubismPlugin::update_selected_info() {
 void GDCubismPlugin::_enter_tree() {
     model_importer.instantiate();
     add_import_plugin(model_importer);
+    dependency_tracker = memnew(CubismDependencyTracker);
+    dependency_tracker->set_name("CubismDependencies");
+    add_child(dependency_tracker);
+    add_tool_menu_item("Validate Cubism Models", callable_mp(dependency_tracker, &CubismDependencyTracker::request_scan));
     cubism_source_dialog = memnew(EditorFileDialog);
     cubism_source_dialog->set_access(EditorFileDialog::ACCESS_RESOURCES);
     cubism_source_dialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
@@ -132,6 +136,9 @@ void GDCubismPlugin::_enter_tree() {
 
 
 void GDCubismPlugin::_exit_tree() {
+    remove_tool_menu_item("Validate Cubism Models");
+    memdelete(dependency_tracker);
+    dependency_tracker = nullptr;
     remove_tool_menu_item("Import Cubism Model");
     memdelete(cubism_source_dialog);
     cubism_source_dialog = nullptr;
@@ -165,6 +172,7 @@ void GDCubismPlugin::select_cubism_source(const String &path) {
 }
 
 void GDCubismPlugin::save_cubism_resource(const String &path) {
+    dependency_tracker->track(cubism_source_path, path);
     const Error error = CubismModelImporter::import_model(cubism_source_path, path);
     if (error != OK) {
         UtilityFunctions::push_error("Cubism resource import failed with error ", error, ": ", cubism_source_path);

@@ -1,10 +1,69 @@
 # PR5 importer progress
 
-Status: in progress. The pure native manifest parser, physical path helper and
-model resource container and typed motion/expression descriptors are implemented;
-the editor importer, runtime resource
-loading and dependency invalidation are not yet implemented. PR4 visual parity
-remains open while this independently testable parser layer proceeds.
+Status: in progress. Manifest and supporting JSON validation, physical file
+checks, typed resources, model factory, explicit editor importer, runtime resource
+adapter and dependency tracking are implemented. Linux debug/release checks
+pass for these paths. Texture sampling policy, full import options and MOC ID
+validation remain unfinished, as do Windows qualification and full PR4 parity.
+The older sections below retain historical checkpoint evidence; their statements
+about pending work describe those checkpoints, not the current implementation.
+
+## Editor, runtime and dependency integration — 2026-09-12
+
+The native importer saves a model through Project > Tools > Import Cubism Model.
+Stock Redot does not discover the compound suffix automatically on a fresh scan;
+the documented explicit action is the plan's provisional fallback. Ordinary JSON
+is not claimed. The runtime consumes the saved resource through the complete
+`RedotCubismModelSetting` interface, with per-instance settings and texture
+snapshots. See [editor import](../editor-import.md) and
+[resource runtime](../resource-runtime.md).
+
+Import format 2 stores source/dependency/sidecar and option/version fingerprints.
+The editor indexes saved models, hashes bounded chunks on startup, filesystem
+events, focus and polling, refreshes engine-owned texture/audio imports, and
+rebuilds affected models. Failed imports retain the previous output and retry
+when inputs change. See [dependency tracking](../dependency-tracking.md).
+
+Linux debug and release each pass nine importer integration phases, including
+47 live dependency assertions, restart, reconstruction after `.godot` deletion,
+runtime model/motion checks and matching template execution. Checks exercise all
+referenced JSON kinds, missing MOC/source recovery, shared texture pixels, changed
+WAV duration, strict-option invalidation, failure retry suppression, engine-managed
+imports and replacement of a tracked output with another resource type.
+The live texture checks use X11 and `gl_compatibility`; the remaining phases run
+headless. Dummy-renderer texture replacement is not a valid live pixel oracle.
+
+Exact command (run once per matching library/template variant):
+
+```sh
+REDOT_BIN=/path/to/pinned/redot python tools/run_importer_tests.py \
+  --model /private/sdk/Samples/Resources/Haru/Haru.model3.json \
+  --library demo/addons/gd_cubism/bin/libgd_cubism.linux.release.x86_64.so \
+  --template /path/to/linux_release.x86_64 \
+  --dependencies --graphics gl_compatibility --output /persistent/results
+python tools/run_tests.py --suite public --output .local-build/dependency-public-current
+```
+
+Tested working-tree library SHA-256 values:
+
+- Debug: `a7853088f9b214d7c82345b1bf5374bebd9b1a879e3b7d3a57283786ef713568`.
+- Release: `aef92e47581c602d8c2055497f7a835478ad08f382bf8d8b84643bfe4665324c`.
+
+The current public suite passes 24 Python tests, the source restricted-file audit
+and whitespace checks. Reports and logs are retained privately under
+`.local-build/dependency-checkpoint/{debug,release}`. SDK/model assets and test
+exports are not staged or published. Dependency pins are unchanged:
+Redot `4f5b14abade2239104847d03d8f9056e4467cfcd`, redot-cpp
+`598ec78e86b2c240a023f6de13daba70f7de8610`, upstream
+`3aaa3c9001808732c40aa3fa07460a95125d9ccc`, SDK `5-r.5`, Framework
+`145155d2c5bdd8d23475cef9cc3ab46d3220190c`.
+
+The preceding runtime checkpoint separately passed 62 native/graphics/export
+checks per Linux variant and a targeted four-phase ASan run. Those earlier
+sanitizer results do not qualify the new editor tracker. Windows, current tracker
+sanitizer coverage, checked/selective export and full product acceptance remain
+open. Neither the automatic import fallback nor these template checks establish
+the plan's final export workflow. No new public push accompanies this checkpoint.
 
 The [parser contract](../manifest-parser.md) documents normalized output,
 bounded diagnostics and fixed limits. It calls Redot JSON and never loads a

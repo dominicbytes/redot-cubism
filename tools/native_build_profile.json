@@ -9,6 +9,8 @@
     "Control",
     "EditorFileDialog",
     "EditorFileSystem",
+    "EditorFileSystemDirectory",
+    "ConfigFile",
     "EditorImportPlugin",
     "EditorInterface",
     "EditorPlugin",

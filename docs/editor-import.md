@@ -15,7 +15,7 @@ and end in `.res` or `.tres`. Validation completes before saving. This API is
 editor-only; the saved resource class is available at runtime.
 
 The native importer advertises only `model3.json`, priority 2, import order 100
-(after default texture/audio imports), format version 1, and disables threaded
+(after default texture/audio imports), format version 2, and disables threaded
 import. It currently exposes only strict optional-file validation. Other planned
 options are not yet implemented.
 
@@ -43,7 +43,8 @@ The template check loads and animates the resource from the isolated test projec
 not claim selective PCK export. Dialog callbacks are exercised in a headless
 editor; manual visual UI verification remains pending.
 
-This action is the plan's provisional fallback. It does not yet watch raw
-dependencies or reimport automatically. Repeat it after source changes. Assign
-the result to `GDCubismUserModel.model` for [runtime playback](resource-runtime.md).
+This action is the plan's provisional fallback. Its saved resources now participate
+in [dependency tracking](dependency-tracking.md). The editor refreshes them after
+source changes; **Project → Tools → Validate Cubism Models** requests a scan.
+Assign the result to `GDCubismUserModel.model` for [runtime playback](resource-runtime.md).
 The preferred `CubismModel2D` API and checked export remain unfinished.

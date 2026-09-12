@@ -3,6 +3,10 @@
 #include "cubism_model_factory.hpp"
 #include "cubism_model_resource.hpp"
 #include "cubism_manifest_parser.hpp"
+#include "cubism_build_info.hpp"
+#include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/json.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/resource_saver.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
@@ -34,7 +38,7 @@ bool CubismModelImporter::_get_option_visibility(const String &, const StringNam
 float CubismModelImporter::_get_priority() const { return 2.0f; }
 // Imported texture/audio resources must exist before factory assembly.
 int32_t CubismModelImporter::_get_import_order() const { return 100; }
-int32_t CubismModelImporter::_get_format_version() const { return 1; }
+int32_t CubismModelImporter::_get_format_version() const { return 2; }
 bool CubismModelImporter::_can_import_threaded() const { return false; }
 Error CubismModelImporter::_import(const String &source_file, const String &save_path,
         const Dictionary &options, const TypedArray<String> &, const TypedArray<String> &) const {
@@ -59,5 +63,35 @@ Error CubismModelImporter::import_model(const String &source_file, const String 
         return ERR_PARSE_ERROR;
     }
     const Ref<CubismModelResource> model = result["model"];
-    return ResourceSaver::get_singleton()->save(model, destination);
+    // The engine owns these sidecars; reading them detects texture/audio import
+    // setting changes without modifying their contents or treating them as outputs.
+    Dictionary files = model->get_dependency_fingerprints();
+    const Array paths = files.keys();
+    for (int i = 0; i < paths.size(); ++i) {
+        const String path = paths[i];
+        if (path.ends_with(".png") || path.ends_with(".wav") || path.ends_with(".ogg")) {
+            const String sidecar = path + String(".import");
+            const Dictionary state = CubismManifestParser::validate_project_file(sidecar);
+            files[sidecar] = state["status"] == String("file") ? FileAccess::get_sha256(sidecar) : String("missing");
+        }
+    }
+    model->set_dependency_fingerprints(files);
+    model->set_import_fingerprint(fingerprint(files, model->get_import_options()));
+    const Error error = ResourceSaver::get_singleton()->save(model, destination);
+    if (error == OK && ResourceLoader::get_singleton()->has_cached(destination)) {
+        // Keep resources already open in the Inspector or a scene up to date.
+        ResourceLoader::get_singleton()->load(destination, "CubismModelResource", ResourceLoader::CACHE_MODE_REPLACE);
+    }
+    return error;
+}
+
+String CubismModelImporter::fingerprint(const Dictionary &files, const Dictionary &options) {
+    const Dictionary versions = CubismBuildInfo::get_versions();
+    Dictionary data;
+    data["format_version"] = 2;
+    data["resource_schema"] = 1;
+    for (const String key : {String("addon_version"), String("addon_commit"), String("framework_commit"), String("core_version"), String("redot_api_sha256")}) data[key] = versions[key];
+    data["files"] = files;
+    data["options"] = options;
+    return JSON::stringify(data, "", true, true).sha256_text();
 }

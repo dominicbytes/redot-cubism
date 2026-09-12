@@ -8,6 +8,7 @@ class CubismModelImporter : public godot::EditorImportPlugin {
 protected:
     static void _bind_methods();
 public:
+    static godot::String fingerprint(const godot::Dictionary &files, const godot::Dictionary &options);
     static godot::Error import_model(const godot::String &source_file, const godot::String &destination, bool strict_optional_files = false);
     godot::String _get_importer_name() const override;
     godot::String _get_visible_name() const override;
