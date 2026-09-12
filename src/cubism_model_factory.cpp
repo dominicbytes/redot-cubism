@@ -122,6 +122,12 @@ Dictionary CubismModelFactory::build_with_options(const String &source_path, con
             resource->set_metadata(manifest);
             resource->set_sdk_compatibility(CubismBuildInfo::get_versions());
             resource->set_import_options(options);
+            const String extension_path = "res://addons/gd_cubism/gd_cubism.gdextension";
+            if (exists(extension_path, "runtime_extension", false)) {
+                const Ref<Resource> extension = ResourceLoader::get_singleton()->load(extension_path, "GDExtension");
+                if (extension.is_null() || extension->get_class() != StringName("GDExtension")) error("runtime_extension", "Cannot load the addon extension descriptor.");
+                else resource->set_runtime_extension(extension);
+            }
             // Validate every physical reference before ResourceLoader sees any asset.
             for (int i = 0; i < dependencies.size(); ++i) {
                 const Dictionary status = CubismManifestParser::validate_project_file(dependencies[i]);

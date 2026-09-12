@@ -91,6 +91,8 @@ bool GDCubismPlugin::update_selected_info() {
 void GDCubismPlugin::_enter_tree() {
     model_importer.instantiate();
     add_import_plugin(model_importer);
+    export_plugin.instantiate();
+    add_export_plugin(export_plugin);
     model_inspector.instantiate();
     add_inspector_plugin(model_inspector);
     dependency_tracker = memnew(CubismDependencyTracker);
@@ -141,6 +143,8 @@ void GDCubismPlugin::_enter_tree() {
 
 
 void GDCubismPlugin::_exit_tree() {
+    remove_export_plugin(export_plugin);
+    export_plugin.unref();
     remove_inspector_plugin(model_inspector);
     model_inspector.unref();
     remove_tool_menu_item("Validate Cubism Models");

@@ -36,7 +36,7 @@ func _run() -> void:
 	reject(null, "null model")
 	reject(CubismModelResource.new(), "empty model")
 	for change: Dictionary in [
-		{"import_schema_version": 99}, {"import_fingerprint": ""}, {"source_hash": "changed"},
+		{"runtime_extension": null}, {"import_schema_version": 99}, {"import_fingerprint": ""}, {"source_hash": "changed"},
 		{"dependency_fingerprints": {}}, {"dependency_paths": PackedStringArray()},
 		{"source_model_path": "res://outside.txt"}, {"moc_path": "res://missing.moc3"},
 		{"physics_path": "res://other.physics3.json"}, {"textures": []},

@@ -41,7 +41,7 @@ silently overwritten to match one of potentially several derived resources.
 conversion is unavailable. Other unsupported or misspelled options fail explicitly.
 
 The native importer advertises only `model3.json`, priority 2, import order 100
-(after default texture/audio imports), format version 5, and disables threaded
+(after default texture/audio imports), format version 6, and disables threaded
 import. The Import dock exposes the same three implemented choices. Remaining
 planned settings, including motion discovery and mask quality, are not implemented.
 

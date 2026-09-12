@@ -14,6 +14,7 @@
     "ConfigFile",
     "EditorImportPlugin",
     "EditorInspectorPlugin",
+    "EditorExportPlugin",
     "EditorInterface",
     "EditorPlugin",
     "EditorSelection",

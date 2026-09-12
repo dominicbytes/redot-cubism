@@ -12,6 +12,7 @@
 #include <godot_cpp/classes/spin_box.hpp>
 #include "cubism_model_importer.hpp"
 #include "cubism_model_inspector.hpp"
+#include "cubism_export_plugin.hpp"
 #include "cubism_dependency_tracker.hpp"
 #include <godot_cpp/classes/editor_file_dialog.hpp>
 
@@ -31,6 +32,7 @@ class GDCubismPlugin : public EditorPlugin {
 private:
     Ref<CubismModelImporter> model_importer;
     Ref<CubismModelInspector> model_inspector;
+    Ref<CubismExportPlugin> export_plugin;
     CubismDependencyTracker *dependency_tracker = nullptr;
     EditorFileDialog *cubism_source_dialog = nullptr;
     EditorFileDialog *cubism_save_dialog = nullptr;

@@ -443,6 +443,7 @@ Required fields:
 | `import_warnings` | `PackedStringArray` | Nonfatal diagnostics |
 | `import_schema_version` | `int` | Increment when serialization changes |
 | `sdk_compatibility` | `Dictionary` | SDK/MOC compatibility metadata |
+| `runtime_extension` | `Resource` (`GDExtension`) | Stored descriptor reference so selected exports include the native library and startup registration |
 | `import_options` | `Dictionary` | Relevant options used to produce the resource |
 
 Do not serialize:
