@@ -164,6 +164,8 @@ def main():
     if success:
         success = run("model-factory", ["--script", "res://model_factory_checks.gd", "--quit-after", "2"], "CUBISM_MODEL_FACTORY_PASS")
     if success:
+        success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
+    if success:
         success = run("runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS")
     if success:
         success = run("native-processing", ["--fixed-fps", "60", "--quit-after", "600", "--", "--process-checks"], "CUBISM_PROCESS_PASS")
@@ -200,6 +202,11 @@ def main():
         success = run("graphics", ["--quit-after", "120", "--", f"--capture={run_root / 'model.png'}"], "CUBISM_NATIVE_GRAPHICS:", graphics=True)
         graphics_tested = success and (run_root / "model.png").is_file()
         success = success and graphics_tested
+        if success:
+            success = run("resource-graphics", ["--quit-after", "120", "--", "--resource-model", f"--capture={run_root / 'resource-model.png'}"], "CUBISM_NATIVE_GRAPHICS:", graphics=True)
+        if success:
+            success = (run_root / "resource-model.png").read_bytes() == (run_root / "model.png").read_bytes()
+            checks.append({"test": "resource-legacy-render-match", "status": "PASS" if success else "FAIL"})
         if success:
             success = run("renderer-order", ["--quit-after", "120", "--", "--order-checks"], "CUBISM_ORDER_PASS", graphics=True)
         if success:
@@ -253,6 +260,8 @@ def main():
             success = run("exported-metadata-parser", ["--script", "res://metadata_parser_checks.gd", "--quit-after", "2"], "CUBISM_METADATA_PARSER_PASS", game)
         if success:
             success = run("exported-runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS", game)
+        if success:
+            success = run("exported-resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS", game)
             if success and args.mask_compositions:
                 success = run("exported-renderer-masks", ["--quit-after", "120", "--", "--mask-checks"], "CUBISM_MASK_PASS", game)
             for label, flag, marker in [("native-processing", "--process-checks", "CUBISM_PROCESS_PASS"), ("lifecycle", "--lifecycle-checks", "CUBISM_LIFECYCLE_PASS"), ("loading-removal", "--loading-checks", "CUBISM_LOADING_PASS"), ("handles", "--handle-checks", "CUBISM_HANDLE_PASS"), ("deltas", "--delta-checks", "CUBISM_DELTA_PASS")]:
@@ -261,6 +270,11 @@ def main():
             if success and args.graphics:
                 success = run("exported-graphics", ["--quit-after", "120", "--", f"--capture={run_root / 'exported-model.png'}"], "CUBISM_NATIVE_GRAPHICS:", game, graphics=True)
                 success = success and (run_root / "exported-model.png").is_file()
+                if success:
+                    success = run("exported-resource-graphics", ["--quit-after", "120", "--", "--resource-model", f"--capture={run_root / 'exported-resource-model.png'}"], "CUBISM_NATIVE_GRAPHICS:", game, graphics=True)
+                if success:
+                    success = (run_root / "exported-resource-model.png").read_bytes() == (run_root / "exported-model.png").read_bytes()
+                    checks.append({"test": "exported-resource-legacy-render-match", "status": "PASS" if success else "FAIL"})
                 if success:
                     success = run("exported-renderer-order", ["--quit-after", "120", "--", "--order-checks"], "CUBISM_ORDER_PASS", game, graphics=True)
                 if success:

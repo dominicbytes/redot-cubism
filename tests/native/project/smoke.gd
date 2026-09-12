@@ -153,7 +153,10 @@ func _run() -> void:
 	model.playback_process_mode = GDCubismUserModel.MANUAL
 	model.physics_evaluate = false
 	model.pose_update = false
-	model.assets = fixture.model
+	if "--resource-model" in OS.get_cmdline_user_args():
+		model.model = load("res://factory-model.res")
+	else:
+		model.assets = fixture.model
 	if not _check(not model.get_canvas_info().is_empty(), "model failed to initialize"):
 		return
 	if not _check(not model.get_meshes().is_empty(), "drawable meshes missing"):

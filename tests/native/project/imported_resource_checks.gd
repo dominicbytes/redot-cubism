@@ -15,5 +15,23 @@ func _initialize() -> void:
 		printerr("EDITOR_IMPORTER_PRESENT_IN_TEMPLATE")
 		quit(1)
 		return
+	var runtime := GDCubismUserModel.new()
+	runtime.playback_process_mode = GDCubismUserModel.MANUAL
+	runtime.model = model
+	if not runtime.is_initialized():
+		printerr("IMPORTED_RESOURCE_RUNTIME_FAILED: ", runtime.get_last_error())
+		runtime.free()
+		quit(1)
+		return
+	var group: String = model.motion_groups.keys()[0]
+	var motion := runtime.start_motion(group, 0, GDCubismUserModel.PRIORITY_FORCE)
+	if motion.get_error() != OK:
+		printerr("IMPORTED_RESOURCE_MOTION_FAILED")
+		runtime.free()
+		quit(1)
+		return
+	for frame in 120:
+		runtime.advance(1.0 / 60.0)
+	runtime.free()
 	print("CUBISM_IMPORTED_RESOURCE_PASS")
 	quit()

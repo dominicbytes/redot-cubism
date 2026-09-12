@@ -39,11 +39,11 @@ python tools/run_importer_tests.py --model /path/to/Haru.model3.json \
 The report records `automatic_discovery` separately
 from explicit import checks. Ordinary JSON and backup files must remain unclaimed.
 Coexistence with a generic JSON importer and automatic UID discovery are pending.
-The template check loads the resource from the isolated test project; it does
+The template check loads and animates the resource from the isolated test project; it does
 not claim selective PCK export. Dialog callbacks are exercised in a headless
 editor; manual visual UI verification remains pending.
 
 This action is the plan's provisional fallback. It does not yet watch raw
-dependencies or reimport automatically. Repeat it after source changes. The
-runtime resource adapter and checked export are still required before this is
-a complete import-to-playback workflow.
+dependencies or reimport automatically. Repeat it after source changes. Assign
+the result to `GDCubismUserModel.model` for [runtime playback](resource-runtime.md).
+The preferred `CubismModel2D` API and checked export remain unfinished.

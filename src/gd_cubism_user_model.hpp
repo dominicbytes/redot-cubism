@@ -19,6 +19,7 @@
 
 #include <gd_cubism_effect.hpp>
 #include <gd_cubism_motion_entry.hpp>
+#include <cubism_model_resource.hpp>
 #include <vector>
 
 
@@ -40,7 +41,7 @@ public:
 public:
     anim_expression() {}
     anim_expression(const Csm::csmChar* c_expression_id)
-        : expression_id(String(c_expression_id)) {}
+        : expression_id(String::utf8(c_expression_id)) {}
 
     String to_string() const {
         return String(this->expression_id);
@@ -56,7 +57,7 @@ public:
 public:
     anim_motion() {}
     anim_motion(const Csm::csmChar* c_group, const int32_t c_no)
-        : group(String(c_group))
+        : group(String::utf8(c_group))
         , no(c_no) {}
 
     String to_string() const {
@@ -164,9 +165,11 @@ private:
     GDCubismMotionQueueEntryHandle::FinishReason pending_clear_reason = GDCubismMotionQueueEntryHandle::UNLOADED;
     bool dispatch_scheduled = false;
     String pending_asset;
+    Ref<CubismModelResource> model_resource;
+    Ref<CubismModelResource> pending_resource;
     std::vector<PendingSignal> pending_signals;
     std::vector<Ref<GDCubismMotionQueueEntryHandle>> motion_handles;
-    void load_model(const String asset_path);
+    void load_model(const String asset_path, Ref<CubismModelResource> resource = Ref<CubismModelResource>());
     void clear(GDCubismMotionQueueEntryHandle::FinishReason reason = GDCubismMotionQueueEntryHandle::UNLOADED);
     void finish_motion_handles(GDCubismMotionQueueEntryHandle::FinishReason reason);
     void update_motion_handles();
@@ -176,6 +179,8 @@ private:
     void dispatch_model_signals();
 
 public:
+    void set_model(const Ref<CubismModelResource> &resource);
+    Ref<CubismModelResource> get_model() const { return model_resource; }
     ModelState get_model_state() const { return model_state; }
     Dictionary get_last_error() const { return last_error.duplicate(); }
     bool is_native_busy() const { return native_busy || disposing; }

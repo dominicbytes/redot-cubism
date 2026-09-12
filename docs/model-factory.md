@@ -27,5 +27,6 @@ a snapshot; simultaneous source replacement is not an atomic transaction.
 The factory requires already imported PNG/WAV/OGG assets. It does not yet provision
 the Cubism-owned texture sampling policy, validate all IDs against the MOC,
 resolve display group graphs, apply the full planned importer option set, register
-an automatic importer, track changes, or provide the runtime resource adapter.
+an automatic importer, or track changes. See the [explicit editor import](editor-import.md)
+and [runtime resource adapter](resource-runtime.md) for the current integration.
 Saving a factory result does not establish checked export or full rendering parity.
