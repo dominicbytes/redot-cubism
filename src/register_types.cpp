@@ -30,6 +30,7 @@
 #include <cubism_model_factory.hpp>
 #include <cubism_descriptors.hpp>
 #include <cubism_import_options.hpp>
+#include <cubism_export_validator.hpp>
 #include <cubism_build_info.gen.h>
 
 // --------------------------------------------------------------- namespace(s)
@@ -61,6 +62,7 @@ void output(const char *message) {
 void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
         ClassDB::register_class<CubismModelImporter>();
+        ClassDB::register_class<CubismExportValidator>();
         ClassDB::register_class<CubismDependencyTracker>();
         ClassDB::register_internal_class<CubismModelSummary>();
         ClassDB::register_internal_class<CubismModelInspector>();

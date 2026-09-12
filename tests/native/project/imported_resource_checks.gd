@@ -12,7 +12,7 @@ func _initialize() -> void:
 		quit(1)
 		return
 	if not OS.has_feature("editor"):
-		for editor_class: String in ["CubismModelImporter", "CubismDependencyTracker", "CubismModelInspector", "CubismModelSummary", "GDCubismPlugin"]:
+		for editor_class: String in ["CubismExportValidator", "CubismModelImporter", "CubismDependencyTracker", "CubismModelInspector", "CubismModelSummary", "GDCubismPlugin"]:
 			if ClassDB.class_exists(editor_class):
 				printerr("EDITOR_CLASS_PRESENT_IN_TEMPLATE: ", editor_class)
 				quit(1)

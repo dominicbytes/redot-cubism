@@ -144,6 +144,7 @@ def main():
         editor_script.unlink()
         (driver / "plugin.cfg").unlink()
     for phase, script, marker in (
+            ("export-validator", "export_validator_checks.gd", "CUBISM_EXPORT_VALIDATOR_PASS"),
             ("model-inspector", "model_inspector_checks.gd", "CUBISM_MODEL_INSPECTOR_PASS"),
             ("import-options", "import_options_checks.gd", "CUBISM_IMPORT_OPTIONS_PASS"),
             ("import-options-restart", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS"),
