@@ -13,6 +13,7 @@
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/input_event_mouse_motion.hpp>
 #include <godot_cpp/classes/node2d.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/sub_viewport.hpp>
 
@@ -121,6 +122,21 @@ void GDCubismPlugin::_enter_tree() {
     get_editor_interface()->get_base_control()->add_child(cubism_save_dialog);
     cubism_save_dialog->connect("file_selected", callable_mp(this, &GDCubismPlugin::save_cubism_resource));
     add_tool_menu_item("Import Cubism Model", callable_mp(this, &GDCubismPlugin::show_cubism_import_dialog));
+
+    // Use the normal editor main loop for CLI validation. A custom SceneTree
+    // passed through --editor --script does not clean up Redot's editor objects.
+    const PackedStringArray arguments = OS::get_singleton()->get_cmdline_user_args();
+    if (arguments.has("--cubism-preflight")) {
+        const Ref<Resource> script = ResourceLoader::get_singleton()->load("res://addons/gd_cubism/editor/export_preflight_cli.gd");
+        if (script.is_null()) {
+            UtilityFunctions::push_error("Cannot load Cubism export preflight driver.");
+            get_tree()->quit(2);
+        } else {
+            Node *driver = memnew(Node);
+            driver->set_script(script);
+            add_child(driver);
+        }
+    }
 
     this->drag = false;
 
