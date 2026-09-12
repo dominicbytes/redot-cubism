@@ -63,7 +63,7 @@ def main():
     (project / 'project.godot').write_text('config_version=5\n[application]\nconfig/name="Legacy checked export"\n[rendering]\nrenderer/rendering_method="gl_compatibility"\n')
     platform = 'Windows Desktop' if os.name == 'nt' else 'Linux'
     (project / 'export_presets.cfg').write_text(
-        f'[preset.0]\nname="Legacy"\nplatform="{platform}"\nexport_filter="scenes"\n'
+        f'[preset.0]\nname="Legacy"\nplatform="{platform}"\nrunnable=true\nexport_path=""\nexport_filter="scenes"\n'
         'export_files=PackedStringArray("res://legacy-direct.tscn")\n'
         '[preset.0.options]\nbinary_format/architecture="x86_64"\n')
     output = run / 'previous-output'

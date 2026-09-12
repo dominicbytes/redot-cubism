@@ -6,6 +6,10 @@
 #include "cubism_build_info.hpp"
 #include "cubism_texture_import.hpp"
 #include "cubism_import_options.hpp"
+#include "cubism_export_validator.hpp"
+#include <godot_cpp/classes/config_file.hpp>
+#include <godot_cpp/classes/editor_file_system.hpp>
+#include <godot_cpp/classes/editor_interface.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/json.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
@@ -15,6 +19,7 @@
 using namespace godot;
 
 void CubismModelImporter::_bind_methods() {
+    ClassDB::bind_static_method("CubismModelImporter", D_METHOD("import_source", "source_file"), &CubismModelImporter::import_source);
     ClassDB::bind_static_method("CubismModelImporter", D_METHOD("import_model", "source_file", "destination", "strict_optional_files"), &CubismModelImporter::import_model, DEFVAL(false));
     ClassDB::bind_static_method("CubismModelImporter", D_METHOD("import_model_with_options", "source_file", "destination", "options"), &CubismModelImporter::import_model_with_options);
 }
@@ -57,6 +62,34 @@ Error CubismModelImporter::import_model(const String &source_file, const String 
     Dictionary options;
     options["validation/strict_optional_files"] = strict_optional_files;
     return import_model_with_options(source_file, destination, options);
+}
+
+Error CubismModelImporter::import_source(const String &source_file) {
+    if (!source_file.ends_with(".model3.json")) return ERR_FILE_UNRECOGNIZED;
+    if (CubismManifestParser::validate_project_file(source_file)["status"] != String("file")) return ERR_FILE_BAD_PATH;
+    auto *editor = EditorInterface::get_singleton();
+    if (editor == nullptr || editor->get_resource_filesystem()->is_scanning()) return ERR_BUSY;
+    const String sidecar = source_file + String(".import");
+    const String state = CubismManifestParser::validate_project_file(sidecar)["status"];
+    if (state != "missing") {
+        if (state != "file") return ERR_FILE_BAD_PATH;
+        const Ref<FileAccess> file = FileAccess::open(sidecar, FileAccess::READ);
+        if (file.is_null() || file->get_length() > 4 * 1024 * 1024) return ERR_FILE_CANT_READ;
+        Ref<ConfigFile> metadata;
+        metadata.instantiate();
+        if (metadata->parse(file->get_as_text(), false) != OK) return ERR_PARSE_ERROR;
+        // Do not take over sources assigned to another importer or overwrite
+        // existing Import-dock choices with an arbitrary derived .res's options.
+        if (metadata->get_value("remap", "importer", "") != String("redot.cubism.model")) return ERR_ALREADY_IN_USE;
+    }
+    auto *filesystem = editor->get_resource_filesystem();
+    filesystem->update_file(source_file);
+    PackedStringArray sources;
+    sources.push_back(source_file);
+    filesystem->reimport_files(sources);
+    const Ref<CubismModelResource> resource = ResourceLoader::get_singleton()->load(source_file, "CubismModelResource", ResourceLoader::CACHE_MODE_REPLACE);
+    if (resource.is_null()) return ERR_CANT_CREATE;
+    return bool(CubismExportValidator::validate_model(resource)["ok"]) ? OK : ERR_INVALID_DATA;
 }
 
 Error CubismModelImporter::import_model_with_options(const String &source_file, const String &destination, const Dictionary &options) {

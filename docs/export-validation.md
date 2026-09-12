@@ -35,13 +35,11 @@ their own engine export callbacks, preserving export exclusions. Stored arrays,
 dictionaries and resource properties are traversed with cycle/size/depth bounds.
 For packed scenes, validation also inspects stored node properties and resolves
 native node types through inherited scenes and instance overrides. A nonempty
-legacy Cubism `assets` string is rejected with the scene and node path: it does
-not provide the resource edge needed for selective export. Import the model,
-assign the resulting resource to the node's `model` property and save the scene
-before exporting. Empty Cubism nodes and unrelated scripts' `assets` properties
+legacy Cubism `assets` string requires a matching `_legacy_model` imported-resource
+edge. [Prepare and save the legacy scene](legacy-compatibility.md), or assign an
+imported resource to its `model` property. Missing or mismatched bridges produce
+a scene/node diagnostic. Empty Cubism nodes and unrelated scripts' `assets` properties
 are allowed. Validation inspects scene state without instantiating scene nodes.
-This diagnostic closes a false-success case; it does not implement the planned
-legacy compatibility bridge, which remains required work.
 
 The native export plugin calls this validation for included model/resource/scene
 files, stages verified raw payloads with their original paths and `remap=false`,
@@ -121,8 +119,8 @@ Linux debug/release integration tests cover a Unicode project/output/executable
 path, complete build replacement, and preservation of the previous output after
 missing-MOC, packaging and smoke-test failures. The actual editor menu action and
 rendered dialogs are also tested. This qualification covers imported
-`CubismModelResource` workflows; legacy scenes using only the `assets` string
-are now rejected before packaging. `tools/run_legacy_export_tests.py` covers
+`CubismModelResource` workflows. Legacy scenes using only the `assets` string
+without a saved bridge are rejected before packaging. `tools/run_legacy_export_tests.py` covers
 direct, inherited, instanced and embedded legacy scenes, unrelated properties,
 absence of node instantiation and preservation of a previous build.
 Ordinary Export-menu callbacks cannot be assumed to abort an invalid export.

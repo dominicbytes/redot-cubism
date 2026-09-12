@@ -38,7 +38,9 @@ private:
     EditorFileDialog *cubism_save_dialog = nullptr;
     Node *checked_export_ui = nullptr;
     String cubism_source_path;
+    bool legacy_source_import = false;
     void show_cubism_import_dialog();
+    void show_legacy_cubism_import_dialog();
     void select_cubism_source(const String &path);
     void save_cubism_resource(const String &path);
     void show_checked_export();

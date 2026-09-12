@@ -7,6 +7,9 @@ and clears `model`; assigning `model` clears `assets`. Tree exit unloads native
 state, and reentry reloads the selected source. Explicit reassignment reloads the
 model. Requests made during native loading are deferred through the existing
 lifecycle guards.
+Prepared legacy `assets` paths also use imported data while preserving their
+original public property semantics. See [legacy compatibility](legacy-compatibility.md)
+for preparation and scene-saving requirements.
 
 Each runtime owns a complete `ICubismModelSetting` implementation with copied,
 stable UTF-8 buffers, SDK-interned ID handles, ordered motion/texture entries, and
@@ -23,7 +26,7 @@ JSON is decoded and schema-validated before SDK parsing. Limits are 4 MiB JSON,
 resource paths, unsupported resource schemas, texture-index/blend mismatches,
 invalid MOCs and stale raw data fail loading. This does not replace checked
 export: texture/audio imports, unused optional metadata and the complete exported
-closure still require the planned validation service.
+closure still require [checked export validation](export-validation.md).
 
 Layout uses the pinned SDK's lowercase keys (`width`, `height`, `x`, `y`,
 `center_x`, `center_y`, `top`, `bottom`, `left`, `right`). Unknown keys remain
@@ -41,5 +44,5 @@ paths, stale hashes, deferred replacement during loading, layout geometry,
 Unicode filenames/group names, and loading without the original manifest.
 The native runner can compare resource and legacy captures with the same model
 and step sequence, and exercises the resource path from an exported PCK after
-moving the source project away. That export still uses the test harness's broad
-raw-file include filter; selective and checked export remain pending.
+moving the source project away. The separate checked-export and legacy-bridge
+tests exercise selective packaging through real resource dependencies.
