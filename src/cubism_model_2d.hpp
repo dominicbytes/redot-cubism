@@ -41,6 +41,15 @@ private:
     void on_model_ready();
     void on_model_failed(const Dictionary &error);
     void step(double delta);
+    Vector2 hit_target;
+    bool hit_target_active = false;
+    bool hit_refresh_pending = false;
+    bool hit_reset = false;
+    uint64_t hit_revision = 0;
+    PackedStringArray hovered_hit_areas;
+    void queue_hit_refresh();
+    void refresh_hit_areas();
+    void reset_hit_tracking();
     int parameter_index(const StringName &id) const;
     Error queue_parameter(const StringName &id, double value, double weight, int operation);
 
@@ -84,6 +93,10 @@ public:
     bool get_enable_look_target() const;
     void set_look_target(const Vector2 &local_target, double weight = 1.0);
     void clear_look_target();
+    PackedStringArray get_hit_area_names() const;
+    bool hit_test(const StringName &hit_area, const Vector2 &local_point) const;
+    void set_hit_test_target(const Vector2 &local_point);
+    void clear_hit_test_target();
     void advance(double delta);
     Ref<CubismMotionHandle> play_motion(const StringName &id, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
     Ref<CubismMotionHandle> play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
