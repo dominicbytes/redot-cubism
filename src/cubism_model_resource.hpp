@@ -15,7 +15,10 @@ class CubismModelResource : public Resource {
 protected:
     static void _bind_methods();
 private:
-    godot::Ref<godot::Resource> runtime_extension;
+    // Keep the engine-owned descriptor without a C++ instance binding on the
+    // GDExtension itself: its destructor unloads our callbacks before freeing
+    // that binding in Redot 26.2 export templates.
+    Variant runtime_extension;
     String source_model_path;
     String source_hash;
     String import_fingerprint;
@@ -44,8 +47,8 @@ private:
     Dictionary import_options;
     Dictionary metadata;
 public:
-    void set_runtime_extension(const godot::Ref<godot::Resource> &value) { runtime_extension = value; emit_changed(); }
-    godot::Ref<godot::Resource> get_runtime_extension() const { return runtime_extension; }
+    void set_runtime_extension(const Variant &value) { runtime_extension = value; emit_changed(); }
+    Variant get_runtime_extension() const { return runtime_extension; }
     void set_source_model_path(const String &value) { source_model_path = value; emit_changed(); }
     String get_source_model_path() const { return source_model_path; }
     void set_source_hash(const String &value) { source_hash = value; emit_changed(); }

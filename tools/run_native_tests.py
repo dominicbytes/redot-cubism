@@ -183,7 +183,9 @@ def main():
         previous_asan = env.get("ASAN_OPTIONS")
         env["ASAN_OPTIONS"] = "detect_leaks=1:abort_on_error=1"
         try:
-            success = run("lifecycle-asan", ["--rendering-driver", "dummy", "--path", str(project), "--fixed-fps", "60", "--quit-after", "10000", "--", "--lifecycle-checks", "--cycles=250"], "CUBISM_LIFECYCLE_PASS cycles=250", args.sanitizer_runtime)
+            success = run("extension-lifetime-asan", ["--rendering-driver", "dummy", "--path", str(project), "--script", "res://extension_lifetime_checks.gd", "--quit-after", "2"], "CUBISM_EXTENSION_LIFETIME_PASS", args.sanitizer_runtime)
+            if success:
+                success = run("lifecycle-asan", ["--rendering-driver", "dummy", "--path", str(project), "--fixed-fps", "60", "--quit-after", "10000", "--", "--lifecycle-checks", "--cycles=250"], "CUBISM_LIFECYCLE_PASS cycles=250", args.sanitizer_runtime)
             if success:
                 success = run("handles-asan", ["--rendering-driver", "dummy", "--path", str(project), "--quit-after", "600", "--", "--handle-checks"], "CUBISM_HANDLE_PASS", args.sanitizer_runtime)
             if success:
