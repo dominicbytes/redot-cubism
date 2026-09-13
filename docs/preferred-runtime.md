@@ -439,6 +439,53 @@ Two controller voices on separate buses are checked through pause, stop and
 asynchronous playback release. Physical-device latency, broader platform
 coverage and complete controller workflows remain release requirements.
 
+## Character checkpoint state
+
+`capture_state()` returns `{ok, error, state}`. Its version 1 `state` dictionary
+contains only JSON-compatible strings, numbers, booleans and arrays. It records
+the model source path and import fingerprint, idle ID and active policy,
+selected expression ID, local look target and weight, local visibility,
+transform, tint, voice bus, cue offset, transition duration, automatic idle
+resumption and controller pause. No resource, node, native pointer or live handle
+is placed in the save data. Scene-owned process settings and model effect
+configuration remain part of the character scene.
+
+Capture at a dialogue checkpoint after the current cue and visibility fade end.
+An owned idle loop may be running. Active cues, foreign clock ownership, native
+callbacks and externally started motions return `ERR_BUSY`. A changed idle ID
+must first be applied with `return_to_idle()` or the old loop stopped. Invalid
+configured IDs or non-finite presentation values also reject capture.
+
+```gdscript
+var captured := character.capture_state()
+if captured.ok:
+    var file := FileAccess.open("user://character.json", FileAccess.WRITE)
+    file.store_string(JSON.stringify(captured.state))
+
+# Recreate the character scene and load its model before restoring.
+var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string("user://character.json"))
+if saved is Dictionary:
+    var error := character.restore_state(saved)
+    if error != OK:
+        push_warning(error_string(error))
+```
+
+`restore_state` requires all version 1 fields with their original types (JSON
+numeric values may be integral floats), valid IDs and an existing voice bus.
+Unknown fields, a mismatching model fingerprint and malformed values are
+rejected before interrupting current playback. A private copy of validated data
+keeps scene callbacks from changing the ongoing restoration. It loads no files from the saved
+paths. After validation it interrupts an active cue, restores presentation,
+restarts the selected expression without its old blend queue, and starts a fresh
+idle loop if requested. Target destruction/reload from a synchronous scene
+callback can interrupt this operation and returns `ERR_UNAVAILABLE`.
+
+This checkpoint represents stable character choices. It does not capture the
+current pose's parameter values, motion phase, voice position, physics/blink
+history or an unfinished transition. Store dialogue progression with the game's
+own save data; resume a line by starting a fresh cue. General seeking remains
+unsupported.
+
 ## Idle, visibility and look utilities
 
 Assign `idle_motion` and call `return_to_idle()` to stop a cue and start that motion

@@ -38,6 +38,8 @@ void CubismCharacterController::_bind_methods() {
     ClassDB::bind_method(D_METHOD("show_character", "transition"), &CubismCharacterController::show_character, DEFVAL(StringName("none")));
     ClassDB::bind_method(D_METHOD("hide_character", "transition"), &CubismCharacterController::hide_character, DEFVAL(StringName("none")));
     ClassDB::bind_method(D_METHOD("look_at_screen_position", "position"), &CubismCharacterController::look_at_screen_position);
+    ClassDB::bind_method(D_METHOD("capture_state"), &CubismCharacterController::capture_state);
+    ClassDB::bind_method(D_METHOD("restore_state", "state"), &CubismCharacterController::restore_state);
     ADD_SIGNAL(MethodInfo("runtime_warning", PropertyInfo(Variant::INT, "code"), PropertyInfo(Variant::STRING, "message")));
 }
 

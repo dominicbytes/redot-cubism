@@ -97,5 +97,7 @@ public:
     Error show_character(const StringName &kind = "none") { return change_visibility(true, kind); }
     Error hide_character(const StringName &kind = "none") { return change_visibility(false, kind); }
     Error look_at_screen_position(const Vector2 &position);
+    Dictionary capture_state() const;
+    Error restore_state(const Dictionary &state);
 };
 #endif
