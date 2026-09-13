@@ -19,6 +19,7 @@
     #include <private/internal_cubism_renderer_3d.hpp>
 #endif // GD_CUBISM_USE_RENDERER_2D
 #include <private/internal_cubism_user_model.hpp>
+#include <cubism_animator.hpp>
 
 
 // ------------------------------------------------------------------ define(s)
@@ -318,7 +319,8 @@ void InternalCubismUserModel::pro_update(const double delta) {
 
     if(this->_owner_viewport->parameter_mode == GDCubismUserModel::ParameterMode::FULL_PARAMETER) {
         this->_model->LoadParameters();
-        this->_motionManager->UpdateMotion(this->_model, delta);
+        if (_owner_viewport->get_animator()) _owner_viewport->get_animator()->update(this->_model, delta);
+        else this->_motionManager->UpdateMotion(this->_model, delta);
         this->_model->SaveParameters();
     }
 
@@ -401,6 +403,8 @@ void InternalCubismUserModel::clear() {
             ACubismMotion::Delete(i->Second);
         }
         this->_map_motion.Clear();
+        motion_buffers.Clear();
+        motion_fps.Clear();
     }
 
     this->effect_term();
@@ -469,6 +473,24 @@ CubismMotionQueueEntryHandle InternalCubismUserModel::motion_start(const char* g
 void InternalCubismUserModel::motion_stop() {
     if(this->_motionManager == nullptr) return;
     this->_motionManager->StopAllMotions();
+}
+
+CubismMotion *InternalCubismUserModel::create_motion(const String &group, int index, bool loop, double &period) {
+    const csmString key = Utils::CubismString::GetFormatedString("%s_%d", group.utf8().ptr(), index);
+    if (!motion_buffers.IsExist(key) || !_map_motion.IsExist(key)) return nullptr;
+    const PackedByteArray buffer = motion_buffers[key];
+    auto *motion = static_cast<CubismMotion *>(LoadMotion(buffer.ptr(), buffer.size(), key.GetRawString()));
+    if (!motion) return nullptr;
+    motion->SetFadeInTime(_map_motion[key]->GetFadeInTime());
+    motion->SetFadeOutTime(_map_motion[key]->GetFadeOutTime());
+    motion->SetEffectIds(_list_eye_blink, _list_lipsync);
+    motion->SetLoop(loop);
+    motion->SetLoopFadeIn(true);
+    // R5 V2 includes one frame of endpoint correction in a loop cycle.
+    const double fps = motion_fps[key];
+    period = motion->GetLoopDuration() + (loop && fps > 0.0 ? 1.0 / fps : 0.0);
+    if (loop && (!std::isfinite(fps) || fps <= 0.0)) { ACubismMotion::Delete(motion); return nullptr; }
+    return motion;
 }
 
 
@@ -588,6 +610,12 @@ bool InternalCubismUserModel::motion_load() {
             }
 
             this->_map_motion[name] = motion;
+            if (_owner_viewport->get_animator()) {
+                motion_buffers[name] = buffer;
+                const Dictionary json = JSON::parse_string(buffer.get_string_from_utf8());
+                const Dictionary metadata = json.get("Meta", Dictionary());
+                motion_fps[name] = metadata.get("Fps", 0.0);
+            }
         }
     }
     return true;

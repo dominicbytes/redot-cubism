@@ -3,10 +3,14 @@
 	<brief_description>Preferred resource-based Cubism runtime node, under development.</brief_description>
 	<description>
 		Owns one internal model runtime and its renderer. Assign an imported [CubismModelResource] to [member model]. The internal runtime is not saved as a scene child.
-		The current API provides lifecycle, processing, and queued parameter control. The planned motion/controller and advanced rendering API is still being implemented.
+		The current API provides lifecycle, processing, queued parameter control and native motion playback. Expression control, autoplay, the character/audio controller and advanced rendering API are still being implemented.
 		Parameter writes apply once on the next update, after physics and pose. Getters return evaluated values. Unload, reload, and tree exit discard pending writes. Use [method Node.queue_free] for deletion from signal callbacks.
 	</description>
 	<methods>
+		<method name="play_motion"><return type="CubismMotionHandle" /><param index="0" name="motion_id" type="StringName" /><param index="1" name="priority" type="int" enum="CubismMotionPriority.Priority" default="2" /><param index="2" name="loop" type="bool" default="false" /><param index="3" name="speed" type="float" default="1.0" /><description>Start a native motion with independent playback state. Does not start audio. Check the returned handle's terminal state before awaiting its finished signal. Finite speed must be in (0,256].</description></method>
+		<method name="play_motion_from_group"><return type="CubismMotionHandle" /><param index="0" name="group" type="StringName" /><param index="1" name="index" type="int" /><param index="2" name="priority" type="int" enum="CubismMotionPriority.Priority" default="2" /><param index="3" name="loop" type="bool" default="false" /><param index="4" name="speed" type="float" default="1.0" /><description>Resolve a group and ordered index, then play its stable motion ID.</description></method>
+		<method name="get_motion_ids"><return type="PackedStringArray" /><description>Return the loaded motion catalog's stable IDs.</description></method>
+		<method name="stop_motion"><return type="void" /><param index="0" name="fade_out_seconds" type="float" default="-1.0" /><description>Terminate the active handle as STOPPED. Zero removes influence immediately. Positive durations fade in model time; -1 uses the native default in motion time. The native pose can keep fading after the handle becomes terminal.</description></method>
 		<method name="load_model"><return type="int" enum="Error" /><param index="0" name="resource" type="CubismModelResource" /><description>Load a resource and return a Redot error code. A null resource clears the selection. Lifecycle signals are deferred.</description></method>
 		<method name="unload_model"><return type="void" /><description>Dispose the runtime, retaining the public selection for an explicit reload.</description></method>
 		<method name="reload_model"><return type="int" enum="Error" /><description>Reload the selected resource and discard pending writes.</description></method>

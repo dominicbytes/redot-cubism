@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismMotionHandle" inherits="RefCounted" version="4.3">
+	<brief_description>Retained status and deferred events for one native motion playback.</brief_description>
+	<description>Contains no native model pointer and remains readable after model disposal. Rejected plays are already terminal with FAILED and an error code. Check [method is_finished] before awaiting [signal finished]. Accepted plays terminate once; loops emit boundaries without completing. Stopped and interrupted plays become terminal while their native influence may still fade.</description>
+	<methods>
+		<method name="get_id" qualifiers="const"><return type="int" /><description>Unique instance ID of this handle.</description></method>
+		<method name="get_motion_id" qualifiers="const"><return type="StringName" /><description>Stable source motion ID.</description></method>
+		<method name="get_state" qualifiers="const"><return type="int" enum="CubismMotionHandle.State" /><description>PLAYING or FINISHED.</description></method>
+		<method name="is_finished" qualifiers="const"><return type="bool" /><description>Whether the handle is terminal, including immediate rejection.</description></method>
+		<method name="get_reason" qualifiers="const"><return type="int" enum="CubismMotionHandle.FinishReason" /><description>Terminal reason, or NONE during playback.</description></method>
+		<method name="get_error" qualifiers="const"><return type="int" enum="Error" /><description>Redot error code. Non-error termination retains OK.</description></method>
+		<method name="get_loop_count" qualifiers="const"><return type="int" /><description>Completed loop boundaries. The pinned R5 loop period includes one source frame.</description></method>
+		<method name="get_elapsed_seconds" qualifiers="const"><return type="float" /><description>Elapsed motion time after speed scaling. One-shot time is clamped to native duration; loop time is cumulative.</description></method>
+	</methods>
+	<signals>
+		<signal name="event"><param index="0" name="value" type="String" /><description>Deferred authored event value.</description></signal>
+		<signal name="looped"><param index="0" name="loop_count" type="int" /><description>Deferred loop boundary count.</description></signal>
+		<signal name="finished"><param index="0" name="reason" type="int" /><description>Deferred terminal transition, once for an accepted play.</description></signal>
+	</signals>
+</class>

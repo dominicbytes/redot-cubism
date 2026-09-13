@@ -19,6 +19,7 @@
 #include <gd_cubism_value_parameter.hpp>
 #include <gd_cubism_value_part_opacity.hpp>
 #include <gd_cubism_user_model.hpp>
+#include <cubism_animator.hpp>
 #include <cmath>
 #include <set>
 
@@ -59,6 +60,8 @@ GDCubismUserModel::~GDCubismUserModel() {
     clear(GDCubismMotionQueueEntryHandle::MODEL_DESTROYED);
     live_models.erase(this);
 }
+
+void GDCubismUserModel::enable_preferred_animation() { preferred_animator = std::make_unique<CubismAnimator>(); }
 
 void GDCubismUserModel::shutdown_models() {
     // Also cover models created outside the SceneTree. No user callbacks run
@@ -893,6 +896,12 @@ void GDCubismUserModel::clear(GDCubismMotionQueueEntryHandle::FinishReason reaso
         return;
     }
     disposing = true;
+    if (preferred_animator) {
+        CubismMotionHandle::FinishReason terminal = CubismMotionHandle::UNLOADED;
+        if (reason == GDCubismMotionQueueEntryHandle::RELOADED) terminal = CubismMotionHandle::RELOADED;
+        if (reason == GDCubismMotionQueueEntryHandle::MODEL_DESTROYED) terminal = CubismMotionHandle::MODEL_DISPOSED;
+        preferred_animator->clear(terminal);
+    }
     model_state = DISPOSING;
     ++generation;
     pending_signals.clear();
@@ -1071,6 +1080,7 @@ void GDCubismUserModel::load_model(const String assets, Ref<CubismModelResource>
 
     this->cubism_effect_dirty = true;
     model_state = READY;
+    if (preferred_animator) preferred_animator->configure(resource);
     update_mask_visibility();
   
     this->setup_property();
