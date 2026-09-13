@@ -324,8 +324,10 @@ void InternalCubismUserModel::pro_update(const double delta) {
 
     if(this->_owner_viewport->parameter_mode == GDCubismUserModel::ParameterMode::FULL_PARAMETER) {
         this->_model->LoadParameters();
+        _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_BASE);
         if (_owner_viewport->get_animator()) primary_motion_updated = _owner_viewport->get_animator()->update(this->_model, delta);
         else this->_motionManager->UpdateMotion(this->_model, delta);
+        _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_MOTION);
         this->_model->SaveParameters();
     }
 
@@ -352,6 +354,7 @@ void InternalCubismUserModel::pro_update(const double delta) {
         }
     }
 
+    _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_EXPRESSION);
     this->_model->GetModelOpacity();
 }
 
@@ -374,6 +377,7 @@ void InternalCubismUserModel::efx_update(const double delta) {
         }
     }
     this->effect_batch(delta, EFFECT_CALL_PROCESS);
+    _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_EFFECT);
 }
 
 
@@ -385,12 +389,14 @@ void InternalCubismUserModel::epi_update(const double delta) {
     if(this->_owner_viewport->physics_evaluate == true) {
         if(this->_physics != nullptr) { this->_physics->Evaluate(this->_model, delta); }
     }
+    _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_PHYSICS);
 
     if(this->_owner_viewport->pose_update == true) {
         if(this->_pose != nullptr) { this->_pose->UpdateParameters(this->_model, delta); }
     }
+    _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_POSE);
 
-    this->_owner_viewport->apply_post_effect_writes();
+    this->_owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_POST_EFFECT);
     this->_model->Update();
     this->effect_batch(delta, EFFECT_CALL_EPILOGUE);
 }

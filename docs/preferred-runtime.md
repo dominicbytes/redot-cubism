@@ -43,12 +43,33 @@ the node's `paused` property and `speed_scale`. Zero speed, zero delta and
 nonfinite delta do not consume queued writes. The existing finite-step cap and
 speed range remain in force; this is not an arbitrary-time seeking API.
 
-Parameter writes are queued in call order for the next successful update, after
-physics/pose and before Core updates drawable state (`POST_EFFECT`). Each write
-is consumed once. Continuous control resubmits each step. Getters report the last
-evaluated value, so queuing a write does not change a getter immediately. Reload,
-unload and tree exit discard pending writes. This leaves legacy parameter-setter
-semantics unchanged.
+Parameter writes are queued for the next successful update. The optional fourth
+argument to `set_parameter_value`, `add_parameter_value` and
+`multiply_parameter_value` selects a `CubismModel2D.ParameterLayer`:
+
+| Constant | Applied after | Applied before |
+| --- | --- | --- |
+| `LAYER_BASE` | Saved/base parameters are loaded | Primary motion |
+| `LAYER_MOTION` | Primary motion | Primary output is saved, then expression |
+| `LAYER_EXPRESSION` | Expression | Blink, breath, look, lip and custom effects |
+| `LAYER_EFFECT` | Those effects | Physics |
+| `LAYER_PHYSICS` | Physics | Pose |
+| `LAYER_POSE` | Pose | Final overrides |
+| `LAYER_POST_EFFECT` (default) | All earlier layers | Core drawable update |
+
+Each layer preserves submission order; layer order takes precedence over order
+between layers. Set/add/multiply select the blend operation explicitly. Later
+native systems can overwrite early-layer values. The BASE and MOTION layers feed
+the native saved primary parameters, so their result can survive later frames
+without repeating the write. Later layers leave the saved primary state alone.
+This is not an AnimationPlayer track-conversion or custom-effect priority API.
+
+Each queued operation is consumed once. A batch is captured before evaluation:
+writes submitted by a synchronous custom-effect callback, or a deferred motion
+signal, wait until the next step. Getters report the last evaluated value, so
+queuing a write does not change a getter immediately. Pause, zero speed and zero
+delta retain queued writes. Reload, unload and tree exit discard every layer.
+Direct legacy parameter setters retain their existing immediate/held behavior.
 
 For current value `c`, requested value `v` and weight `w`, set computes
 `c * (1-w) + v*w`, add computes `c + v*w`, and multiply computes
@@ -56,9 +77,11 @@ For current value `c`, requested value `v` and weight `w`, set computes
 Values and weights must be finite; weights must lie in `[0,1]`. Unknown IDs
 return `ERR_DOES_NOT_EXIST`; writes without a ready model return
 `ERR_UNCONFIGURED`. Use `has_parameter()` before reading optional IDs; an unknown
-parameter getter returns zero. Part opacity is queued at the same stage and
-clamped to `[0,1]`. The bounded write queue reports `ERR_OUT_OF_MEMORY` rather
-than growing indefinitely.
+parameter getter returns zero. Invalid layer values return `ERR_INVALID_PARAMETER`.
+Part opacity remains at POST_EFFECT and is clamped to `[0,1]`. The shared queue
+allows 100,000 pending operations across all layers and part-opacity writes;
+exceeding it reports `ERR_OUT_OF_MEMORY`. Processing or clearing writes releases
+their share of the budget.
 
 `tools/run_model2d_tests.py` uses the private Haru imported fixture. It checks
 resource lifetime, parameters, signals, pause and native processing, then loads

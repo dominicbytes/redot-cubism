@@ -16,6 +16,15 @@ class CubismModel2D : public godot::Node2D {
 public:
     enum PlaybackProcessMode { IDLE, PHYSICS, MANUAL };
     enum ModelState { UNLOADED, LOADING, READY, ERROR, DISPOSING, DISPOSED };
+    enum ParameterLayer {
+        LAYER_BASE = GDCubismUserModel::WRITE_BASE,
+        LAYER_MOTION = GDCubismUserModel::WRITE_MOTION,
+        LAYER_EXPRESSION = GDCubismUserModel::WRITE_EXPRESSION,
+        LAYER_EFFECT = GDCubismUserModel::WRITE_EFFECT,
+        LAYER_PHYSICS = GDCubismUserModel::WRITE_PHYSICS,
+        LAYER_POSE = GDCubismUserModel::WRITE_POSE,
+        LAYER_POST_EFFECT = GDCubismUserModel::WRITE_POST_EFFECT
+    };
 
 private:
     GDCubismUserModel *runtime = nullptr;
@@ -62,7 +71,7 @@ private:
     void refresh_hit_areas();
     void reset_hit_tracking();
     int parameter_index(const StringName &id) const;
-    Error queue_parameter(const StringName &id, double value, double weight, int operation);
+    Error queue_parameter(const StringName &id, double value, double weight, int operation, ParameterLayer layer);
 
 protected:
     static void _bind_methods();
@@ -126,9 +135,9 @@ public:
     PackedStringArray get_expression_ids() const;
     bool has_parameter(const StringName &id) const { return parameter_index(id) >= 0; }
     double get_parameter_value(const StringName &id) const;
-    Error set_parameter_value(const StringName &id, double value, double weight = 1.0) { return queue_parameter(id, value, weight, 0); }
-    Error add_parameter_value(const StringName &id, double value, double weight = 1.0) { return queue_parameter(id, value, weight, 1); }
-    Error multiply_parameter_value(const StringName &id, double value, double weight = 1.0) { return queue_parameter(id, value, weight, 2); }
+    Error set_parameter_value(const StringName &id, double value, double weight = 1.0, ParameterLayer layer = LAYER_POST_EFFECT) { return queue_parameter(id, value, weight, 0, layer); }
+    Error add_parameter_value(const StringName &id, double value, double weight = 1.0, ParameterLayer layer = LAYER_POST_EFFECT) { return queue_parameter(id, value, weight, 1, layer); }
+    Error multiply_parameter_value(const StringName &id, double value, double weight = 1.0, ParameterLayer layer = LAYER_POST_EFFECT) { return queue_parameter(id, value, weight, 2, layer); }
     Error set_part_opacity(const StringName &id, double opacity);
     PackedStringArray get_parameter_ids() const;
     PackedStringArray get_part_ids() const;
@@ -137,4 +146,5 @@ public:
 
 VARIANT_ENUM_CAST(CubismModel2D::PlaybackProcessMode);
 VARIANT_ENUM_CAST(CubismModel2D::ModelState);
+VARIANT_ENUM_CAST(CubismModel2D::ParameterLayer);
 #endif
