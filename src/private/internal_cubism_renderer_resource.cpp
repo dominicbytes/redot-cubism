@@ -52,6 +52,7 @@ InternalCubismRendererResource::~InternalCubismRendererResource() {
 
 
 void InternalCubismRendererResource::clear() {
+    compositor.clear();
     const Array nodes = this->managed_nodes.duplicate();
     this->managed_nodes.clear();
     for (int i = 0; i < nodes.size(); i++) {

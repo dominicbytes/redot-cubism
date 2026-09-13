@@ -5,7 +5,7 @@ extends RefCounted
 ## Selection mirrors the pinned Redot 26.2 EditorExportPlatform implementation.
 
 const MAX_FILES: int = 100000
-const SHADERS: PackedStringArray = ["mask", "mask_add", "mask_add_inv", "mask_mix", "mask_mix_inv", "mask_mul", "mask_mul_inv", "norm_add", "norm_mix", "norm_mul"]
+const SHADERS: PackedStringArray = ["compositor", "mask", "mask_add", "mask_add_inv", "mask_mix", "mask_mix_inv", "mask_mul", "mask_mul_inv", "norm_add", "norm_mix", "norm_mul"]
 var _diagnostics: Array[Dictionary] = []
 var _indexed: Dictionary = {}
 var _selected: Dictionary = {}
