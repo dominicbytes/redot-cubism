@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "cubism_character_controller.hpp"
+#include "cubism_audio_clock.hpp"
 #include <godot_cpp/classes/audio_server.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <algorithm>
@@ -18,6 +19,9 @@ void CubismCharacterController::_bind_methods() {
     CUE_PROPERTY(Variant::BOOL, manual_audio_clock)
     CUE_PROPERTY(Variant::BOOL, paused)
     CUE_PROPERTY(Variant::FLOAT, cue_offset_seconds)
+    CUE_PROPERTY(Variant::STRING_NAME, idle_motion)
+    CUE_PROPERTY(Variant::BOOL, auto_return_to_idle)
+    CUE_PROPERTY(Variant::FLOAT, transition_seconds)
 #undef CUE_PROPERTY
     ClassDB::bind_method(D_METHOD("perform", "motion_id", "expression_id"), &CubismCharacterController::perform, DEFVAL(StringName()));
     ClassDB::bind_method(D_METHOD("speak", "stream", "motion_id", "expression_id", "profile"), &CubismCharacterController::speak, DEFVAL(StringName()), DEFVAL(StringName()), DEFVAL(Ref<CubismLipSyncProfile>()));
@@ -29,6 +33,12 @@ void CubismCharacterController::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_sync_error"), &CubismCharacterController::get_sync_error);
     ClassDB::bind_method(D_METHOD("get_motion_handle"), &CubismCharacterController::get_motion_handle);
     ClassDB::bind_method(D_METHOD("is_speaking"), &CubismCharacterController::is_speaking);
+    ClassDB::bind_method(D_METHOD("is_idle"), &CubismCharacterController::is_idle);
+    ClassDB::bind_method(D_METHOD("return_to_idle"), &CubismCharacterController::return_to_idle);
+    ClassDB::bind_method(D_METHOD("show_character", "transition"), &CubismCharacterController::show_character, DEFVAL(StringName("none")));
+    ClassDB::bind_method(D_METHOD("hide_character", "transition"), &CubismCharacterController::hide_character, DEFVAL(StringName("none")));
+    ClassDB::bind_method(D_METHOD("look_at_screen_position", "position"), &CubismCharacterController::look_at_screen_position);
+    ADD_SIGNAL(MethodInfo("runtime_warning", PropertyInfo(Variant::INT, "code"), PropertyInfo(Variant::STRING, "message")));
 }
 
 CubismCharacterController::CubismCharacterController() {
@@ -51,6 +61,7 @@ Error CubismCharacterController::set_target_model(CubismModel2D *value) {
     if (busy) return ERR_BUSY;
     const uint64_t next = value ? uint64_t(value->get_instance_id()) : 0;
     if (next == target_id) return OK;
+    cancel_transition();
     terminate(CubismSpeechHandle::INTERRUPTED);
     target_id = next;
     return OK;
@@ -94,10 +105,10 @@ void CubismCharacterController::set_paused(bool value) {
 void CubismCharacterController::_notification(int what) {
     if (what == NOTIFICATION_INTERNAL_PROCESS) tick(get_process_delta_time());
     else if (what == NOTIFICATION_PAUSED || what == NOTIFICATION_UNPAUSED || what == NOTIFICATION_DISABLED || what == NOTIFICATION_ENABLED) set_paused(paused);
-    else if (what == NOTIFICATION_EXIT_TREE) terminate(CubismSpeechHandle::UNLOADED);
+    else if (what == NOTIFICATION_EXIT_TREE) { cancel_transition(); terminate(CubismSpeechHandle::UNLOADED); }
     else if (what == NOTIFICATION_PREDELETE) {
         if (busy) { cancel_free(); queue_free(); }
-        else terminate(CubismSpeechHandle::CONTROLLER_DISPOSED);
+        else { cancel_transition(); terminate(CubismSpeechHandle::CONTROLLER_DISPOSED); }
     }
 }
 
@@ -109,31 +120,38 @@ void CubismCharacterController::cleanup() {
     lip->set_target_model(nullptr);
     if (auto *target = get_target_model()) target->release_controller_clock(get_instance_id());
     speech.unref();
+    idle.unref();
     fade_remaining = 0;
 }
 
 void CubismCharacterController::model_unavailable(CubismModel2D *model, CubismSpeechHandle::FinishReason reason) {
-    if (model != get_target_model() || speech.is_null()) return;
+    if (model != get_target_model()) return;
+    cancel_transition();
+    if (speech.is_null() && idle.is_null()) return;
     const Ref<CubismSpeechHandle> ending = speech;
     // Teardown/reload itself supplies the native motion's terminal reason.
     // Hiding leaves the model alive, so stop its remaining motion explicitly.
     if (reason == CubismSpeechHandle::HIDDEN) model->stop_motion(0);
     cleanup();
-    ending->finish(reason);
+    if (ending.is_valid()) ending->finish(reason);
 }
 
 void CubismCharacterController::terminate(CubismSpeechHandle::FinishReason reason, Error error, double fade) {
-    if (speech.is_null()) return;
+    if (speech.is_null() && idle.is_null()) return;
     const Ref<CubismSpeechHandle> ending = speech;
     // Cancelling a delayed cue must not start its pending motion during the fade.
     motion_started = true;
     if (auto *target = get_target_model()) {
         if (target->get_runtime_generation() == generation) target->stop_motion(fade);
     }
-    if (fade > 0 && !ending->is_finished()) {
+    if (fade > 0 && ending.is_valid() && !ending->is_finished()) {
         fade_duration = fade_remaining = fade;
     } else cleanup();
-    ending->finish(reason, error);
+    if (ending.is_valid()) ending->finish(reason, error);
+    if (reason == CubismSpeechHandle::COMPLETED && auto_return_to_idle) {
+        const Error idle_error = start_idle();
+        if (idle_error != OK) call_deferred("emit_signal", "runtime_warning", idle_error, "Cannot return to idle: " + String(idle_motion));
+    }
 }
 
 Ref<CubismSpeechHandle> CubismCharacterController::perform(const StringName &motion_id, const StringName &expression_id) {
@@ -154,7 +172,7 @@ Ref<CubismSpeechHandle> CubismCharacterController::begin(const Ref<AudioStream> 
     if (busy) return reject(ERR_BUSY);
     auto *target = get_target_model();
     if (!is_inside_tree() || !target || !target->is_inside_tree() || !target->is_ready()) return reject(ERR_UNCONFIGURED);
-    if (target->is_queued_for_deletion() || !target->is_visible_in_tree()) return reject(ERR_UNAVAILABLE);
+    if (target->is_queued_for_deletion() || !target->is_visible_in_tree() || transition == HIDING) return reject(ERR_UNAVAILABLE);
     if (motion_id != StringName() && !target->get_motion_ids().has(String(motion_id))) return reject(ERR_DOES_NOT_EXIST);
     if (expression_id != StringName() && !target->get_expression_ids().has(String(expression_id))) return reject(ERR_DOES_NOT_EXIST);
     const double length = stream.is_valid() ? stream->get_length() : 0;
@@ -220,7 +238,7 @@ Error CubismCharacterController::advance_model_to(double position) {
         if (!motion_started) next = std::min(next, start_at);
         if (!target->advance_controller_clock(get_instance_id(), next - model_time)) return ERR_UNAVAILABLE;
         model_time = next;
-        if (speech.is_null() || !is_inside_tree() || is_queued_for_deletion() || target->is_queued_for_deletion() || target->get_runtime_generation() != generation) return ERR_UNAVAILABLE;
+        if ((speech.is_null() && idle.is_null()) || !is_inside_tree() || is_queued_for_deletion() || target->is_queued_for_deletion() || target->get_runtime_generation() != generation) return ERR_UNAVAILABLE;
     }
     return OK;
 }
@@ -240,16 +258,145 @@ void CubismCharacterController::stop_speaking(double fade_seconds) {
     terminate(CubismSpeechHandle::STOPPED, OK, fade_seconds);
 }
 
+Error CubismCharacterController::start_idle() {
+    auto *target = get_target_model();
+    if (!target || !is_inside_tree() || !target->is_inside_tree() || !target->is_ready()) return ERR_UNCONFIGURED;
+    if (target->is_queued_for_deletion() || !target->is_visible_in_tree() || transition == HIDING) return ERR_UNAVAILABLE;
+    if (idle_motion == StringName()) return ERR_UNCONFIGURED;
+    if (!target->get_motion_ids().has(String(idle_motion))) return ERR_DOES_NOT_EXIST;
+    const Error error = target->claim_controller_clock(get_instance_id());
+    if (error != OK) return error;
+    const Ref<CubismMotionHandle> candidate = target->play_motion(idle_motion, CubismMotionPriority::IDLE, true, 1);
+    if (candidate->get_error() != OK) {
+        target->release_controller_clock(get_instance_id());
+        return candidate->get_error();
+    }
+    idle = candidate;
+    motion = idle;
+    generation = target->get_runtime_generation();
+    model_time = 0;
+    motion_started = true;
+    return OK;
+}
+
+Error CubismCharacterController::return_to_idle() {
+    if (busy) return ERR_BUSY;
+    if (is_idle() && idle->get_motion_id() == idle_motion) return OK;
+    auto *target = get_target_model();
+    if (!target || !target->is_ready() || idle_motion == StringName()) return ERR_UNCONFIGURED;
+    if (!target->get_motion_ids().has(String(idle_motion))) return ERR_DOES_NOT_EXIST;
+    if (!target->is_visible_in_tree() || transition == HIDING) return ERR_UNAVAILABLE;
+    terminate(CubismSpeechHandle::STOPPED);
+    return start_idle();
+}
+
+Error CubismCharacterController::set_transition_seconds(double value) {
+    if (busy) return ERR_BUSY;
+    auto *target = get_target_model();
+    if (transition != NO_TRANSITION && (!target || !target->is_inside_tree() || !target->is_visible_in_tree() || target->get_runtime_generation() != transition_generation)) cancel_transition();
+    if (transition != NO_TRANSITION) return ERR_BUSY;
+    if (!std::isfinite(value) || value < 0 || value > 60) return ERR_INVALID_PARAMETER;
+    transition_seconds = value;
+    return OK;
+}
+
+void CubismCharacterController::cancel_transition() {
+    if (transition == NO_TRANSITION) return;
+    transition = NO_TRANSITION;
+    if (auto *target = get_target_model()) {
+        Color color = target->get_modulate();
+        color.a = float(transition_alpha);
+        target->set_modulate(color);
+    }
+}
+
+Error CubismCharacterController::change_visibility(bool show, const StringName &kind) {
+    if (busy) return ERR_BUSY;
+    if (kind != StringName("none") && kind != StringName("fade")) return ERR_INVALID_PARAMETER;
+    auto *target = get_target_model();
+    if (!target || !is_inside_tree() || !target->is_inside_tree() || target->is_queued_for_deletion()) return ERR_UNCONFIGURED;
+    const double current = target->get_modulate().a;
+    const double baseline = transition == NO_TRANSITION ? current : transition_alpha;
+    if (!std::isfinite(current) || !std::isfinite(baseline)) return ERR_INVALID_PARAMETER;
+    cancel_transition();
+    const bool fade = kind == StringName("fade") && transition_seconds > 0 && (show || target->is_visible_in_tree());
+    if (!show) terminate(CubismSpeechHandle::HIDDEN, OK, fade ? transition_seconds : 0);
+    busy = true;
+    if (fade) {
+        transition = show ? SHOWING : HIDING;
+        transition_elapsed = 0;
+        transition_generation = target->get_runtime_generation();
+        transition_alpha = baseline;
+        transition_from = show && !target->is_visible() ? 0 : current;
+        Color color = target->get_modulate();
+        color.a = float(transition_from);
+        target->set_modulate(color);
+        if (show) target->show();
+    } else target->set_visible(show);
+    busy = false;
+    return !is_inside_tree() || is_queued_for_deletion() || get_target_model() != target ? ERR_UNAVAILABLE : OK;
+}
+
+void CubismCharacterController::tick_transition(double delta) {
+    if (transition == NO_TRANSITION) return;
+    auto *target = get_target_model();
+    if (!target || !target->is_inside_tree() || !target->is_visible_in_tree() || target->get_runtime_generation() != transition_generation) {
+        cancel_transition();
+        return;
+    }
+    transition_elapsed = std::min(transition_seconds, transition_elapsed + delta);
+    const double fraction = transition_elapsed / transition_seconds;
+    Color color = target->get_modulate();
+    color.a = float(transition_from + ((transition == SHOWING ? transition_alpha : 0) - transition_from) * fraction);
+    target->set_modulate(color);
+    if (transition_elapsed >= transition_seconds) {
+        const bool hide = transition == HIDING;
+        transition = NO_TRANSITION;
+        color.a = float(transition_alpha);
+        target->set_modulate(color);
+        if (hide) target->hide();
+    }
+}
+
+Error CubismCharacterController::look_at_screen_position(const Vector2 &position) {
+    auto *target = get_target_model();
+    if (!target || !target->is_ready() || !target->is_inside_tree()) return ERR_UNCONFIGURED;
+    if (!std::isfinite(position.x) || !std::isfinite(position.y)) return ERR_INVALID_PARAMETER;
+    const Transform2D transform = target->get_global_transform_with_canvas();
+    for (int i = 0; i < 3; ++i) if (!std::isfinite(transform[i].x) || !std::isfinite(transform[i].y)) return ERR_INVALID_PARAMETER;
+    if (!std::isfinite(transform.determinant()) || transform.determinant() == 0) return ERR_INVALID_PARAMETER;
+    const Vector2 local = transform.affine_inverse().xform(position);
+    if (!std::isfinite(local.x) || !std::isfinite(local.y)) return ERR_INVALID_PARAMETER;
+    target->set_look_target(local);
+    return OK;
+}
+
 void CubismCharacterController::tick(double delta) {
-    if (busy || speech.is_null() || !is_inside_tree() || !can_process()) return;
+    if (busy || !is_inside_tree() || !can_process()) return;
     if (!std::isfinite(delta) || delta < 0 || delta > 60) { terminate(CubismSpeechHandle::FAILED, ERR_INVALID_PARAMETER); return; }
     auto *target = get_target_model();
+    if (!target) cancel_transition();
+    if (!paused && target && !target->get_paused() && target->can_process()) {
+        busy = true;
+        tick_transition(delta);
+        busy = false;
+    }
+    if (is_queued_for_deletion() || (speech.is_null() && idle.is_null())) return;
+    target = get_target_model();
     if (!target || target->is_queued_for_deletion()) { terminate(CubismSpeechHandle::MODEL_DISPOSED); return; }
     if (!target->is_ready() || !target->is_inside_tree() || target->get_runtime_generation() != generation) { terminate(CubismSpeechHandle::UNLOADED); return; }
     if (!target->is_visible_in_tree()) { terminate(CubismSpeechHandle::HIDDEN); return; }
     set_paused(paused);
     if (paused || target->get_paused() || !target->can_process()) return;
     if (target->get_speed_scale() != 1.0) { terminate(CubismSpeechHandle::FAILED, ERR_UNAVAILABLE); return; }
+    if (idle.is_valid()) {
+        if (idle->is_finished()) { cleanup(); return; }
+        busy = true;
+        const Error error = advance_model_to(model_time + delta);
+        busy = false;
+        if (error != OK) cleanup();
+        return;
+    }
     if (fade_remaining > 0) {
         const double fade_step = std::min(delta, fade_remaining);
         fade_remaining -= fade_step;
@@ -276,14 +423,20 @@ void CubismCharacterController::tick(double delta) {
             audio_done = estimate >= voice_length;
         } else {
             auto *server = AudioServer::get_singleton();
+            const double age_before = server->get_time_since_last_mix();
             const double position = voice->get_playback_position();
+            const double next_mix = server->get_time_to_next_mix();
+            const double age_after = server->get_time_since_last_mix();
             // Read activity AFTER the clock: the mixer can discard playback
             // between these calls, causing a subsequent clock read to return 0.
             if (!voice->is_playing() && !voice->get_stream_paused()) {
                 driver_done = true;
                 estimate = std::min(voice_length, audio_position + delta);
             } else {
-                estimate = std::clamp(position + server->get_time_since_last_mix() - server->get_output_latency(), 0.0, voice_length);
+                if (!cubism_audio_clock_estimate(position, age_before, age_after, next_mix,
+                        server->get_output_latency(), voice_length, audio_position, estimate)) {
+                    terminate(CubismSpeechHandle::FAILED, ERR_UNAVAILABLE); return;
+                }
             }
             audio_done = estimate >= voice_length;
         }
