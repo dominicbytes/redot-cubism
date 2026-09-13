@@ -62,6 +62,8 @@ private:
     Csm::csmVector<Csm::CubismIdHandle> _list_lipsync;
     Csm::csmMap<Csm::csmString,Csm::CubismExpressionMotion*> _map_expression;
     Csm::csmMap<Csm::csmString,Csm::CubismMotion*> _map_motion;
+    Csm::csmMap<Csm::csmString,PackedByteArray> motion_buffers;
+    Csm::csmMap<Csm::csmString,double> motion_fps;
     Dictionary load_error;
     bool resource_mode = false;
     uint64_t processed_bytes = 0;
@@ -88,6 +90,7 @@ public:
 
     Csm::CubismMotionQueueEntryHandle motion_start(const char* group, const int32_t no, const int32_t priority, const bool loop, const bool loop_fade_in);
     void motion_stop();
+    Csm::CubismMotion *create_motion(const String &group, int index, bool loop, double &period);
 
     virtual void MotionEventFired(const Csm::csmString& eventValue) override;
 

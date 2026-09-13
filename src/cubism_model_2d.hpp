@@ -3,6 +3,8 @@
 #define CUBISM_MODEL_2D_HPP
 
 #include "gd_cubism_user_model.hpp"
+#include "cubism_motion_handle.hpp"
+#include <map>
 
 // Preferred API. The internal legacy runtime retains native allocation and
 // renderer ownership; it is neither exposed nor serialized as a scene child.
@@ -20,6 +22,12 @@ private:
     bool paused = false;
     bool load_requested = false;
     uint64_t generation = 0;
+    std::map<int64_t, Ref<CubismMotionHandle>> motions;
+    void motion_started(const Ref<CubismMotionHandle> &handle);
+    void motion_event(const String &value, int64_t id);
+    void motion_looped(int64_t count, int64_t id);
+    void motion_finished(int reason, int64_t id);
+    void deferred_stop_motion(double fade_seconds, uint64_t expected_generation);
     void emit_load_started(uint64_t expected_generation);
     void on_model_ready();
     void on_model_failed(const Dictionary &error);
@@ -52,6 +60,10 @@ public:
     void set_enable_pose(bool value) { runtime->set_pose_update(value); }
     bool get_enable_pose() const { return runtime->get_pose_update(); }
     void advance(double delta);
+    Ref<CubismMotionHandle> play_motion(const StringName &id, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
+    Ref<CubismMotionHandle> play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
+    void stop_motion(double fade_seconds = -1.0);
+    PackedStringArray get_motion_ids() const;
     bool has_parameter(const StringName &id) const { return parameter_index(id) >= 0; }
     double get_parameter_value(const StringName &id) const;
     Error set_parameter_value(const StringName &id, double value, double weight = 1.0) { return queue_parameter(id, value, weight, 0); }

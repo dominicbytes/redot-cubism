@@ -2,8 +2,11 @@
 #include "cubism_model_2d.hpp"
 #include "gd_cubism_value_parameter.hpp"
 #include "gd_cubism_value_part_opacity.hpp"
+#include "cubism_animator.hpp"
+#include "private/internal_cubism_user_model.hpp"
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <cmath>
+#include <limits>
 
 void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_model", "resource"), &CubismModel2D::set_model);
@@ -34,6 +37,12 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_enable_pose"), &CubismModel2D::get_enable_pose);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_pose"), "set_enable_pose", "get_enable_pose");
     ClassDB::bind_method(D_METHOD("advance", "delta"), &CubismModel2D::advance);
+    ClassDB::bind_method(D_METHOD("play_motion", "motion_id", "priority", "loop", "speed"), &CubismModel2D::play_motion, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
+    ClassDB::bind_method(D_METHOD("play_motion_from_group", "group", "index", "priority", "loop", "speed"), &CubismModel2D::play_motion_from_group, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
+    ClassDB::bind_method(D_METHOD("stop_motion", "fade_out_seconds"), &CubismModel2D::stop_motion, DEFVAL(-1.0));
+    ClassDB::bind_method(D_METHOD("get_motion_ids"), &CubismModel2D::get_motion_ids);
+    ClassDB::bind_method(D_METHOD("_motion_started", "handle"), &CubismModel2D::motion_started);
+    ClassDB::bind_method(D_METHOD("_deferred_stop_motion", "fade_seconds", "generation"), &CubismModel2D::deferred_stop_motion);
     ClassDB::bind_method(D_METHOD("has_parameter", "id"), &CubismModel2D::has_parameter);
     ClassDB::bind_method(D_METHOD("get_parameter_value", "id"), &CubismModel2D::get_parameter_value);
     ClassDB::bind_method(D_METHOD("set_parameter_value", "id", "value", "weight"), &CubismModel2D::set_parameter_value, DEFVAL(1.0));
@@ -46,6 +55,12 @@ void CubismModel2D::_bind_methods() {
     ADD_SIGNAL(MethodInfo("model_load_started", PropertyInfo(Variant::OBJECT, "resource", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource")));
     ADD_SIGNAL(MethodInfo("model_ready", PropertyInfo(Variant::OBJECT, "resource", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource")));
     ADD_SIGNAL(MethodInfo("model_failed", PropertyInfo(Variant::INT, "error_code"), PropertyInfo(Variant::STRING, "message")));
+    const PropertyInfo handle_property(Variant::OBJECT, "handle", PROPERTY_HINT_RESOURCE_TYPE, "CubismMotionHandle");
+    ADD_SIGNAL(MethodInfo("motion_started", handle_property, PropertyInfo(Variant::STRING_NAME, "motion_id")));
+    ADD_SIGNAL(MethodInfo("motion_event", handle_property, PropertyInfo(Variant::STRING, "event_value")));
+    ADD_SIGNAL(MethodInfo("motion_looped", handle_property, PropertyInfo(Variant::INT, "loop_count")));
+    ADD_SIGNAL(MethodInfo("motion_finished", handle_property, PropertyInfo(Variant::STRING_NAME, "motion_id"), PropertyInfo(Variant::INT, "reason")));
+    ADD_SIGNAL(MethodInfo("runtime_warning", PropertyInfo(Variant::INT, "code"), PropertyInfo(Variant::STRING, "message")));
     BIND_ENUM_CONSTANT(IDLE); BIND_ENUM_CONSTANT(PHYSICS); BIND_ENUM_CONSTANT(MANUAL);
     BIND_ENUM_CONSTANT(UNLOADED); BIND_ENUM_CONSTANT(LOADING); BIND_ENUM_CONSTANT(READY);
     BIND_ENUM_CONSTANT(ERROR); BIND_ENUM_CONSTANT(DISPOSING); BIND_ENUM_CONSTANT(DISPOSED);
@@ -53,6 +68,7 @@ void CubismModel2D::_bind_methods() {
 
 CubismModel2D::CubismModel2D() {
     runtime = memnew(GDCubismUserModel);
+    runtime->enable_preferred_animation();
     runtime->set_name("CubismRuntime");
     runtime->set_process_callback(GDCubismUserModel::MANUAL);
     add_child(runtime, false, Node::INTERNAL_MODE_BACK);
@@ -80,6 +96,7 @@ void CubismModel2D::_notification(int what) {
             break;
         case NOTIFICATION_PREDELETE:
             if (runtime->is_native_busy()) { cancel_free(); queue_free(); }
+            else runtime->get_animator()->clear(CubismMotionHandle::MODEL_DISPOSED);
             break;
     }
 }
@@ -128,6 +145,66 @@ void CubismModel2D::step(double delta) {
 }
 
 void CubismModel2D::advance(double delta) { if (playback_process_mode == MANUAL) step(delta); }
+
+PackedStringArray CubismModel2D::get_motion_ids() const { return runtime->get_animator()->get_motion_ids(); }
+
+Ref<CubismMotionHandle> CubismModel2D::play_motion(const StringName &id, CubismMotionPriority::Priority priority, bool loop, double speed) {
+    if (!is_ready()) return CubismMotionHandle::rejected(id, ERR_UNCONFIGURED);
+    if (runtime->is_native_busy()) return CubismMotionHandle::rejected(id, ERR_BUSY);
+    const Ref<CubismMotionHandle> handle = runtime->get_animator()->play(*runtime->internal_model, id, priority, loop, speed);
+    if (handle->get_error() != OK) return handle;
+    motions[handle->get_id()] = handle;
+    handle->connect("event", callable_mp(this, &CubismModel2D::motion_event).bind(handle->get_id()));
+    handle->connect("looped", callable_mp(this, &CubismModel2D::motion_looped).bind(handle->get_id()));
+    handle->connect("finished", callable_mp(this, &CubismModel2D::motion_finished).bind(handle->get_id()));
+    call_deferred("_motion_started", handle);
+    return handle;
+}
+
+Ref<CubismMotionHandle> CubismModel2D::play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority, bool loop, double speed) {
+    return play_motion(runtime->get_animator()->find_motion(group, index), priority, loop, speed);
+}
+
+void CubismModel2D::stop_motion(double fade_seconds) {
+    if (!std::isfinite(fade_seconds) || (fade_seconds < 0.0 && fade_seconds != -1.0) || fade_seconds > double(std::numeric_limits<float>::max()) / 256.0) {
+        call_deferred("emit_signal", "runtime_warning", ERR_INVALID_PARAMETER, "Invalid motion fade duration.");
+        return;
+    }
+    if (runtime->is_native_busy()) { call_deferred("_deferred_stop_motion", fade_seconds, generation); return; }
+    runtime->get_animator()->stop(fade_seconds);
+}
+
+void CubismModel2D::deferred_stop_motion(double fade_seconds, uint64_t expected_generation) {
+    if (generation == expected_generation) stop_motion(fade_seconds);
+}
+
+void CubismModel2D::motion_started(const Ref<CubismMotionHandle> &handle) {
+    if (!is_queued_for_deletion()) emit_signal("motion_started", handle, handle->get_motion_id());
+}
+
+void CubismModel2D::motion_event(const String &value, int64_t id) {
+    const auto found = motions.find(id);
+    if (found != motions.end() && !is_queued_for_deletion()) {
+        const Ref<CubismMotionHandle> handle = found->second;
+        emit_signal("motion_event", handle, value);
+    }
+}
+
+void CubismModel2D::motion_looped(int64_t count, int64_t id) {
+    const auto found = motions.find(id);
+    if (found != motions.end() && !is_queued_for_deletion()) {
+        const Ref<CubismMotionHandle> handle = found->second;
+        emit_signal("motion_looped", handle, count);
+    }
+}
+
+void CubismModel2D::motion_finished(int reason, int64_t id) {
+    const auto found = motions.find(id);
+    if (found == motions.end()) return;
+    const Ref<CubismMotionHandle> handle = found->second;
+    motions.erase(found);
+    if (!is_queued_for_deletion()) emit_signal("motion_finished", handle, handle->get_motion_id(), reason);
+}
 
 int CubismModel2D::parameter_index(const StringName &id) const {
     if (!is_ready()) return -1;

@@ -95,6 +95,8 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     GDREGISTER_CLASS(CubismMotionDescriptor);
     GDREGISTER_CLASS(CubismExpressionDescriptor);
     GDREGISTER_CLASS(CubismModelResource);
+    GDREGISTER_VIRTUAL_CLASS(CubismMotionPriority);
+    GDREGISTER_CLASS(CubismMotionHandle);
     GDREGISTER_CLASS(CubismModelFactory);
     register_cubism_import_settings();
 
