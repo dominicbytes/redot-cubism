@@ -148,6 +148,9 @@ protected:
     void _notification(int p_what);
 
 private:
+    struct PostEffectWrite { int index; double value; double weight; int operation; };
+    std::vector<PostEffectWrite> post_effect_writes;
+    void apply_post_effect_writes();
     struct PendingSignal {
         StringName name;
         Variant payload;
@@ -180,6 +183,10 @@ private:
 
 public:
     void set_model(const Ref<CubismModelResource> &resource);
+    // Internal preferred-API bridge; legacy parameter setters remain unchanged.
+    Error queue_post_effect_write(int index, double value, double weight, int operation);
+    double evaluated_parameter(int index) const;
+    void unload_selected_model();
     Ref<CubismModelResource> get_model() const { return assets.is_empty() ? model_resource : Ref<CubismModelResource>(); }
     void set_legacy_model(const Ref<CubismModelResource> &resource);
     Ref<CubismModelResource> get_legacy_model() const { return assets.is_empty() ? Ref<CubismModelResource>() : model_resource; }

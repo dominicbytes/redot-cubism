@@ -9,6 +9,7 @@ reloadable = false
 
 CubismModelResource = "res://addons/gd_cubism/res/icons/cubism_model_resource.svg"
 GDCubismUserModel = "res://addons/gd_cubism/res/icons/cubism_model_resource.svg"
+CubismModel2D = "res://addons/gd_cubism/res/icons/cubism_model_resource.svg"
 
 [libraries]
 
