@@ -16,6 +16,16 @@ class CubismCharacterController : public Node {
     CubismLipSync *lip = nullptr;
     Ref<CubismSpeechHandle> speech;
     Ref<CubismMotionHandle> motion;
+    Ref<CubismMotionHandle> idle;
+    StringName idle_motion;
+    bool auto_return_to_idle = false;
+    enum Transition { NO_TRANSITION, SHOWING, HIDING };
+    Transition transition = NO_TRANSITION;
+    double transition_seconds = 0.2;
+    double transition_elapsed = 0;
+    double transition_from = 0;
+    double transition_alpha = 1;
+    uint64_t transition_generation = 0;
     StringName requested_motion;
     StringName voice_bus = "Master";
     bool manual_process = false;
@@ -38,6 +48,10 @@ class CubismCharacterController : public Node {
     double fade_duration = 0;
     double sync_error = 0;
     void tick(double delta);
+    Error start_idle();
+    void cancel_transition();
+    Error change_visibility(bool show, const StringName &kind);
+    void tick_transition(double delta);
     Error advance_model_to(double position);
     Error start_motion();
     void audio_finished() { driver_done = true; }
@@ -72,5 +86,16 @@ public:
     double get_sync_error() const { return sync_error; }
     Ref<CubismMotionHandle> get_motion_handle() const { return motion; }
     bool is_speaking() const { return speech.is_valid() && !speech->is_finished(); }
+    void set_idle_motion(const StringName &value) { idle_motion = value; }
+    StringName get_idle_motion() const { return idle_motion; }
+    void set_auto_return_to_idle(bool value) { auto_return_to_idle = value; }
+    bool get_auto_return_to_idle() const { return auto_return_to_idle; }
+    Error return_to_idle();
+    bool is_idle() const { return idle.is_valid() && !idle->is_finished(); }
+    Error set_transition_seconds(double value);
+    double get_transition_seconds() const { return transition_seconds; }
+    Error show_character(const StringName &kind = "none") { return change_visibility(true, kind); }
+    Error hide_character(const StringName &kind = "none") { return change_visibility(false, kind); }
+    Error look_at_screen_position(const Vector2 &position);
 };
 #endif

@@ -9,7 +9,7 @@ func _run() -> void:
 	var capture_dir: String = OS.get_cmdline_user_args()[0]
 	var ok := true
 	var poses := ["normal", "transformed"]
-	if OS.get_cmdline_user_args().has("--motion"): poses.append_array(["motion", "expression", "expression-clear", "blink-closed", "breath", "look", "look-transformed", "lip-sync"])
+	if OS.get_cmdline_user_args().has("--motion"): poses.append_array(["motion", "expression", "expression-clear", "blink-closed", "breath", "look", "look-transformed", "lip-sync", "controller-fade"])
 	for pose: String in poses:
 		var transformed := pose in ["transformed", "look-transformed"]
 		var reference: Image
@@ -110,6 +110,16 @@ func _run() -> void:
 					(node as GDCubismUserModel).pose_update = false
 					(node as GDCubismUserModel).get_part_opacities()[0].value = 0.5
 				node.call("advance", 1.0 / 60.0)
+			if pose == "controller-fade":
+				if preferred:
+					var controller := CubismCharacterController.new()
+					controller.manual_process = true
+					node.add_child(controller)
+					controller.target_model = node as CubismModel2D
+					controller.transition_seconds = 0.2
+					ok = ok and controller.hide_character(&"fade") == OK
+					controller.advance(0.1)
+				else: node.modulate.a = 0.5
 			for frame in 4:
 				await process_frame
 				RenderingServer.force_draw(false)

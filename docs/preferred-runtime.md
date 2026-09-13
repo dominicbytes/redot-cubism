@@ -363,8 +363,8 @@ audio, including two separate buses; no microphone or audio device is required.
 
 `CubismCharacterController` owns an internal voice player and lip component and
 targets an existing `CubismModel2D`. Its current implementation covers cue clocks
-and retained completion handles. Idle/resume utilities, show/hide transitions,
-saved-state DTOs, and VN/RPG examples remain under development.
+and retained completion handles, idle resumption, show/hide transitions and viewport
+look targeting. Saved-state DTOs and VN/RPG examples remain under development.
 
 ```gdscript
 @onready var character: CubismCharacterController = $CharacterController
@@ -394,8 +394,12 @@ Controller pause and inherited scene pause stop both clocks. Target pause is
 observed by the controller and also pauses its voice player.
 
 Voiced playback follows the engine's playback position plus time since the last
-mix minus output latency. Small backward jitter up to 0.05 seconds is clamped;
-larger backward jumps terminate with `ERR_UNAVAILABLE`. Catch-up is subdivided and
+mix minus output latency. Samples that cross a mixer timestamp reset retain the
+previous estimate until the next update. Extrapolation is capped at one mixer
+interval to bound prediction during audio-thread stalls. Backward jitter up to
+the greater of 0.05 seconds or one mixer interval plus 0.005 seconds is clamped;
+larger backward jumps terminate with `ERR_UNAVAILABLE`. Manual-clock tests retain
+the fixed 0.05-second allowance. Catch-up is subdivided and
 bounded to 60 seconds per call. General audio seeking is unsupported: interrupt
 and start a fresh cue to restart. This is estimated audible alignment, not a claim
 of sample-accurate output or measured physical device latency.
@@ -427,3 +431,38 @@ mouth values against independent curve values. Real generated-audio checks cover
 voice-only lip sync, authored mouth ownership, pause/resume and short-voice endings.
 Long real-audio drift measurements, hardware/platform coverage and complete
 controller workflows are still release requirements.
+
+## Idle, visibility and look utilities
+
+Assign `idle_motion` and call `return_to_idle()` to stop a cue and start that motion
+looping at IDLE priority. The controller retains its exclusive model clock while
+idle, so `controller.advance()` also drives it in manual processing mode. A call
+for the same running idle does not restart it. `is_idle()` distinguishes this state
+from speech; `get_motion_handle()` returns the current idle handle. Idle does not
+reset the character's expression. Invalid idle IDs leave an active cue intact.
+
+`auto_return_to_idle` defaults to false. When enabled, normal cue completion starts
+the configured idle; stops, interruptions, errors and hiding do not. An automatic
+idle failure emits a deferred `runtime_warning(code, message)`. New cues replace
+the idle. An external higher-priority motion can interrupt idle, after which the
+controller releases its clock rather than repeatedly restarting it.
+
+`show_character()` and `hide_character()` accept `none` or `fade`. Immediate changes
+are the default. Fades use `transition_seconds` (default 0.2, finite range [0,60]);
+zero makes them immediate. Hiding cancels speech with HIDDEN immediately and fades
+any outgoing voice/motion. New cues are rejected while fading out. Showing does not
+implicitly play idle. Controller/model/scene pause freezes fade progress.
+
+Fades change modulate alpha while preserving RGB and the target's original alpha.
+Hide completion restores that alpha while leaving the node hidden, so subsequent
+shows recover its appearance. Reversing a fade keeps the same original opacity.
+Retargeting or disposing the controller cancels a partial fade and restores opacity.
+The controller owns alpha during the transition; avoid simultaneously animating it
+from another script. The graphics suite compares a half-faded preferred model with
+the same legacy-renderer opacity.
+
+`look_at_screen_position(position)` accepts coordinates in the model's owning
+viewport, such as `get_viewport().get_mouse_position()`. It inverts the model's
+global canvas transform before calling the local look API, including camera and
+canvas transforms. These are not desktop pixels. Nonfinite inputs or a singular
+transform return `ERR_INVALID_PARAMETER` and preserve the prior look target.

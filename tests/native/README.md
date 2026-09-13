@@ -1,5 +1,13 @@
 # Private native smoke tests
 
+The public Python suite also compiles `audio_clock_checks.cpp` with a C++17
+compiler (`CXX`, default `c++`). This small test needs neither Redot nor the SDK
+and replays mixer-boundary, backward-jitter and stalled-driver samples against
+the controller's clock estimator, including with assertions disabled. Compiler
+scratch files use `.local-build` by default. If the checkout is on a filesystem
+that cannot execute binaries, set `CUBISM_TEST_BUILD_DIR` to an executable local
+build directory. Run with `python -m unittest discover -s tests/python -v`.
+
 This harness loads the actual linked Cubism plugin with a locally provisioned
 model. It checks editor registration, runtime classes and version metadata,
 model/mesh creation, a real motion's parameter changes and completion signal,
