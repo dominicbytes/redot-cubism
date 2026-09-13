@@ -12,7 +12,7 @@ speed and pause controls, physics/pose switches, parameter/part IDs, parameter
 writes, part-opacity writes and canvas information. Native motion playback now
 provides IDs/groups, priorities, independent speed/loop state, fades and retained
 handles with deferred events and terminal signals. It does **not yet complete**
-hit testing, lip sync, advanced rendering policies or character/audio controller.
+lip sync, advanced rendering policies or character/audio controller.
 Those remain required work in the canonical plan.
 
 ```gdscript
@@ -250,3 +250,61 @@ active target; setting a target before model readiness emits `ERR_UNCONFIGURED`.
 The look suite compares parameter trajectories against the legacy SDK target
 point effect, including imported layout, mirrored/rotated node transforms,
 clamping, weights, pause, disable/resume, speed, invalid input and reload.
+
+
+## Hit queries and tracked pointer targets
+
+`get_hit_area_names()` returns unique manifest names in their original order.
+`hit_test(name, local_point)` uses the SDK's inclusive bounding box of each
+current deformed hit drawable. Coordinates are node-local rendered pixels,
+including imported layout. Duplicate names aggregate their drawables. Missing
+names/drawables, empty drawables, nonfinite coordinates and unloaded models miss.
+This is a geometry query: hidden or transparent hit drawables still define areas;
+it does not test texture alpha or individual triangles and does not emit signals.
+
+For hover transitions, feed one pointer with `set_hit_test_target(local_point)`
+and call `clear_hit_test_target()` when interaction ends or leaves its surface.
+This follows the legacy effect's explicit target workflow and supports mouse,
+touch, controller selection and manually routed viewport input. The plugin does
+not capture or consume mouse events. A mouse-driven scene can update the target:
+
+```gdscript
+var pointer_inside := false
+
+func _process(_delta: float) -> void:
+    if pointer_inside:
+        character.set_hit_test_target(character.get_local_mouse_position())
+
+func _on_interaction_surface_mouse_entered() -> void:
+    pointer_inside = true
+
+func _on_interaction_surface_mouse_exited() -> void:
+    pointer_inside = false
+    character.clear_hit_test_target()
+```
+
+Connect the interaction surface's mouse enter/exit signals to these handlers.
+For a point from world space use `character.to_local(global_point)`; for custom
+viewport input convert that viewport's point into the character's local space.
+The target stays local as a node moves. Updating it each input/frame lets it
+follow a stationary world pointer. Animation updates reevaluate retained targets.
+
+Transitions are deferred and coalesce to the newest target before delivery.
+Exits precede enters, each in manifest order. All overlapping logical areas can
+enter; a stationary pointer does not repeatedly enter. Reload, unload and tree
+exit discard the target and exit previously reported areas. Hiding or disabling
+scene processing emits exits; showing/enabling reevaluates a retained target.
+The model's `paused` flag only freezes geometry, so supplied target movement can
+still change hover. Invalid target coordinates warn and retain the old target.
+Targets and hover state are not serialized. Callbacks may clear, reload, unload,
+hide or remove the node without delivering stale subsequent enters; use
+`queue_free()` for deletion and do not expect exit callbacks during destruction.
+
+With `--graphics`, the hit suite maps an animated SDK drawable to a test-only
+region and compares queries with the renderer's current CPU-computed mesh
+bounds across head poses, imported layout, rotation and mirrored/nonuniform scale.
+It also checks UTF-8 names, overlapping aliases, missing areas, deferred ordering,
+visibility, pause, processing, clear/reload/unload/tree exit and callback unload.
+The headless path uses the fixture's original static hit areas because the existing
+renderer compatibility guard skips mesh refresh without a visible window.
+Animated geometry coverage requires the graphics run.

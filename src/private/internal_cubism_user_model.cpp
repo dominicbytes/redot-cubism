@@ -485,6 +485,23 @@ Vector2 InternalCubismUserModel::look_direction(const Vector2 &local_point) cons
         CLAMP(-2.0 * y / _model->GetCanvasHeightPixel(), -1.0, 1.0));
 }
 
+bool InternalCubismUserModel::hit_test(const StringName &name, const Vector2 &local_point) {
+    // IsHit inverts the SDK ModelMatrix, including imported layout. The renderer
+    // uses pixels relative to the SDK's initial uniform height-two matrix.
+    const double scale = 2.0 / _model->GetCanvasHeightPixel();
+    const float x = float(double(local_point.x) * scale);
+    const float y = float(-double(local_point.y) * scale);
+    if (!std::isfinite(x) || !std::isfinite(y)) return false;
+    for (int i = 0; i < _model_setting->GetHitAreasCount(); ++i) {
+        if (String::utf8(_model_setting->GetHitAreaName(i)) != String(name)) continue;
+        const auto id = _model_setting->GetHitAreaId(i);
+        const int drawable = _model->GetDrawableIndex(id);
+        // R5 IsHit reads the first vertex without checking the vertex count.
+        if (drawable >= 0 && _model->GetDrawableVertexCount(drawable) > 0 && IsHit(id, x, y)) return true;
+    }
+    return false;
+}
+
 void InternalCubismUserModel::reset_expression_manager() {
     // R5 keeps a private fade-weight array across StopAllMotions. Recreate only
     // this manager when clearing, so a later play cannot inherit stale weights.

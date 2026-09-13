@@ -82,6 +82,13 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_parameter_ids"), &CubismModel2D::get_parameter_ids);
     ClassDB::bind_method(D_METHOD("get_part_ids"), &CubismModel2D::get_part_ids);
     ClassDB::bind_method(D_METHOD("get_canvas_info"), &CubismModel2D::get_canvas_info);
+    ClassDB::bind_method(D_METHOD("get_hit_area_names"), &CubismModel2D::get_hit_area_names);
+    ClassDB::bind_method(D_METHOD("hit_test", "hit_area", "local_point"), &CubismModel2D::hit_test);
+    ClassDB::bind_method(D_METHOD("set_hit_test_target", "local_point"), &CubismModel2D::set_hit_test_target);
+    ClassDB::bind_method(D_METHOD("clear_hit_test_target"), &CubismModel2D::clear_hit_test_target);
+    ClassDB::bind_method(D_METHOD("_refresh_hit_areas"), &CubismModel2D::refresh_hit_areas);
+    ADD_SIGNAL(MethodInfo("hit_area_entered", PropertyInfo(Variant::STRING_NAME, "hit_area")));
+    ADD_SIGNAL(MethodInfo("hit_area_exited", PropertyInfo(Variant::STRING_NAME, "hit_area")));
     ADD_SIGNAL(MethodInfo("model_load_started", PropertyInfo(Variant::OBJECT, "resource", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource")));
     ADD_SIGNAL(MethodInfo("model_ready", PropertyInfo(Variant::OBJECT, "resource", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource")));
     ADD_SIGNAL(MethodInfo("model_failed", PropertyInfo(Variant::INT, "error_code"), PropertyInfo(Variant::STRING, "message")));
@@ -116,6 +123,7 @@ void CubismModel2D::_notification(int what) {
             set_playback_process_mode(playback_process_mode);
             break;
         case NOTIFICATION_EXIT_TREE:
+            reset_hit_tracking();
             ++generation;
             autoplay_started = false;
             motion_requested = false;
@@ -129,6 +137,13 @@ void CubismModel2D::_notification(int what) {
         case NOTIFICATION_INTERNAL_PHYSICS_PROCESS:
             if (playback_process_mode == PHYSICS) step(get_physics_process_delta_time());
             break;
+        case NOTIFICATION_VISIBILITY_CHANGED:
+        case NOTIFICATION_PAUSED:
+        case NOTIFICATION_UNPAUSED:
+        case NOTIFICATION_DISABLED:
+        case NOTIFICATION_ENABLED:
+            if (hit_target_active || !hovered_hit_areas.is_empty()) queue_hit_refresh();
+            break;
         case NOTIFICATION_PREDELETE:
             if (runtime->is_native_busy()) { cancel_free(); queue_free(); }
             else runtime->get_animator()->clear(CubismMotionHandle::MODEL_DISPOSED);
@@ -137,6 +152,7 @@ void CubismModel2D::_notification(int what) {
 }
 
 Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
+    reset_hit_tracking();
     model = resource;
     load_requested = model.is_valid();
     ++generation;
@@ -152,6 +168,7 @@ Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
 }
 
 void CubismModel2D::unload_model() {
+    reset_hit_tracking();
     load_requested = false;
     ++generation;
     runtime->unload_selected_model();
@@ -196,6 +213,7 @@ void CubismModel2D::set_playback_process_mode(PlaybackProcessMode mode) {
 
 void CubismModel2D::step(double delta) {
     if (!paused && is_ready() && is_inside_tree() && can_process()) runtime->advance(delta);
+    if (hit_target_active || !hovered_hit_areas.is_empty()) queue_hit_refresh();
 }
 
 void CubismModel2D::advance(double delta) { if (playback_process_mode == MANUAL) step(delta); }
@@ -224,6 +242,77 @@ void CubismModel2D::set_look_target(const Vector2 &local_target, double weight) 
 }
 
 void CubismModel2D::clear_look_target() { runtime->get_procedural_effects()->clear_look_target(); }
+
+PackedStringArray CubismModel2D::get_hit_area_names() const {
+    PackedStringArray names;
+    if (is_ready()) for (const Dictionary area : runtime->get_hit_areas()) {
+        const String name = area["name"];
+        if (!names.has(name)) names.push_back(name);
+    }
+    return names;
+}
+
+bool CubismModel2D::hit_test(const StringName &hit_area, const Vector2 &local_point) const {
+    return is_ready() && std::isfinite(local_point.x) && std::isfinite(local_point.y)
+        && runtime->internal_model->hit_test(hit_area, local_point);
+}
+
+void CubismModel2D::set_hit_test_target(const Vector2 &local_point) {
+    if (!std::isfinite(local_point.x) || !std::isfinite(local_point.y)) {
+        call_deferred("emit_signal", "runtime_warning", ERR_INVALID_PARAMETER, "Invalid hit-test target.");
+        return;
+    }
+    hit_target = local_point;
+    hit_target_active = true;
+    queue_hit_refresh();
+}
+
+void CubismModel2D::clear_hit_test_target() {
+    hit_target_active = false;
+    queue_hit_refresh();
+}
+
+void CubismModel2D::reset_hit_tracking() {
+    hit_target_active = false;
+    hit_reset = true;
+    queue_hit_refresh();
+}
+
+void CubismModel2D::queue_hit_refresh() {
+    ++hit_revision;
+    if (!hit_refresh_pending && !is_queued_for_deletion()) {
+        hit_refresh_pending = true;
+        call_deferred("_refresh_hit_areas");
+    }
+}
+
+void CubismModel2D::refresh_hit_areas() {
+    hit_refresh_pending = false;
+    if (is_queued_for_deletion()) return;
+    PackedStringArray current;
+    if (!hit_reset && hit_target_active && is_inside_tree() && is_visible_in_tree() && can_process()) {
+        for (const String &name : get_hit_area_names()) if (hit_test(name, hit_target)) current.push_back(name);
+    }
+    const uint64_t revision = hit_revision;
+    const PackedStringArray previous = hovered_hit_areas;
+    for (const String &name : previous) {
+        if (current.has(name)) continue;
+        hovered_hit_areas.remove_at(hovered_hit_areas.find(name));
+        emit_signal("hit_area_exited", StringName(name));
+        if (revision != hit_revision || is_queued_for_deletion()) return;
+    }
+    if (hit_reset) {
+        hit_reset = false;
+        if (hit_target_active) queue_hit_refresh();
+        return;
+    }
+    for (const String &name : current) {
+        if (hovered_hit_areas.has(name)) continue;
+        hovered_hit_areas.push_back(name);
+        emit_signal("hit_area_entered", StringName(name));
+        if (revision != hit_revision || is_queued_for_deletion()) return;
+    }
+}
 
 PackedStringArray CubismModel2D::get_motion_ids() const { return runtime->get_animator()->get_motion_ids(); }
 
