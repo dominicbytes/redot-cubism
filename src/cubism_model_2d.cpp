@@ -50,6 +50,11 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_enable_breath", "value"), &CubismModel2D::set_enable_breath);
     ClassDB::bind_method(D_METHOD("get_enable_breath"), &CubismModel2D::get_enable_breath);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_breath"), "set_enable_breath", "get_enable_breath");
+    ClassDB::bind_method(D_METHOD("set_enable_look_target", "value"), &CubismModel2D::set_enable_look_target);
+    ClassDB::bind_method(D_METHOD("get_enable_look_target"), &CubismModel2D::get_enable_look_target);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_look_target"), "set_enable_look_target", "get_enable_look_target");
+    ClassDB::bind_method(D_METHOD("set_look_target", "local_target", "weight"), &CubismModel2D::set_look_target, DEFVAL(1.0));
+    ClassDB::bind_method(D_METHOD("clear_look_target"), &CubismModel2D::clear_look_target);
     ClassDB::bind_method(D_METHOD("set_enable_physics", "value"), &CubismModel2D::set_enable_physics);
     ClassDB::bind_method(D_METHOD("get_enable_physics"), &CubismModel2D::get_enable_physics);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_physics"), "set_enable_physics", "get_enable_physics");
@@ -201,6 +206,24 @@ void CubismModel2D::set_enable_breath(bool value) { runtime->get_procedural_effe
 bool CubismModel2D::get_enable_breath() const { return runtime->get_procedural_effects()->enable_breath; }
 void CubismModel2D::set_deterministic_seed(int64_t value) { runtime->get_procedural_effects()->set_seed(value); }
 int64_t CubismModel2D::get_deterministic_seed() const { return runtime->get_procedural_effects()->get_seed(); }
+
+void CubismModel2D::set_enable_look_target(bool value) { runtime->get_procedural_effects()->enable_look_target = value; }
+bool CubismModel2D::get_enable_look_target() const { return runtime->get_procedural_effects()->enable_look_target; }
+
+void CubismModel2D::set_look_target(const Vector2 &local_target, double weight) {
+    if (!std::isfinite(local_target.x) || !std::isfinite(local_target.y) || !std::isfinite(weight) || weight < 0.0 || weight > 1.0) {
+        call_deferred("emit_signal", "runtime_warning", ERR_INVALID_PARAMETER, "Invalid look target or weight.");
+        return;
+    }
+    if (!is_ready()) {
+        call_deferred("emit_signal", "runtime_warning", ERR_UNCONFIGURED, "Look target requires a loaded model.");
+        return;
+    }
+    const Vector2 direction = runtime->internal_model->look_direction(local_target);
+    runtime->get_procedural_effects()->set_look_target(direction.x, direction.y, float(weight));
+}
+
+void CubismModel2D::clear_look_target() { runtime->get_procedural_effects()->clear_look_target(); }
 
 PackedStringArray CubismModel2D::get_motion_ids() const { return runtime->get_animator()->get_motion_ids(); }
 

@@ -120,6 +120,7 @@ func _run() -> void:
 		saved.deterministic_seed = 17
 		saved.enable_eye_blink = true
 		saved.enable_breath = true
+		saved.enable_look_target = false
 		saved.model = resource
 		var packed := PackedScene.new()
 		expect(packed.pack(saved) == OK, "pack public autoplay node")
@@ -131,6 +132,7 @@ func _run() -> void:
 		var reopened := scene.instantiate() as CubismModel2D
 		expect(reopened.autoplay and reopened.default_motion == &"Cue/1" and reopened.default_expression == &"Add", "persisted startup settings")
 		expect(reopened.deterministic_seed == 17 and reopened.enable_eye_blink and reopened.enable_breath, "persisted procedural settings")
+		expect(not reopened.enable_look_target, "persisted look enable flag")
 		var reopened_handles := watch(reopened)
 		root.add_child(reopened)
 		await process_frame
