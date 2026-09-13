@@ -20,6 +20,7 @@
 #include <gd_cubism_effect.hpp>
 #include <gd_cubism_motion_entry.hpp>
 #include <cubism_model_resource.hpp>
+#include "cubism_mask_policy.hpp"
 #include <vector>
 #include <array>
 #include <memory>
@@ -128,6 +129,7 @@ public:
 
     float speed_scale;
     int32_t mask_viewport_size;
+    CubismMaskOffscreenPolicy mask_offscreen_policy = CubismMaskOffscreenPolicy::PAUSED;
     
     ParameterMode parameter_mode;
     bool physics_evaluate;

@@ -53,6 +53,7 @@
     "SubViewport",
     "Texture2D",
     "TextServer",
+    "Time",
     "VBoxContainer",
     "ViewportTexture",
     "Window"

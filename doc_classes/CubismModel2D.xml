@@ -34,6 +34,9 @@
 		<signal name="hit_area_exited"><param index="0" name="hit_area" type="StringName" /><description>Deferred transition out of a previously entered area, including target clear and model unload. Destruction does not promise further callbacks.</description></signal>
 	</signals>
 	<constants>
+		<constant name="OFFSCREEN_ALWAYS" value="0" enum="OffscreenUpdateMode">Keep mask viewports drawing outside the owning viewport.</constant>
+		<constant name="OFFSCREEN_REDUCED" value="1" enum="OffscreenUpdateMode">Outside the owning viewport, request one mask redraw at most every 100 ms of monotonic real time, when the model evaluates. Does not slow animation or audio.</constant>
+		<constant name="OFFSCREEN_PAUSED" value="2" enum="OffscreenUpdateMode">Pause mask drawing outside the owning viewport. Animation and audio continue. Default.</constant>
 		<constant name="MASK_LOW" value="0" enum="MaskQuality">Limit each mask texture dimension to 512 pixels.</constant>
 		<constant name="MASK_MEDIUM" value="1" enum="MaskQuality">Limit each mask texture dimension to 1024 pixels. Default.</constant>
 		<constant name="MASK_HIGH" value="2" enum="MaskQuality">Limit each mask texture dimension to 2048 pixels. Opt in when needed.</constant>
@@ -47,7 +50,8 @@
 		<constant name="LAYER_POST_EFFECT" value="6" enum="ParameterLayer">Final parameter overrides before Core drawable update. Default layer; does not alter the saved primary parameters.</constant>
 	</constants>
 	<members>
-		<member name="mask_quality" type="int" setter="set_mask_quality" getter="get_mask_quality" enum="CubismModel2D.MaskQuality" default="1">Maximum per-composition mask texture dimensions. Uses local model pixel bounds, uniform downscaling and outward integer rounding; small masks are not enlarged to fill the limit. Changes apply on the next model evaluation and survive reload. Invalid enum values emit runtime_warning and retain the previous quality.</member>
+		<member name="offscreen_update_mode" type="int" setter="set_offscreen_update_mode" getter="get_offscreen_update_mode" enum="CubismModel2D.OffscreenUpdateMode" default="2">Policy for mask compositions wholly outside the owning viewport. Visible masks draw every frame; hidden nodes and singular transforms always disable mask drawing. Applied at model evaluation, retained on reload and saved with the node. Does not pause animation, physics, cues or voice. Invalid values emit runtime_warning and retain the previous policy.</member>
+		<member name="mask_quality" type="int" setter="set_mask_quality" getter="get_mask_quality" enum="CubismModel2D.MaskQuality" default="1">Maximum per-composition mask texture dimensions. Matches viewport pixel density using the largest stretch of the model/camera/canvas/viewport transform, including nonuniform scaling and shear. Geometry scales uniformly, dimensions round outward, and small projected masks are not enlarged to fill the limit. Changes apply on the next model evaluation and survive reload. Invalid enum values emit runtime_warning and retain the previous quality.</member>
 		<member name="custom_mask_limit" type="int" setter="set_custom_mask_limit" getter="get_custom_mask_limit" default="1024">Custom maximum dimension in pixels, clamped to [2,4096]. Used only with MASK_CUSTOM. Both settings are saved with the node. This limits each mask separately, not total model memory.</member>
 		<member name="enable_lip_sync" type="bool" setter="set_enable_lip_sync" getter="get_enable_lip_sync" default="true">Apply an attached CubismLipSync component. With no component this has no effect. Disabling releases influence and freezes its envelope. Model pause also freezes the component.</member>
 		<member name="enable_look_target" type="bool" setter="set_enable_look_target" getter="get_enable_look_target" default="true">Apply a target only after set_look_target is called. Disabling releases influence and freezes smoothing. The flag is saved, but targets are transient.</member>

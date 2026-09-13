@@ -21,7 +21,7 @@ class MaskSizeTest(unittest.TestCase):
                            check=True, capture_output=True, text=True, timeout=60)
             result = subprocess.run([str(binary)], check=True, capture_output=True,
                                     text=True, timeout=10)
-            self.assertIn('CUBISM_MASK_SIZE checks=786 failures=0', result.stdout)
+            self.assertIn('CUBISM_MASK_SIZE checks=808 failures=0', result.stdout)
 
 
 if __name__ == '__main__':

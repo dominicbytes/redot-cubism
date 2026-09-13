@@ -9,6 +9,7 @@
 #include <godot_cpp/classes/viewport_texture.hpp>
 #include <godot_cpp/classes/rendering_server.hpp>
 #include <godot_cpp/classes/json.hpp>
+#include <godot_cpp/classes/time.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 #include <CubismFramework.hpp>
@@ -184,9 +185,21 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
     // get the model's global transform to preform optimizations against
     auto mesh_0 = Object::cast_to<MeshInstance2D>(res.dict_mesh.values()[0]);
 
-    const Vector2 model_scale = Math::min(mesh_0->get_global_scale(), Vector2(1.0, 1.0));
     const Transform2D viewport_transform = mesh_0->get_global_transform_with_canvas();
     const Rect2 viewport_bounds = mesh_0->get_viewport_rect();
+    // Unlike the logical canvas transform, this includes viewport stretch and
+    // global canvas scaling, so density is measured in actual target pixels.
+    const Transform2D pixel_transform = mesh_0->is_inside_tree()
+        ? mesh_0->get_viewport_transform() * mesh_0->get_global_transform() : viewport_transform;
+    const Rect2 pixel_bounds = mesh_0->is_inside_tree()
+        ? Rect2(Vector2(), mesh_0->get_viewport()->get_texture()->get_size()) : viewport_bounds;
+    double mask_density = 1;
+    const bool valid_density = pixel_transform[2].is_finite()
+        && cubism_mask_density(pixel_transform[0].x, pixel_transform[1].x,
+        pixel_transform[0].y, pixel_transform[1].y, mask_density);
+    const CubismMaskOffscreenPolicy offscreen_policy = res._owner_viewport->mask_offscreen_policy;
+    const bool reduced_due = offscreen_policy == CubismMaskOffscreenPolicy::REDUCED
+        && mask_cadence.due(Time::get_singleton()->get_ticks_usec());
 
     struct OrderedDrawable {
         Csm::csmInt32 order;
@@ -260,7 +273,8 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
         Rect2 bounds(aabb.position.x, aabb.position.y, aabb.size.x, aabb.size.y);
 
         CubismMaskSize mask_size;
-        if (!bounds.position.is_finite() || !cubism_mask_size(bounds.size.x, bounds.size.y, mask_viewport_size, mask_size)) {
+        if (!valid_density || !bounds.position.is_finite()
+                || !cubism_mask_size(bounds.size.x, bounds.size.y, mask_viewport_size, mask_size, mask_density)) {
             mask->set_update_mode(SubViewport::UPDATE_DISABLED);
             mask->set_size(Vector2i(2, 2));
             continue;
@@ -270,19 +284,29 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
 
         // detect if the canvas item is going to be culled
         // only cull viewports when not looking at the model in the editor
-        Rect2 bounds_in_viewport = viewport_transform.xform(bounds);
+        Rect2 bounds_in_viewport = pixel_transform.xform(bounds);
         const bool is_culled = 
             !Engine::get_singleton()->is_editor_hint() &&
             !(
-                viewport_bounds.intersects(bounds_in_viewport) 
-                || viewport_bounds.encloses(bounds_in_viewport)
+                pixel_bounds.intersects(bounds_in_viewport)
+                || pixel_bounds.encloses(bounds_in_viewport)
             );
 
-        const bool render_mask = viewport_transform.determinant() != 0.0
-            && !is_culled && res._owner_viewport->is_visible_in_tree();
-        mask->set_update_mode(render_mask ? SubViewport::UPDATE_ALWAYS : SubViewport::UPDATE_DISABLED);
+        const bool render_mask = pixel_transform.determinant() != 0.0
+            && res._owner_viewport->is_visible_in_tree()
+            && !(is_culled && offscreen_policy == CubismMaskOffscreenPolicy::PAUSED);
         if (!render_mask) {
+            mask->set_update_mode(SubViewport::UPDATE_DISABLED);
             continue;
+        }
+        if (is_culled && offscreen_policy == CubismMaskOffscreenPolicy::REDUCED) {
+            if (reduced_due) mask->set_update_mode(SubViewport::UPDATE_ONCE);
+            else if (mask->get_update_mode() != SubViewport::UPDATE_ONCE) mask->set_update_mode(SubViewport::UPDATE_DISABLED);
+            // Do not re-submit UPDATE_ONCE before the next pulse. The node's
+            // getter retains ONCE after the server has consumed it. Leaving it
+            // alone also preserves pending draws across repeated manual steps.
+        } else {
+            mask->set_update_mode(SubViewport::UPDATE_ALWAYS);
         }
 
         const double scalar = mask_size.scale;

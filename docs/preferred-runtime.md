@@ -20,16 +20,31 @@ work in the canonical plan.
 `mask_quality` selects `MASK_LOW` (512), `MASK_MEDIUM` (1024, default),
 `MASK_HIGH` (2048), or `MASK_CUSTOM` (`custom_mask_limit`, clamped to 2–4096).
 These are maximum texture dimensions per mask composition, not a total memory
-budget. Small masks retain their native local pixel resolution; larger masks
-scale down uniformly. Integer dimensions round outward, with a two-pixel minimum
+budget. Masks follow the current viewport pixel density, measured using the largest
+stretch of the model, camera, canvas and viewport transforms. This includes shear,
+mirroring, nonuniform scale and viewport stretch. Small projected masks use fewer
+pixels; zooming increases resolution until the cap. Geometry scales uniformly.
+Integer dimensions round outward, with a two-pixel minimum
 and transparent padding for very thin bounds. Geometry is never stretched
 independently along X/Y. Invalid bounds disable that mask viewport.
 Settings are saved with the node, survive reload, and apply on its next evaluation.
 Invalid quality values emit `runtime_warning` and preserve the previous setting.
-The legacy node's zero `mask_viewport_size` still requests native resolution,
-now subject to a 4096-pixel safety cap; positive limits are clamped to 2–4096.
-This establishes bounded allocation. Screen-scale adaptation and selectable
-offscreen update policies are still pending.
+The legacy node uses the same screen-scale adaptation; zero or negative
+`mask_viewport_size` selects the 4096-pixel safety cap, and positive limits have an
+effective range of 2–4096.
+
+`offscreen_update_mode` controls mask compositions wholly outside the owning
+viewport: `OFFSCREEN_PAUSED` (default) disables their drawing, `OFFSCREEN_ALWAYS`
+keeps drawing, and `OFFSCREEN_REDUCED` requests one redraw at most every 100 ms
+of monotonic real time while the model evaluates. The cadence is independent of
+animation speed and does not accumulate catch-up redraws after stalls. Repeated
+manual advances before a frame preserve a pending redraw. Redot's SubViewport
+property may still report `UPDATE_ONCE` after the server consumed that request.
+Visible masks always draw normally; hidden nodes and singular transforms disable
+mask drawing under every policy. These policies leave animation, physics, queued
+parameter writes, cue completion and recorded voice timing unchanged. Model pause
+and manual stepping retain their existing semantics. Policy changes apply on the
+next evaluation, survive reload and are saved with the node.
 
 ```gdscript
 var character := CubismModel2D.new()

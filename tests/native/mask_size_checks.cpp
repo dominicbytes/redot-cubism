@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "cubism_mask_size.hpp"
+#include "cubism_mask_policy.hpp"
 #include <iostream>
 #include <limits>
 
@@ -40,6 +41,32 @@ int main() {
             }
         }
     }
+    double density = 0;
+    expect(cubism_mask_density(1, 0, 0, 1, density) && density == 1, "identity density");
+    expect(cubism_mask_density(0, -2, 2, 0, density) && density == 2, "rotated zoom density");
+    expect(cubism_mask_density(-0.5, 0, 0, 0.25, density) && density == 0.5, "mirrored nonuniform density");
+    expect(cubism_mask_density(1, 1, 0, 1, density) && std::abs(density - (1 + std::sqrt(5.0)) / 2) < 1e-12,
+        "shear uses maximum stretch rather than column lengths");
+    expect(cubism_mask_density(1e30, 0, 0, 1e-30, density) && density == 1e30, "extreme anisotropy remains finite");
+    expect(!cubism_mask_density(0, 0, 0, 0, density), "zero basis rejected");
+    for (double invalid : {nan, inf, -inf}) {
+        expect(!cubism_mask_density(invalid, 0, 0, 1, density), "nonfinite basis rejected");
+        expect(!cubism_mask_size(100, 200, 512, size, invalid), "nonfinite density rejected");
+    }
+    expect(!cubism_mask_size(100, 200, 512, size, 0), "zero density rejected");
+    expect(!cubism_mask_size(100, 200, 512, size, -1), "negative density rejected");
+    expect(cubism_mask_size(300, 100, 1024, size, 0.5) && size.width == 150 && size.height == 50 && size.scale == 0.5,
+        "half-scale targets half the local pixels");
+    expect(cubism_mask_size(300, 100, 1024, size, 2) && size.width == 600 && size.height == 200 && size.scale == 2,
+        "zoomed model increases effective quality below the cap");
+    expect(cubism_mask_size(300, 100, 128, size, 1e30) && size.width == 128 && size.height == 43,
+        "extreme zoom remains bounded");
+    CubismMaskCadence cadence;
+    expect(cadence.due(0), "first offscreen pulse includes clock origin");
+    expect(!cadence.due(0) && !cadence.due(99999), "repeated manual steps do not trigger early pulses");
+    expect(cadence.due(100000) && !cadence.due(100001), "100 ms pulse boundary");
+    expect(cadence.due(9999999), "long stalls request only one current redraw");
+    expect(!cadence.due(10000000) && cadence.due(10099999), "cadence resumes from actual request time");
     std::cout << "CUBISM_MASK_SIZE checks=" << checks << " failures=" << failures << '\n';
     return failures ? 1 : 0;
 }

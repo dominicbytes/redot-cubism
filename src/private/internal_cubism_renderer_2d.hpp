@@ -38,6 +38,7 @@ public:
     virtual ~InternalCubismRenderer2D();
 
 private:
+    CubismMaskCadence mask_cadence;
     static void ready_mask(const MeshInstance2D *node);
 
     void update_material(const Csm::CubismModel *model, const Csm::csmInt32 index, const Ref<ShaderMaterial> mat) const;
