@@ -20,6 +20,7 @@
     #include <private/internal_cubism_renderer_3d.hpp>
 #endif // GD_CUBISM_USE_RENDERER_2D
 #include <private/internal_cubism_user_model.hpp>
+#include <cubism_model_2d.hpp>
 #include <cubism_animator.hpp>
 #include <cubism_procedural_effects.hpp>
 #include <cubism_lip_sync.hpp>
@@ -377,6 +378,9 @@ void InternalCubismUserModel::efx_update(const double delta) {
         }
     }
     this->effect_batch(delta, EFFECT_CALL_PROCESS);
+    if (auto *preferred = Object::cast_to<CubismModel2D>(_owner_viewport->get_parent())) {
+        if (preferred->runtime == _owner_viewport) preferred->apply_custom_effects(delta);
+    }
     _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_EFFECT);
 }
 

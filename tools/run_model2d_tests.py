@@ -70,6 +70,7 @@ def main():
         (project / 'controller_audio_timing_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_audio_timing_checks.gd').read_bytes())
         (project / 'controller_state_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_state_checks.gd').read_bytes())
         (project / 'parameter_layer_checks.gd').write_bytes((ROOT / 'tests/native/project/parameter_layer_checks.gd').read_bytes())
+        (project / 'custom_effect_checks.gd').write_bytes((ROOT / 'tests/native/project/custom_effect_checks.gd').read_bytes())
         driver = project / 'addons/motion_test'
         driver.mkdir(exist_ok=True)
         (driver / 'checks.gd').write_bytes((ROOT / 'tests/editor/preferred_motion_prepare.gd').read_bytes())
@@ -107,6 +108,7 @@ def main():
             execute('native-autoplay', [engine, '--headless', '--path', str(project), '--script', 'res://autoplay_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_AUTOPLAY_PASS')
             execute('native-procedural', [engine, '--headless', '--path', str(project), '--script', 'res://procedural_checks.gd', '--quit-after', '10000'], 'CUBISM_PROCEDURAL_PASS')
             execute('native-parameter-layers', [engine, '--headless', '--path', str(project), '--script', 'res://parameter_layer_checks.gd', '--quit-after', '10000'], 'CUBISM_PARAMETER_LAYERS_PASS')
+            execute('native-custom-effects', [engine, '--headless', '--path', str(project), '--script', 'res://custom_effect_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_CUSTOM_EFFECTS_PASS')
             execute('native-look', [engine, '--headless', '--path', str(project), '--script', 'res://look_checks.gd', '--quit-after', '10000'], 'CUBISM_LOOK_PASS')
             execute('native-hit', [engine, *hit_flags, '--path', str(project), '--script', 'res://hit_checks.gd', '--quit-after', '10000', *hit_args], 'CUBISM_HIT_PASS')
             execute('native-lip', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://lip_sync_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_LIP_SYNC_PASS')
@@ -131,6 +133,7 @@ def main():
             presets = presets.replace('"res://model2d.tscn",', '"res://controller_utility_checks.gd", "res://model2d.tscn",')
             presets = presets.replace('"res://model2d.tscn",', '"res://controller-state.tscn", "res://controller_state_checks.gd", "res://model2d.tscn",')
             presets = presets.replace('"res://model2d.tscn",', '"res://parameter_layer_checks.gd", "res://model2d.tscn",')
+            presets = presets.replace('"res://model2d.tscn",', '"res://custom-effects.tscn", "res://custom_effect_checks.gd", "res://model2d.tscn",')
             if args.examples:
                 presets = presets.replace('"res://model2d.tscn",', '"res://example-visual_novel.tscn", "res://example-rpg_dialogue.tscn", "res://character_example_checks.gd", "res://addons/gd_cubism/examples/character_workflows/visual_novel.tscn", "res://addons/gd_cubism/examples/character_workflows/rpg_dialogue.tscn", "res://model2d.tscn",')
             if args.audio_timing:
@@ -146,6 +149,7 @@ def main():
                 execute('exported-autoplay', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://autoplay_checks.gd', '--quit-after', '10000'], 'CUBISM_AUTOPLAY_PASS', output)
                 execute('exported-procedural', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://procedural_checks.gd', '--quit-after', '10000'], 'CUBISM_PROCEDURAL_PASS', output)
                 execute('exported-parameter-layers', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://parameter_layer_checks.gd', '--quit-after', '10000'], 'CUBISM_PARAMETER_LAYERS_PASS', output)
+                execute('exported-custom-effects', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://custom_effect_checks.gd', '--quit-after', '10000'], 'CUBISM_CUSTOM_EFFECTS_PASS', output)
                 execute('exported-look', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://look_checks.gd', '--quit-after', '10000'], 'CUBISM_LOOK_PASS', output)
                 execute('exported-hit', [str(output / ('game.exe' if os.name == 'nt' else 'game')), *hit_flags, '--script', 'res://hit_checks.gd', '--quit-after', '10000', *hit_args], 'CUBISM_HIT_PASS', output)
                 execute('exported-lip', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://lip_sync_checks.gd', '--quit-after', '10000'], 'CUBISM_LIP_SYNC_PASS', output)
