@@ -77,6 +77,7 @@ private:
     void reset_expression_manager();
     Dictionary load_error;
     bool resource_mode = false;
+    bool resource_premultiplied_alpha = false;
     bool primary_motion_updated = false;
     uint64_t processed_bytes = 0;
     Dictionary source_fingerprints;
@@ -86,6 +87,7 @@ private:
     bool read_buffer(const String &path, PackedByteArray &buffer, bool json = true);
 
 public:
+    bool get_premultiplied_alpha() const { return resource_premultiplied_alpha; }
     bool model_load(const String &model_pathname, const Ref<CubismModelResource> &resource = Ref<CubismModelResource>());
     bool model_load_resource();
     Dictionary get_load_error() const { return load_error.duplicate(); }

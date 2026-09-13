@@ -101,6 +101,7 @@ protected:
 
 public:
     CubismModel2D();
+    bool get_premultiplied_alpha() const;
     void set_debug_draw_bounds(bool value);
     bool get_debug_draw_bounds() const { return debug_draw_bounds; }
     void set_debug_draw_hit_areas(bool value);

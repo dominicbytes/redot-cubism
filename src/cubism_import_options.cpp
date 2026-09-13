@@ -37,6 +37,7 @@ Dictionary cubism_import_defaults() {
     options["motions/import_manifest_motions"] = true;
     options["expressions/import"] = true;
     options["rendering/mask_quality"] = 1;
+    options["rendering/premultiplied_alpha"] = false;
     options["motions/convert_to_redot_animation"] = false;
     return options;
 }

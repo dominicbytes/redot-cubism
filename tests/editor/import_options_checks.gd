@@ -52,7 +52,11 @@ func _run() -> void:
 	for invalid: Variant in [false, true, 1.0, "medium", -1, 3, 9223372036854775807, [], null]:
 		var result := CubismModelFactory.build_with_options(source, {"rendering/mask_quality": invalid})
 		expect(not result.ok and result.model == null and result.diagnostics[0].path == "rendering/mask_quality", "reject invalid mask quality")
-	for key: String in ["motions/import_manifest_motions", "expressions/import", "validation/strict_optional_files"]:
+	for key: Variant in ["rendering/premultiplied_alpha", &"rendering/premultiplied_alpha"]:
+		for enabled: bool in [false, true]:
+			var result := CubismModelFactory.build_with_options(source, {key: enabled})
+			expect(result.ok and result.model.get_premultiplied_alpha() == enabled, "accept String and StringName alpha keys")
+	for key: String in ["motions/import_manifest_motions", "expressions/import", "validation/strict_optional_files", "rendering/premultiplied_alpha"]:
 		for invalid: Variant in [0, 1, "false", [], null]:
 			var result := CubismModelFactory.build_with_options(source, {key: invalid})
 			expect(not result.ok and result.model == null and result.diagnostics[0].path == key, "reject nonboolean " + key)
@@ -61,6 +65,7 @@ func _run() -> void:
 		expect(not result.ok and result.model == null, "reject unavailable option")
 	var defaults := CubismModelFactory.build_with_options(source, {})
 	expect(defaults.ok and defaults.model.get_mask_quality() == 1, "default imported medium mask quality")
+	expect(defaults.ok and not defaults.model.get_premultiplied_alpha(), "default straight alpha")
 	expect(defaults.ok and not defaults.model.motion_groups.is_empty() and not defaults.model.expressions.is_empty(), "default catalogs preserved")
 	var expressions_only := CubismModelFactory.build_with_options(source, {"motions/import_manifest_motions": false})
 	expect(expressions_only.ok and expressions_only.model.motion_groups.is_empty() and not expressions_only.model.expressions.is_empty(), "disable only motions")
@@ -112,6 +117,15 @@ func _run() -> void:
 	await settle()
 	model = ResourceLoader.load(output, "CubismModelResource", ResourceLoader.CACHE_MODE_IGNORE)
 	expect(model.get_mask_quality() == 0 and model.import_fingerprint != previous_fingerprint, "quality-only edit reimports and changes provenance")
+	previous_fingerprint = model.import_fingerprint
+	var straight_texture: String = model.textures[0].resource_path
+	model.import_options["rendering/premultiplied_alpha"] = true
+	expect(ResourceSaver.save(model, output) == OK, "save premultiplied alpha option")
+	EditorInterface.get_resource_filesystem().update_file(output)
+	await settle()
+	model = ResourceLoader.load(output, "CubismModelResource", ResourceLoader.CACHE_MODE_IGNORE)
+	expect(model.get_premultiplied_alpha() and model.import_fingerprint != previous_fingerprint, "alpha-only edit reimports and changes provenance")
+	expect(model.textures[0].resource_path != straight_texture and model.textures[0].get_meta("cubism_premultiplied_alpha", false) == true, "alpha-only edit regenerates texture encoding")
 	# Exercise a disabled source becoming available: it still is not a dependency.
 	var excluded := source.get_base_dir().path_join("missing.exp3.json")
 	write_json(excluded, {"deliberately": "not an expression"})

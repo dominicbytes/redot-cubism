@@ -51,6 +51,7 @@ def main():
     (project / 'model2d_checks.gd').write_bytes((ROOT / 'tests/native/project/model2d_checks.gd').read_bytes())
     (project / 'model2d_render_checks.gd').write_bytes((ROOT / 'tests/native/project/model2d_render_checks.gd').read_bytes())
     (project / 'mask_quality_checks.gd').write_bytes((ROOT / 'tests/native/project/mask_quality_checks.gd').read_bytes())
+    (project / 'alpha_checks.gd').write_bytes((ROOT / 'tests/native/project/alpha_checks.gd').read_bytes())
     (project / 'mask_policy_checks.gd').write_bytes((ROOT / 'tests/native/project/mask_policy_checks.gd').read_bytes())
     (project / 'debug_overlay_checks.gd').write_bytes((ROOT / 'tests/native/project/debug_overlay_checks.gd').read_bytes())
     (project / 'renderer_transform_checks.gd').write_bytes((ROOT / 'tests/native/project/renderer_transform_checks.gd').read_bytes())
@@ -131,12 +132,13 @@ def main():
         if args.graphics:
             execute('native-debug-overlay', [engine, *hit_flags, '--path', str(project), '--script', 'res://debug_overlay_checks.gd', '--quit-after', '10000'], 'CUBISM_DEBUG_OVERLAY_PASS')
             execute('native-mask-quality', [engine, *hit_flags, '--path', str(project), '--script', 'res://mask_quality_checks.gd', '--quit-after', '10000'], 'CUBISM_MASK_QUALITY_PASS')
+            execute('native-alpha', [engine, *hit_flags, '--path', str(project), '--script', 'res://alpha_checks.gd', '--quit-after', '10000'], 'CUBISM_ALPHA_RUNTIME_PASS')
             execute('native-mask-policy', [engine, *hit_flags, '--path', str(project), '--script', 'res://mask_policy_checks.gd', '--quit-after', '10000', *(['--', '--motion'] if args.motion else [])], 'CUBISM_MASK_POLICY_PASS')
         template = json.dumps(str(args.template.resolve()))
         (project / 'export_presets.cfg').write_text('[preset.0]\nname="Model2D"\nplatform="' + ('Windows Desktop' if os.name == 'nt' else 'Linux') + '"\nrunnable=true\nexport_path=""\nexport_filter="resources"\nexport_files=PackedStringArray("res://model2d.tscn", "res://model2d_checks.gd", "res://model2d_render_checks.gd")\ninclude_filter=""\nexclude_filter=""\nscript_export_mode=2\n[preset.0.options]\ncustom_template/debug=' + template + '\ncustom_template/release=' + template + '\nbinary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
         output = run / 'export'
         presets = (project / 'export_presets.cfg').read_text()
-        (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://renderer_transform_checks.gd", "res://mask_quality_checks.gd", "res://mask_policy_checks.gd", "res://debug_overlay_checks.gd", "res://model2d.tscn",'))
+        (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://alpha-model.res", "res://alpha_checks.gd", "res://renderer_transform_checks.gd", "res://mask_quality_checks.gd", "res://mask_policy_checks.gd", "res://debug_overlay_checks.gd", "res://model2d.tscn",'))
         if args.motion:
             presets = (project / 'export_presets.cfg').read_text()
             presets = presets.replace('"res://model2d.tscn",', '"res://controller_checks.gd", "res://model2d.tscn",')
@@ -177,6 +179,7 @@ def main():
             if args.graphics:
                 execute('exported-debug-overlay', [str(output / ('game.exe' if os.name == 'nt' else 'game')), *hit_flags, '--script', 'res://debug_overlay_checks.gd', '--quit-after', '10000'], 'CUBISM_DEBUG_OVERLAY_PASS', output)
                 execute('exported-mask-quality', [str(output / ('game.exe' if os.name == 'nt' else 'game')), *hit_flags, '--script', 'res://mask_quality_checks.gd', '--quit-after', '10000'], 'CUBISM_MASK_QUALITY_PASS', output)
+                execute('exported-alpha', [str(output / ('game.exe' if os.name == 'nt' else 'game')), *hit_flags, '--script', 'res://alpha_checks.gd', '--quit-after', '10000'], 'CUBISM_ALPHA_RUNTIME_PASS', output)
                 execute('exported-mask-policy', [str(output / ('game.exe' if os.name == 'nt' else 'game')), *hit_flags, '--script', 'res://mask_policy_checks.gd', '--quit-after', '10000', *(['--', '--motion'] if args.motion else [])], 'CUBISM_MASK_POLICY_PASS', output)
                 captures = run / 'captures'; captures.mkdir()
                 command = [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--rendering-method', 'gl_compatibility', '--audio-driver', 'Dummy', '--script', 'res://model2d_render_checks.gd', '--quit-after', '1000']

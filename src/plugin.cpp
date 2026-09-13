@@ -121,6 +121,7 @@ void GDCubismPlugin::_enter_tree() {
     mask_qualities.push_back("Medium");
     mask_qualities.push_back("High");
     cubism_save_dialog->add_option("Mask quality", mask_qualities, 1);
+    cubism_save_dialog->add_option("Premultiplied alpha", PackedStringArray(), 0);
     PackedStringArray save_filters;
     save_filters.push_back("*.res ; Cubism Resource");
     cubism_save_dialog->set_filters(save_filters);
@@ -247,6 +248,7 @@ void GDCubismPlugin::save_cubism_resource(const String &path) {
     options["motions/import_manifest_motions"] = selected.get("Import manifest motions", true);
     options["expressions/import"] = selected.get("Import expressions", true);
     options["rendering/mask_quality"] = selected.get("Mask quality", 1);
+    options["rendering/premultiplied_alpha"] = selected.get("Premultiplied alpha", false);
     dependency_tracker->track(cubism_source_path, path, options);
     const Error error = CubismModelImporter::import_model_with_options(cubism_source_path, path, options);
     if (error != OK) {

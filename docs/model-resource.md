@@ -34,6 +34,12 @@ copy of the setting. An absent entry defaults to Medium for older resources;
 an invalid type or value returns -1 and runtime loading rejects the resource.
 Preferred nodes inherit this setting by default and may explicitly override it.
 
+`get_premultiplied_alpha()` reads `rendering/premultiplied_alpha` from the same
+dictionary, defaulting to false. Import requires an actual boolean and provisions
+matching texture pixels. Runtime and export validation reject an invalid type or
+texture encoding mismatch. The node snapshots this choice on load; editing the
+dictionary requires reimport and reload, not just a shader toggle.
+
 Texture arrays preserve index order and carry real Redot resource references;
 path arrays alone do not establish engine dependencies. Shared references stay
 shared after saving and loading. The resource contains no dedicated native

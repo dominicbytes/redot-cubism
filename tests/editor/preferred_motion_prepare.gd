@@ -67,6 +67,10 @@ func _run() -> void:
 	manifest.FileReferences.Expressions = expressions
 	_write(source, manifest)
 	var error := CubismModelImporter.import_model(source, "res://imported-model.res")
+	# Both rendering fixtures must describe the new synthetic motion manifest.
+	# Do not depend on the editor polling tracker before a checked export.
+	if error == OK and FileAccess.file_exists("res://alpha-model.res"):
+		error = CubismModelImporter.import_model_with_options(source, "res://alpha-model.res", {"rendering/premultiplied_alpha": true})
 	if error != OK:
 		printerr("Motion fixture import failed: ", error)
 		get_tree().quit(1)

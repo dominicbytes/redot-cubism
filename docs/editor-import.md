@@ -14,6 +14,9 @@ and **Import expressions** checkboxes. Motions and expressions are enabled by
 default; strict optional-file validation is disabled by default. **Mask quality**
 offers Low, Medium (default), and High. Preferred nodes inherit this choice unless
 their `mask_quality` explicitly overrides it.
+**Premultiplied alpha** defaults to disabled. Enabling it converts the generated
+texture pixels before mipmap generation and selects matching runtime shaders.
+Source PNGs remain unchanged. Reimport and reload the node after changing it.
 
 Editor tools can call
 `CubismModelImporter.import_model(source_file, destination, strict_optional_files=false)`.
@@ -28,7 +31,8 @@ editor API. Reopen and save legacy scenes to retain their export dependencies.
 
 Use `CubismModelImporter.import_model_with_options(source_file, destination, options)`
 to supply the same choices by their keys: `validation/strict_optional_files`,
-`motions/import_manifest_motions`, and `expressions/import`. All require actual
+`motions/import_manifest_motions`, `expressions/import`, and
+`rendering/premultiplied_alpha`. All require actual
 booleans. `rendering/mask_quality` requires an integer: 0 (Low), 1 (Medium), or
 2 (High); booleans, floats, strings and other values are rejected. Custom limits
 are per-node overrides. Unspecified choices use the defaults. The old boolean-based method
@@ -50,11 +54,11 @@ silently overwritten to match one of potentially several derived resources.
 conversion is unavailable. Other unsupported or misspelled options fail explicitly.
 
 The native importer advertises only `model3.json`, priority 2, import order 100
-(after default texture/audio imports), format version 7, and disables threaded
-import. The Import dock exposes the same four implemented choices. Mask quality
-is serialized in `import_options` and participates in import fingerprints, so
-quality-only edits trigger reimport. Motion discovery and premultiplied-alpha
-import settings remain unimplemented.
+(after default texture/audio imports), format version 8, and disables threaded
+import. The Import dock exposes the same five implemented choices. Mask quality
+and alpha format are serialized in `import_options` and participate in import
+fingerprints, so option-only edits trigger reimport. Unreferenced motion discovery
+remains unimplemented.
 
 **Project Settings → Cubism → Import → Maximum File Count** limits the manifest
 plus unique normalized source paths in enabled catalogs. The default is 1,024; allowed
