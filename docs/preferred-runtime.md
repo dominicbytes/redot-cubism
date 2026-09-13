@@ -46,6 +46,18 @@ parameter writes, cue completion and recorded voice timing unchanged. Model paus
 and manual stepping retain their existing semantics. Policy changes apply on the
 next evaluation, survive reload and are saved with the node.
 
+`debug_draw_bounds` draws a cyan outline of combined drawable geometry;
+`debug_draw_hit_areas` draws magenta outlines of distinct declared hit drawables.
+They use current evaluated vertices and imported layout, including invisible hit
+geometry, and follow the node's transforms, visibility, modulation and clipping.
+Missing or empty hit drawables are skipped. These are bounding rectangles, not
+triangle/texture-alpha hit shapes. Lines use Redot hairline drawing. Enabling an
+overlay does not advance or change simulation, and toggles work while paused.
+Both flags default off and are saved with the node in editor, debug and release
+builds. One private, unsaved drawing child is created on first use and reused;
+there is no additional script or sample dependency in exported scenes. Disabling
+both flags hides that child, and unload/reload clears stale geometry.
+
 ```gdscript
 var character := CubismModel2D.new()
 character.playback_process_mode = CubismModel2D.MANUAL

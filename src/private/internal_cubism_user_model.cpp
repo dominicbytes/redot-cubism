@@ -13,6 +13,7 @@
 #include <private/redot_cubism_model_setting.hpp>
 #include <cmath>
 #include <algorithm>
+#include <set>
 
 #ifdef GD_CUBISM_USE_RENDERER_2D
     #include <private/internal_cubism_renderer_2d.hpp>
@@ -549,6 +550,40 @@ bool InternalCubismUserModel::hit_test(const StringName &name, const Vector2 &lo
         if (drawable >= 0 && _model->GetDrawableVertexCount(drawable) > 0 && IsHit(id, x, y)) return true;
     }
     return false;
+}
+
+Array InternalCubismUserModel::get_debug_rectangles(bool hit_areas) const {
+    Array result;
+    if (!_initialized || !_model || !_model_setting) return result;
+    const int count = hit_areas ? _model_setting->GetHitAreasCount() : _model->GetDrawableCount();
+    const float pixels_per_unit = _model->GetPixelsPerUnit();
+    std::set<int> visited;
+    Rect2 combined;
+    bool have_bounds = false;
+    for (int i = 0; i < count; ++i) {
+        const int index = hit_areas ? _model->GetDrawableIndex(_model_setting->GetHitAreaId(i)) : i;
+        if (index < 0 || (hit_areas && !visited.insert(index).second)) continue;
+        const int vertices = _model->GetDrawableVertexCount(index);
+        if (vertices <= 0 || (!hit_areas && _model->GetDrawableVertexIndexCount(index) == 0)) continue;
+        const auto *points = _model->GetDrawableVertexPositions(index);
+        const Vector2 first = _renderer_resource.layout_transform.xform(Vector2(points[0].X, -points[0].Y) * pixels_per_unit);
+        if (!first.is_finite()) continue;
+        Rect2 rect(first, Vector2());
+        bool valid = true;
+        for (int vertex = 1; vertex < vertices; ++vertex) {
+            const Vector2 point = _renderer_resource.layout_transform.xform(Vector2(points[vertex].X, -points[vertex].Y) * pixels_per_unit);
+            if (!point.is_finite()) { valid = false; break; }
+            rect.expand_to(point);
+        }
+        if (!valid || !rect.size.is_finite()) continue;
+        if (hit_areas) result.append(rect);
+        else {
+            combined = have_bounds ? combined.merge(rect) : rect;
+            have_bounds = true;
+        }
+    }
+    if (!hit_areas && have_bounds && combined.size.is_finite()) result.append(combined);
+    return result;
 }
 
 void InternalCubismUserModel::reset_expression_manager() {

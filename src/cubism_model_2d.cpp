@@ -76,6 +76,12 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_offscreen_update_mode", "value"), &CubismModel2D::set_offscreen_update_mode);
     ClassDB::bind_method(D_METHOD("get_offscreen_update_mode"), &CubismModel2D::get_offscreen_update_mode);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "offscreen_update_mode", PROPERTY_HINT_ENUM, "Always,Reduced,Paused"), "set_offscreen_update_mode", "get_offscreen_update_mode");
+    ClassDB::bind_method(D_METHOD("set_debug_draw_bounds", "value"), &CubismModel2D::set_debug_draw_bounds);
+    ClassDB::bind_method(D_METHOD("get_debug_draw_bounds"), &CubismModel2D::get_debug_draw_bounds);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_draw_bounds"), "set_debug_draw_bounds", "get_debug_draw_bounds");
+    ClassDB::bind_method(D_METHOD("set_debug_draw_hit_areas", "value"), &CubismModel2D::set_debug_draw_hit_areas);
+    ClassDB::bind_method(D_METHOD("get_debug_draw_hit_areas"), &CubismModel2D::get_debug_draw_hit_areas);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "debug_draw_hit_areas"), "set_debug_draw_hit_areas", "get_debug_draw_hit_areas");
     ClassDB::bind_method(D_METHOD("advance", "delta"), &CubismModel2D::advance);
     ClassDB::bind_method(D_METHOD("play_motion", "motion_id", "priority", "loop", "speed"), &CubismModel2D::play_motion, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
     ClassDB::bind_method(D_METHOD("play_motion_from_group", "group", "index", "priority", "loop", "speed"), &CubismModel2D::play_motion_from_group, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
@@ -167,6 +173,7 @@ void CubismModel2D::set_offscreen_update_mode(OffscreenUpdateMode value) {
 void CubismModel2D::_notification(int what) {
     switch (what) {
         case NOTIFICATION_ENTER_TREE:
+            queue_debug_redraw();
             if (load_requested && !is_ready()) call_deferred("_emit_load_started", ++generation);
             call_deferred("_start_autoplay", generation);
             set_playback_process_mode(playback_process_mode);
@@ -211,6 +218,7 @@ void CubismModel2D::_notification(int what) {
 }
 
 Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
+    queue_debug_redraw();
     notify_controller(CubismSpeechHandle::UNLOADED);
     reset_hit_tracking();
     model = resource;
@@ -230,6 +238,7 @@ Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
 }
 
 void CubismModel2D::unload_model() {
+    queue_debug_redraw();
     notify_controller(CubismSpeechHandle::UNLOADED);
     reset_hit_tracking();
     load_requested = false;
@@ -246,6 +255,7 @@ void CubismModel2D::emit_load_started(uint64_t expected_generation) {
 }
 
 void CubismModel2D::on_model_ready() {
+    queue_debug_redraw();
     start_autoplay(generation);
     if (load_requested && is_ready() && !is_queued_for_deletion()) emit_signal("model_ready", model);
 }
@@ -266,6 +276,7 @@ void CubismModel2D::start_autoplay(uint64_t expected_generation) {
 }
 
 void CubismModel2D::on_model_failed(const Dictionary &error) {
+    queue_debug_redraw();
     if (load_requested && !is_queued_for_deletion()) emit_signal("model_failed", error.get("code", FAILED), error.get("message", ""));
 }
 
@@ -278,7 +289,10 @@ void CubismModel2D::set_playback_process_mode(PlaybackProcessMode mode) {
 
 void CubismModel2D::step(double delta, bool controller) {
     if (controller_clock_id && !controller) return;
-    if (!paused && is_ready() && is_inside_tree() && can_process()) runtime->advance(delta);
+    if (!paused && is_ready() && is_inside_tree() && can_process()) {
+        runtime->advance(delta);
+        queue_debug_redraw();
+    }
     if (hit_target_active || !hovered_hit_areas.is_empty()) queue_hit_refresh();
 }
 
