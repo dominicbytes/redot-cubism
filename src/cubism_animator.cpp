@@ -35,6 +35,7 @@ void CubismAnimator::configure(const Ref<CubismModelResource> &resource) {
 void CubismAnimator::clear(CubismMotionHandle::FinishReason reason) {
     for (const auto &playback : playbacks) playback->handle->finish(reason);
     playbacks.clear();
+    authored_parameters.clear();
     catalog.clear();
 }
 
@@ -88,6 +89,7 @@ Ref<CubismMotionHandle> CubismAnimator::play(InternalCubismUserModel &model, con
     playback->speed = speed;
     playback->priority = priority;
     playback->events = selected->events;
+    playback->parameters = model.get_motion_parameter_ids(selected->group, selected->index);
     playback->motion->SetupMotionQueueEntry(&playback->entry, 0.0f);
     for (const auto &old : playbacks) fade(*old, -1.0, CubismMotionHandle::INTERRUPTED);
     const Ref<CubismMotionHandle> handle = playback->handle;
@@ -100,6 +102,7 @@ void CubismAnimator::stop(double seconds) {
 }
 
 bool CubismAnimator::update(Csm::CubismModel *model, double delta) {
+    authored_parameters.clear();
     bool updated = false;
     for (auto it = playbacks.begin(); it != playbacks.end();) {
         Playback &p = **it;
@@ -118,6 +121,7 @@ bool CubismAnimator::update(Csm::CubismModel *model, double delta) {
         const int64_t last_cycle = int64_t(last);
         if (!p.entry.IsFinished()) {
             p.motion->UpdateParameters(model, &p.entry, float(p.time));
+            for (const String &id : p.parameters) if (!authored_parameters.has(id)) authored_parameters.push_back(id);
             updated = true;
         }
         if (p.fade_end >= 0.0) {

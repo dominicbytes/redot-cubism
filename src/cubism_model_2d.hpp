@@ -97,6 +97,10 @@ public:
     bool hit_test(const StringName &hit_area, const Vector2 &local_point) const;
     void set_hit_test_target(const Vector2 &local_point);
     void clear_hit_test_target();
+    void set_enable_lip_sync(bool value);
+    bool get_enable_lip_sync() const;
+    Error attach_lip_sync(uint64_t component);
+    void detach_lip_sync(uint64_t component);
     void advance(double delta);
     Ref<CubismMotionHandle> play_motion(const StringName &id, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
     Ref<CubismMotionHandle> play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);

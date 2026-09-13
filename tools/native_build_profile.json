@@ -3,6 +3,7 @@
     "Animation",
     "ArrayMesh",
     "AudioStream",
+    "AudioServer",
     "Button",
     "CanvasGroup",
     "CanvasItem",

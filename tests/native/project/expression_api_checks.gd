@@ -33,7 +33,7 @@ func _initialize() -> void:
 func _run() -> void:
 	resource = load("res://imported-model.res") as CubismModelResource
 	var node := model()
-	expect(node.get_expression_ids() == PackedStringArray(["Add", "Multiply", "Overwrite"]), "expression catalog")
+	expect(node.get_expression_ids() == PackedStringArray(["Add", "Multiply", "Overwrite", "Mouth"]), "expression catalog")
 	expect(node.set_expression(&"missing") == ERR_DOES_NOT_EXIST, "unknown ID rejected")
 	for fade: float in [-2.0, NAN, INF, 1.0e300]:
 		expect(node.set_expression(&"Add", fade) == ERR_INVALID_PARAMETER, "invalid fade rejected")

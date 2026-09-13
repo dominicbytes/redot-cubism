@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismLipSyncProfile" inherits="Resource" version="4.3">
+	<brief_description>Shared lip-sync envelope settings.</brief_description>
+	<description>Shared lip-sync envelope settings. Each CubismLipSync owns separate sample and envelope state. Numeric setters reject nonfinite or out-of-range values and retain the old setting. Mouth amplitude is additive; default maximum 0.8 matches the Native SDK sample weight. Authored parameters are protected unless blending is explicitly enabled.</description>
+	<members>
+		<member name="gain" type="float" setter="set_gain" getter="get_gain" default="1.0">Nonnegative gain applied to a unit-clamped amplitude after the noise gate.</member>
+		<member name="noise_gate" type="float" setter="set_noise_gate" getter="get_noise_gate" default="0.02">Samples below this [0,1] threshold become silence before gain.</member>
+		<member name="attack" type="float" setter="set_attack" getter="get_attack" default="0.03">Nonnegative attack time constant in model seconds. Zero changes immediately.</member>
+		<member name="release" type="float" setter="set_release" getter="get_release" default="0.08">Nonnegative release time constant in model seconds. Zero changes immediately.</member>
+		<member name="minimum" type="float" setter="set_minimum" getter="get_minimum" default="0.0">Minimum additive output. Must be finite, representable as float and no greater than maximum.</member>
+		<member name="maximum" type="float" setter="set_maximum" getter="get_maximum" default="0.8">Maximum additive output. Must be finite, representable as float and no less than minimum.</member>
+		<member name="parameter_ids" type="PackedStringArray" setter="set_parameter_ids" getter="get_parameter_ids">Empty uses manifest lip-sync IDs. Duplicate IDs apply once; missing IDs are skipped and reported.</member>
+		<member name="mouth_form_parameter" type="StringName" setter="set_mouth_form_parameter" getter="get_mouth_form_parameter">Optional existing parameter receiving mouth_form_value. This takes precedence if also present in parameter_ids.</member>
+		<member name="mouth_form_value" type="float" setter="set_mouth_form_value" getter="get_mouth_form_value" default="0.0">Fixed mouth-form value, subject to authored ownership and native bounds.</member>
+		<member name="blend_with_authored" type="bool" setter="set_blend_with_authored" getter="get_blend_with_authored" default="false">Allow envelope additions on parameters currently controlled by motions or expressions. Optional mouth form writes its fixed value when enabled.</member>
+	</members>
+</class>

@@ -20,6 +20,7 @@ class CubismAnimator {
         Csm::CubismMotionQueueEntry entry;
         Ref<CubismMotionHandle> handle;
         std::vector<Event> events;
+        PackedStringArray parameters;
         double time = 0.0;
         double speed = 1.0;
         double period = 0.0;
@@ -30,6 +31,7 @@ class CubismAnimator {
     };
     std::vector<Motion> catalog;
     std::vector<std::unique_ptr<Playback>> playbacks;
+    PackedStringArray authored_parameters;
     void fade(Playback &playback, double seconds, CubismMotionHandle::FinishReason reason);
 public:
     ~CubismAnimator() { clear(CubismMotionHandle::MODEL_DISPOSED); }
@@ -41,5 +43,6 @@ public:
     Ref<CubismMotionHandle> play(InternalCubismUserModel &model, const StringName &id, int priority, bool loop, double speed);
     void stop(double fade_seconds);
     bool update(Csm::CubismModel *model, double delta);
+    bool has_authored_parameter(const String &id) const { return authored_parameters.has(id); }
 };
 #endif

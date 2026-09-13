@@ -39,6 +39,14 @@ func _run() -> void:
 		"Curves": [{"Target": "Parameter", "Id": "ParamEyeLOpen", "Segments": [0.0, 0.25, 0, 1.0, 0.25]},
 			{"Target": "Parameter", "Id": "ParamEyeROpen", "Segments": [0.0, 0.25, 0, 1.0, 0.25]}], "UserData": []})
 	manifest.FileReferences.Motions["Eyes"] = [{"File": "test-eyes.motion3.json", "FadeInTime": 0.0, "FadeOutTime": 0.2}]
+	for group: String in ["Lips", "ModelLips"]:
+		var filename := "test-" + group + ".motion3.json"
+		_write(source.get_base_dir().path_join(filename), {
+			"Version": 3, "Meta": {"Duration": 1.0, "Fps": 20.0, "Loop": true, "AreBeziersRestricted": true,
+				"CurveCount": 1, "TotalSegmentCount": 1, "TotalPointCount": 2, "UserDataCount": 0, "TotalUserDataSize": 0},
+			"Curves": [{"Target": "Parameter" if group == "Lips" else "Model", "Id": "ParamMouthOpenY" if group == "Lips" else "LipSync",
+				"Segments": [0.0, 0.25, 0, 1.0, 0.25]}], "UserData": []})
+		manifest.FileReferences.Motions[group] = [{"File": filename, "FadeInTime": 0.0, "FadeOutTime": 0.2}]
 	var expressions: Array = []
 	for blend: String in ["Add", "Multiply", "Overwrite"]:
 		var filename := "test-" + blend + ".exp3.json"
@@ -46,6 +54,10 @@ func _run() -> void:
 			"Type": "Live2D Expression", "FadeInTime": 0.4, "FadeOutTime": 0.2,
 			"Parameters": [{"Id": "ParamAngleX", "Blend": blend, "Value": 10.0 if blend == "Add" else (2.0 if blend == "Multiply" else -10.0)}]})
 		expressions.append({"Name": blend, "File": filename})
+	_write(source.get_base_dir().path_join("test-mouth.exp3.json"), {
+		"Type": "Live2D Expression", "FadeInTime": 0.0, "FadeOutTime": 0.2,
+		"Parameters": [{"Id": "ParamMouthOpenY", "Blend": "Overwrite", "Value": 0.3}]})
+	expressions.append({"Name": "Mouth", "File": "test-mouth.exp3.json"})
 	manifest.FileReferences.Expressions = expressions
 	_write(source, manifest)
 	var error := CubismModelImporter.import_model(source, "res://imported-model.res")

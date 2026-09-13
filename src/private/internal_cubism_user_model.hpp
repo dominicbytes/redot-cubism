@@ -64,6 +64,7 @@ private:
     Csm::csmMap<Csm::csmString,Csm::CubismMotion*> _map_motion;
     Csm::csmMap<Csm::csmString,PackedByteArray> motion_buffers;
     Csm::csmMap<Csm::csmString,double> motion_fps;
+    Csm::csmMap<Csm::csmString,PackedStringArray> motion_parameters;
     Csm::csmMap<Csm::csmString,PackedByteArray> expression_buffers;
     PackedStringArray expression_ids;
     bool clearing_expression = false;
@@ -103,6 +104,9 @@ public:
     PackedStringArray get_expression_ids() const { return expression_ids; }
     Vector2 look_direction(const Vector2 &local_point) const;
     bool hit_test(const StringName &name, const Vector2 &local_point);
+    PackedStringArray get_lip_sync_ids() const;
+    PackedStringArray get_motion_parameter_ids(const StringName &group, int index) const;
+    bool has_authored_parameter(const String &id) const;
 
     Csm::CubismMotionQueueEntryHandle motion_start(const char* group, const int32_t no, const int32_t priority, const bool loop, const bool loop_fade_in);
     void motion_stop();
