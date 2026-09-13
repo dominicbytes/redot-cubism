@@ -23,9 +23,11 @@ def main():
     parser.add_argument('--graphics', action='store_true')
     parser.add_argument('--motion', action='store_true', help='Prepare and exercise deterministic native motion fixtures')
     parser.add_argument('--audio-timing', action='store_true', help='Measure real 30-second cues at fixed/variable frame rates; requires --motion')
+    parser.add_argument('--examples', action='store_true', help='Exercise VN/RPG scenes in native and selected exports; requires --motion')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     if args.audio_timing and not args.motion: parser.error('--audio-timing requires --motion')
+    if args.examples and not args.motion: parser.error('--examples requires --motion')
     previous = json.loads(args.importer_report.read_text())
     if previous['status'] != 'PASS': parser.error('Requires a passing imported-resource fixture')
     engine = os.environ['REDOT_BIN']
@@ -48,6 +50,13 @@ def main():
         if p.suffix in {'.gd', '.py'} or p.name == '.gdignore': (addon / 'editor' / p.name).write_bytes(p.read_bytes())
     (project / 'model2d_checks.gd').write_bytes((ROOT / 'tests/native/project/model2d_checks.gd').read_bytes())
     (project / 'model2d_render_checks.gd').write_bytes((ROOT / 'tests/native/project/model2d_render_checks.gd').read_bytes())
+    if args.examples:
+        for p in (ROOT / 'demo/addons/gd_cubism/examples').rglob('*'):
+            if p.suffix not in {'.gd', '.tscn'}: continue
+            q = addon / 'examples' / p.relative_to(ROOT / 'demo/addons/gd_cubism/examples')
+            q.parent.mkdir(parents=True, exist_ok=True)
+            q.write_bytes(p.read_bytes())
+        (project / 'character_example_checks.gd').write_bytes((ROOT / 'tests/native/project/character_example_checks.gd').read_bytes())
     if args.motion:
         (project / 'motion_api_checks.gd').write_bytes((ROOT / 'tests/native/project/motion_api_checks.gd').read_bytes())
         (project / 'expression_api_checks.gd').write_bytes((ROOT / 'tests/native/project/expression_api_checks.gd').read_bytes())
@@ -102,6 +111,12 @@ def main():
             execute('native-controller', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://controller_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_PASS')
             execute('native-controller-utilities', [engine, '--headless', '--path', str(project), '--script', 'res://controller_utility_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_UTILITIES_PASS')
             execute('native-controller-state', [engine, '--headless', '--path', str(project), '--script', 'res://controller_state_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_CONTROLLER_STATE_PASS')
+            if args.examples:
+                example_args = ['--prepare-scenes']
+                if args.graphics:
+                    captures = run / 'examples-native'; captures.mkdir()
+                    example_args += ['--captures', str(captures)]
+                execute('native-character-examples', [engine, *hit_flags, '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://character_example_checks.gd', '--quit-after', '10000', '--', *example_args], 'CUBISM_CHARACTER_EXAMPLES_PASS')
             if args.audio_timing:
                 execute('native-controller-audio-timing', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://controller_audio_timing_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_AUDIO_TIMING_PASS')
         execute('native-node', [engine, '--headless', '--path', str(project), '--script', 'res://model2d_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_MODEL2D_PASS')
@@ -113,6 +128,8 @@ def main():
             presets = presets.replace('"res://model2d.tscn",', '"res://controller_checks.gd", "res://model2d.tscn",')
             presets = presets.replace('"res://model2d.tscn",', '"res://controller_utility_checks.gd", "res://model2d.tscn",')
             presets = presets.replace('"res://model2d.tscn",', '"res://controller-state.tscn", "res://controller_state_checks.gd", "res://model2d.tscn",')
+            if args.examples:
+                presets = presets.replace('"res://model2d.tscn",', '"res://example-visual_novel.tscn", "res://example-rpg_dialogue.tscn", "res://character_example_checks.gd", "res://addons/gd_cubism/examples/character_workflows/visual_novel.tscn", "res://addons/gd_cubism/examples/character_workflows/rpg_dialogue.tscn", "res://model2d.tscn",')
             if args.audio_timing:
                 presets = presets.replace('"res://model2d.tscn",', '"res://controller_audio_timing_checks.gd", "res://model2d.tscn",')
             (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://lip-sync.tscn", "res://lip_sync_checks.gd", "res://hit_checks.gd", "res://look_checks.gd", "res://procedural_checks.gd", "res://autoplay.tscn", "res://autoplay_checks.gd", "res://expression_api_checks.gd", "res://motion_api_checks.gd", "res://model2d.tscn",'))
@@ -131,6 +148,12 @@ def main():
                 execute('exported-controller', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://controller_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_PASS', output)
                 execute('exported-controller-utilities', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://controller_utility_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_UTILITIES_PASS', output)
                 execute('exported-controller-state', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://controller_state_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_STATE_PASS', output)
+                if args.examples:
+                    example_args = []
+                    if args.graphics:
+                        captures = run / 'examples-exported'; captures.mkdir()
+                        example_args = ['--', '--captures', str(captures)]
+                    execute('exported-character-examples', [str(output / ('game.exe' if os.name == 'nt' else 'game')), *hit_flags, '--audio-driver', 'Dummy', '--script', 'res://character_example_checks.gd', '--quit-after', '10000', *example_args], 'CUBISM_CHARACTER_EXAMPLES_PASS', output)
                 if args.audio_timing:
                     execute('exported-controller-audio-timing', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://controller_audio_timing_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_AUDIO_TIMING_PASS', output)
             if args.graphics:

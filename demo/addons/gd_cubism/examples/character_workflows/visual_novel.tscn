@@ -1,0 +1,20 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://addons/gd_cubism/examples/character_workflows/visual_novel.gd" id="1_wsgdl"]
+[ext_resource type="Script" path="res://addons/gd_cubism/examples/character_workflows/character_preset.gd" id="2_eg6wq"]
+[ext_resource type="Script" path="res://addons/gd_cubism/examples/character_workflows/demo_ui.gd" id="3_mxtgt"]
+
+[sub_resource type="Resource" id="Resource_486gl"]
+script = ExtResource("2_eg6wq")
+
+[node name="VisualNovel" type="Node2D"]
+script = ExtResource("1_wsgdl")
+character = SubResource("Resource_486gl")
+
+[node name="Model" type="CubismModel2D" parent="."]
+
+[node name="Controller" type="CubismCharacterController" parent="." node_paths=PackedStringArray("target_model")]
+target_model = NodePath("../Model")
+
+[node name="Interface" type="CanvasLayer" parent="."]
+script = ExtResource("3_mxtgt")

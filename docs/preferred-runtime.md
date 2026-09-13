@@ -11,9 +11,11 @@ state and error queries, typed lifecycle signals, idle/physics/manual processing
 speed and pause controls, physics/pose switches, parameter/part IDs, parameter
 writes, part-opacity writes and canvas information. Native motion playback now
 provides IDs/groups, priorities, independent speed/loop state, fades and retained
-handles with deferred events and terminal signals. It does **not yet complete**
-advanced rendering policies or character/audio controller.
-Those remain required work in the canonical plan.
+handles with deferred events and terminal signals. The character/audio controller
+coordinates cues, recorded voice, lip sync and stable checkpoints; see the
+[VN/RPG examples and dialogue integration](dialogue-integration.md).
+Advanced rendering policies and full platform qualification remain required
+work in the canonical plan.
 
 ```gdscript
 var character := CubismModel2D.new()
