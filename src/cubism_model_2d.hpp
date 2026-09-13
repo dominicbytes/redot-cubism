@@ -4,6 +4,7 @@
 
 #include "gd_cubism_user_model.hpp"
 #include "cubism_motion_handle.hpp"
+#include "cubism_speech_handle.hpp"
 #include <map>
 
 // Preferred API. The internal legacy runtime retains native allocation and
@@ -44,6 +45,7 @@ private:
     void on_model_ready();
     void on_model_failed(const Dictionary &error);
     void step(double delta, bool controller = false);
+    void notify_controller(CubismSpeechHandle::FinishReason reason);
     Vector2 hit_target;
     bool hit_target_active = false;
     bool hit_refresh_pending = false;

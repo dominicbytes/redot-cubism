@@ -9,6 +9,7 @@
 
 class CubismCharacterController : public Node {
     GDCLASS(CubismCharacterController, Node)
+    friend class CubismModel2D;
     uint64_t target_id = 0;
     uint64_t generation = 0;
     AudioStreamPlayer *voice = nullptr;
@@ -41,6 +42,7 @@ class CubismCharacterController : public Node {
     Error start_motion();
     void audio_finished() { driver_done = true; }
     void cleanup();
+    void model_unavailable(CubismModel2D *model, CubismSpeechHandle::FinishReason reason);
     void terminate(CubismSpeechHandle::FinishReason reason, Error error = OK, double fade = 0);
     Ref<CubismSpeechHandle> begin(const Ref<AudioStream> &stream, const StringName &motion_id, const StringName &expression_id, const Ref<CubismLipSyncProfile> &profile);
 protected:

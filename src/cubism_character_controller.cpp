@@ -112,6 +112,16 @@ void CubismCharacterController::cleanup() {
     fade_remaining = 0;
 }
 
+void CubismCharacterController::model_unavailable(CubismModel2D *model, CubismSpeechHandle::FinishReason reason) {
+    if (model != get_target_model() || speech.is_null()) return;
+    const Ref<CubismSpeechHandle> ending = speech;
+    // Teardown/reload itself supplies the native motion's terminal reason.
+    // Hiding leaves the model alive, so stop its remaining motion explicitly.
+    if (reason == CubismSpeechHandle::HIDDEN) model->stop_motion(0);
+    cleanup();
+    ending->finish(reason);
+}
+
 void CubismCharacterController::terminate(CubismSpeechHandle::FinishReason reason, Error error, double fade) {
     if (speech.is_null()) return;
     const Ref<CubismSpeechHandle> ending = speech;
@@ -210,7 +220,7 @@ Error CubismCharacterController::advance_model_to(double position) {
         if (!motion_started) next = std::min(next, start_at);
         if (!target->advance_controller_clock(get_instance_id(), next - model_time)) return ERR_UNAVAILABLE;
         model_time = next;
-        if (!is_inside_tree() || is_queued_for_deletion() || target->is_queued_for_deletion() || target->get_runtime_generation() != generation) return ERR_UNAVAILABLE;
+        if (speech.is_null() || !is_inside_tree() || is_queued_for_deletion() || target->is_queued_for_deletion() || target->get_runtime_generation() != generation) return ERR_UNAVAILABLE;
     }
     return OK;
 }

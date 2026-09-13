@@ -411,7 +411,10 @@ known stream duration. A speech handle completes only after both are done.
 Cancellation terminates a handle immediately and only once. `stop_speaking` may
 fade voice and motion for up to 60 seconds before releasing the clock; zero stops
 immediately. Hide, unload/reload, tree exit, target destruction and controller
-destruction terminate outstanding handles with an inspectable reason. Signals are
+destruction terminate outstanding handles with an inspectable reason. Lifecycle
+cancellation also works when controller or scene processing is paused/disabled: the model
+notifies its controller directly on lifecycle changes. Cancellation during a native
+effect callback also stops the controller's remaining catch-up steps. Signals are
 deferred after state changes, and immediate failures are already terminal; always
 check before awaiting. Internal voice/lip children are implementation details.
 
