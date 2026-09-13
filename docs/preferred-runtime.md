@@ -355,6 +355,72 @@ component target. Audio stopping makes a bus-driven envelope release toward sile
 use a zero release or disable the component for immediate removal.
 
 This component does not start audio or maintain audio/motion alignment. The
-character controller, speech handles and audio-clock coordination remain required.
+character controller provides that coordination as described below.
 The lip suite uses known amplitude vectors and generated PCM voices with Dummy
 audio, including two separate buses; no microphone or audio device is required.
+
+## Recorded voice and animation cues
+
+`CubismCharacterController` owns an internal voice player and lip component and
+targets an existing `CubismModel2D`. Its current implementation covers cue clocks
+and retained completion handles. Idle/resume utilities, show/hide transitions,
+saved-state DTOs, and VN/RPG examples remain under development.
+
+```gdscript
+@onready var character: CubismCharacterController = $CharacterController
+
+func say_line(stream: AudioStream) -> void:
+	var speech := character.speak(stream, &"Talk/0", &"Happy")
+	if not speech.is_finished():
+		await speech.finished
+	if speech.get_error() != OK:
+		push_error("Character cue failed: %s" % speech.get_error())
+```
+
+Assign `target_model` and an existing `voice_bus`. A separate bus per character
+keeps envelope sampling isolated. `perform(motion_id, expression_id)` runs the
+same native animation without audio; descriptor `Sound` is never played implicitly.
+`speak` requires an explicit finite prerecorded nonlooping stream. Pass a lip
+profile to enable volume-driven mouth animation, or null to use authored animation.
+Authored mouth curves retain ownership unless that profile explicitly enables
+blending. Changing target interrupts the active cue; a second controller cannot
+claim the same model clock. Invalid IDs are rejected before replacing a valid cue.
+
+During a cue the controller owns manual model advancement at speed 1, subdividing
+steps to at most 0.1 seconds. An external `model.advance()` cannot double advance
+the model. Prior model speed and playback process mode are restored on release.
+Changing model speed during a cue fails it; use controller/target pause instead.
+Controller pause and inherited scene pause stop both clocks. Target pause is
+observed by the controller and also pauses its voice player.
+
+Voiced playback follows the engine's playback position plus time since the last
+mix minus output latency. Small backward jitter up to 0.05 seconds is clamped;
+larger backward jumps terminate with `ERR_UNAVAILABLE`. Catch-up is subdivided and
+bounded to 60 seconds per call. General audio seeking is unsupported: interrupt
+and start a fresh cue to restart. This is estimated audible alignment, not a claim
+of sample-accurate output or measured physical device latency.
+
+`cue_offset_seconds` is set while idle and accepts [-60,60]. Positive values delay
+the motion while voice/effects run; negative values pre-roll the native model
+before starting voice. `perform` ignores the voiced offset. When audio ends first,
+model time continues until the assigned motion finishes; when motion ends first,
+voice continues. The player can discard its clock before emitting `finished`, so
+the controller detects inactive playback and drains the remaining time to the
+known stream duration. A speech handle completes only after both are done.
+
+Cancellation terminates a handle immediately and only once. `stop_speaking` may
+fade voice and motion for up to 60 seconds before releasing the clock; zero stops
+immediately. Hide, unload/reload, tree exit, target destruction and controller
+destruction terminate outstanding handles with an inspectable reason. Signals are
+deferred after state changes, and immediate failures are already terminal; always
+check before awaiting. Internal voice/lip children are implementation details.
+
+For deterministic testing, `manual_process=true` uses `controller.advance(delta)`.
+`manual_audio_clock=true` additionally suppresses audio output and accepts absolute
+timestamps through `submit_audio_clock(position, finished)`. Keep that clock fixed
+while paused. Manual clock mode does not sample an audio bus. The test suite drives
+a 30-second native motion at 15/30/60 fps and checks both handle time and authored
+mouth values against independent curve values. Real generated-audio checks cover
+voice-only lip sync, authored mouth ownership, pause/resume and short-voice endings.
+Long real-audio drift measurements, hardware/platform coverage and complete
+controller workflows are still release requirements.

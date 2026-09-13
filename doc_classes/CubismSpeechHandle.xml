@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismSpeechHandle" inherits="RefCounted" version="4.3">
+	<brief_description>Retained terminal result for a character cue.</brief_description>
+	<description>Owns only status, error and elapsed time; no model pointers. Check is_finished before awaiting finished, including immediately rejected cues. A terminal reason never changes. Completion waits for both voice and assigned motion. Stop/interruption mark the handle terminal immediately, including when an outgoing fade continues.</description>
+	<methods>
+		<method name="is_finished"><return type="bool" /><description>Whether a terminal result is available.</description></method>
+		<method name="get_reason"><return type="int" /><description>Terminal reason, or NONE during playback.</description></method>
+		<method name="get_error"><return type="int" /><description>Error code; OK for successful playback and ordinary cancellation.</description></method>
+		<method name="get_elapsed_seconds"><return type="float" /><description>Evaluated cue time excluding negative-offset pre-roll. Retained after completion.</description></method>
+	</methods>
+	<signals>
+		<signal name="finished"><param index="0" name="reason" type="int" /><description>Emitted once, deferred after a running cue becomes terminal. Immediately rejected cues already have a terminal result.</description></signal>
+	</signals>
+</class>

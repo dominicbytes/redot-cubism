@@ -33,6 +33,12 @@ func _run() -> void:
 			"UserData": events})
 		entries.append({"File": filename, "FadeInTime": 0.0, "FadeOutTime": 0.2})
 	manifest.FileReferences.Motions = {"Cue": entries}
+	_write(source.get_base_dir().path_join("test-long-cue.motion3.json"), {
+		"Version": 3, "Meta": {"Duration": 30.0, "Fps": 60.0, "Loop": false, "AreBeziersRestricted": true,
+			"CurveCount": 2, "TotalSegmentCount": 3, "TotalPointCount": 5, "UserDataCount": 0, "TotalUserDataSize": 0},
+		"Curves": [{"Target": "Parameter", "Id": "ParamAngleX", "Segments": [0.0, 0.0, 0, 30.0, 20.0]},
+			{"Target": "Parameter", "Id": "ParamMouthOpenY", "Segments": [0.0, 0.0, 0, 15.0, 1.0, 0, 30.0, 0.0]}], "UserData": []})
+	manifest.FileReferences.Motions["LongCue"] = [{"File": "test-long-cue.motion3.json", "FadeInTime": 0.0, "FadeOutTime": 0.0}]
 	_write(source.get_base_dir().path_join("test-eyes.motion3.json"), {
 		"Version": 3, "Meta": {"Duration": 1.0, "Fps": 20.0, "Loop": true, "AreBeziersRestricted": true,
 			"CurveCount": 2, "TotalSegmentCount": 2, "TotalPointCount": 4, "UserDataCount": 0, "TotalUserDataSize": 0},

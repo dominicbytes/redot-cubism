@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismCharacterController" inherits="Node" version="4.3">
+	<brief_description>Coordinates recorded voice and native model cues.</brief_description>
+	<description>Under development. Uses one existing CubismModel2D with internal AudioStreamPlayer and CubismLipSync children. Claims the target clock during cues, uses normal model speed and restores prior speed/process settings on release. Controller utilities, saved state and examples remain in development.</description>
+	<methods>
+		<method name="perform"><return type="CubismSpeechHandle" /><param index="0" name="motion_id" type="StringName" /><param index="1" name="expression_id" type="StringName" default="&amp;&quot;&quot;" /><description>Play a nonlooping motion and optional expression without starting audio. Manifest Sound metadata never starts a sound implicitly. Returns an inspectable completion handle.</description></method>
+		<method name="speak"><return type="CubismSpeechHandle" /><param index="0" name="stream" type="AudioStream" /><param index="1" name="motion_id" type="StringName" default="&amp;&quot;&quot;" /><param index="2" name="expression_id" type="StringName" default="&amp;&quot;&quot;" /><param index="3" name="profile" type="CubismLipSyncProfile" default="null" /><description>Coordinate an explicit finite prerecorded stream with optional motion and expression. A nonnull profile enables envelope lip sync; null leaves authored animation alone. Normal speed, nonlooping streams only. Both audio and motion must finish for natural completion.</description></method>
+		<method name="stop_speaking"><return type="void" /><param index="0" name="fade_seconds" type="float" default="0.1" /><description>Stop the current cue. Finite fade in [0,60] controls voice volume and outgoing motion; zero stops immediately. Completion status changes immediately. Pausing freezes an outgoing fade.</description></method>
+		<method name="advance"><return type="void" /><param index="0" name="delta" type="float" /><description>Advance a manually processed controller by finite seconds in [0,60]. Audio-clock mode still uses the selected audio authority. SDK steps are bounded to 0.1 seconds.</description></method>
+		<method name="submit_audio_clock"><return type="int" /><param index="0" name="position_seconds" type="float" /><param index="1" name="finished" type="bool" default="false" /><description>Supply a deterministic audio timestamp in manual_audio_clock mode. Time must be within the stream duration. No audio is started in this simulation mode. A backward jump greater than 0.05 seconds fails the cue on its next update; smaller jitter is clamped. General seeking is unsupported.</description></method>
+		<method name="get_audio_position"><return type="float" /><description>Last monotonic audible-time estimate or submitted manual clock.</description></method>
+		<method name="get_model_time"><return type="float" /><description>Model seconds evaluated by this cue, including negative-offset pre-roll.</description></method>
+		<method name="get_sync_error"><return type="float" /><description>Evaluated model time minus audible estimate and pre-roll during voice playback. This is clock alignment, not measured hardware latency.</description></method>
+		<method name="get_motion_handle"><return type="CubismMotionHandle" /><description>Current or most recently started cue motion handle; null for voice-only cues or before a positive offset starts the motion.</description></method>
+		<method name="is_speaking"><return type="bool" /><description>Whether a nonterminal cue is active, including perform without voice.</description></method>
+	</methods>
+	<members>
+		<member name="target_model" type="CubismModel2D" setter="set_target_model" getter="get_target_model">Target node. Reassigning interrupts a current cue. A second controller cannot claim an already owned clock.</member>
+		<member name="voice_bus" type="StringName" setter="set_voice_bus" getter="get_voice_bus">Existing output bus; use a separate bus per character for envelope isolation. Default Master. Set while idle.</member>
+		<member name="manual_process" type="bool" setter="set_manual_process" getter="get_manual_process" default="false">Use advance instead of automatic idle processing. Set while idle.</member>
+		<member name="manual_audio_clock" type="bool" setter="set_manual_audio_clock" getter="get_manual_audio_clock" default="false">Simulation/test mode: use submitted absolute audio positions, without starting audio or sampling a bus. Set while idle.</member>
+		<member name="paused" type="bool" setter="set_paused" getter="get_paused" default="false">Pause audio and model cue evaluation. Target model pause also freezes the cue. Keep submitting the same timestamp while a manual clock is paused.</member>
+		<member name="cue_offset_seconds" type="float" setter="set_cue_offset_seconds" getter="get_cue_offset_seconds" default="0.0">Finite voiced-motion offset in [-60,60]. Positive delays motion; negative pre-rolls motion before audio. No-audio perform ignores this setting. Set while idle.</member>
+	</members>
+</class>
