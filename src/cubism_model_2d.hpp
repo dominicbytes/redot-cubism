@@ -11,6 +11,7 @@
 // renderer ownership; it is neither exposed nor serialized as a scene child.
 class CubismModel2D : public godot::Node2D {
     GDCLASS(CubismModel2D, godot::Node2D)
+    friend class CubismCharacterController;
 
 public:
     enum PlaybackProcessMode { IDLE, PHYSICS, MANUAL };
@@ -28,6 +29,11 @@ private:
     bool autoplay_started = false;
     bool motion_requested = false;
     bool expression_requested = false;
+    StringName selected_expression;
+    Vector2 requested_look_target;
+    double requested_look_weight = 1.0;
+    bool requested_look_active = false;
+    bool controller_state_available(uint64_t owner) const;
     void start_autoplay(uint64_t expected_generation);
     uint64_t generation = 0;
     uint64_t controller_clock_id = 0;

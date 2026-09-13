@@ -134,6 +134,8 @@ void CubismModel2D::_notification(int what) {
             autoplay_started = false;
             motion_requested = false;
             expression_requested = false;
+            selected_expression = StringName();
+            requested_look_active = false;
             set_process_internal(false);
             set_physics_process_internal(false);
             break;
@@ -173,6 +175,8 @@ Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
     autoplay_started = false;
     motion_requested = false;
     expression_requested = false;
+    selected_expression = StringName();
+    requested_look_active = false;
     if (!load_requested) { runtime->unload_selected_model(); return OK; }
     call_deferred("_emit_load_started", generation);
     runtime->set_model(model);
@@ -185,6 +189,8 @@ void CubismModel2D::unload_model() {
     notify_controller(CubismSpeechHandle::UNLOADED);
     reset_hit_tracking();
     load_requested = false;
+    selected_expression = StringName();
+    requested_look_active = false;
     ++generation;
     runtime->unload_selected_model();
 }
@@ -284,9 +290,15 @@ void CubismModel2D::set_look_target(const Vector2 &local_target, double weight) 
     }
     const Vector2 direction = runtime->internal_model->look_direction(local_target);
     runtime->get_procedural_effects()->set_look_target(direction.x, direction.y, float(weight));
+    requested_look_target = local_target;
+    requested_look_weight = weight;
+    requested_look_active = true;
 }
 
-void CubismModel2D::clear_look_target() { runtime->get_procedural_effects()->clear_look_target(); }
+void CubismModel2D::clear_look_target() {
+    runtime->get_procedural_effects()->clear_look_target();
+    requested_look_active = false;
+}
 
 void CubismModel2D::set_enable_lip_sync(bool value) { runtime->get_procedural_effects()->enable_lip_sync = value; }
 bool CubismModel2D::get_enable_lip_sync() const { return runtime->get_procedural_effects()->enable_lip_sync; }
@@ -389,6 +401,7 @@ Error CubismModel2D::set_expression(const StringName &id, double fade_seconds) {
     const Error result = runtime->internal_model->preferred_expression_set(id, fade_seconds);
     if (result == OK) {
         expression_requested = true;
+        selected_expression = id;
         call_deferred("_expression_changed", id, generation);
     }
     return result;
@@ -404,6 +417,7 @@ void CubismModel2D::clear_expression(double fade_seconds) {
     expression_requested = true;
     if (runtime->is_native_busy()) { call_deferred("_deferred_clear_expression", fade_seconds, generation); return; }
     runtime->internal_model->preferred_expression_clear(fade_seconds);
+    selected_expression = StringName();
     call_deferred("_expression_changed", StringName(), generation);
 }
 
@@ -413,6 +427,10 @@ void CubismModel2D::deferred_clear_expression(double fade_seconds, uint64_t expe
 
 void CubismModel2D::expression_changed(const StringName &id, uint64_t expected_generation) {
     if (generation == expected_generation && is_ready() && !is_queued_for_deletion()) emit_signal("expression_changed", id);
+}
+
+bool CubismModel2D::controller_state_available(uint64_t owner) const {
+    return !runtime->is_native_busy() && (controller_clock_id == 0 || controller_clock_id == owner);
 }
 
 Ref<CubismMotionHandle> CubismModel2D::play_motion(const StringName &id, CubismMotionPriority::Priority priority, bool loop, double speed) {
