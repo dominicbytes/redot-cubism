@@ -44,6 +44,12 @@ private:
     Ref<CubismModelResource> model;
     PlaybackProcessMode playback_process_mode = IDLE;
     bool paused = false;
+    bool debug_draw_bounds = false;
+    bool debug_draw_hit_areas = false;
+    Node2D *debug_overlay = nullptr;
+    void configure_debug_overlay();
+    void queue_debug_redraw();
+    void draw_debug_overlay();
     MaskQuality mask_quality = MASK_MEDIUM;
     int custom_mask_limit = 1024;
     void update_mask_limit();
@@ -95,6 +101,10 @@ protected:
 
 public:
     CubismModel2D();
+    void set_debug_draw_bounds(bool value);
+    bool get_debug_draw_bounds() const { return debug_draw_bounds; }
+    void set_debug_draw_hit_areas(bool value);
+    bool get_debug_draw_hit_areas() const { return debug_draw_hit_areas; }
     void set_mask_quality(MaskQuality value);
     MaskQuality get_mask_quality() const { return mask_quality; }
     void set_custom_mask_limit(int64_t value);

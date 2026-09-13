@@ -104,6 +104,7 @@ public:
     PackedStringArray get_expression_ids() const { return expression_ids; }
     Vector2 look_direction(const Vector2 &local_point) const;
     bool hit_test(const StringName &name, const Vector2 &local_point);
+    Array get_debug_rectangles(bool hit_areas) const;
     PackedStringArray get_lip_sync_ids() const;
     PackedStringArray get_motion_parameter_ids(const StringName &group, int index) const;
     bool has_authored_parameter(const String &id) const;
