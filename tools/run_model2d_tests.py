@@ -50,6 +50,8 @@ def main():
         if p.suffix in {'.gd', '.py'} or p.name == '.gdignore': (addon / 'editor' / p.name).write_bytes(p.read_bytes())
     (project / 'model2d_checks.gd').write_bytes((ROOT / 'tests/native/project/model2d_checks.gd').read_bytes())
     (project / 'model2d_render_checks.gd').write_bytes((ROOT / 'tests/native/project/model2d_render_checks.gd').read_bytes())
+    (project / 'mask_quality_checks.gd').write_bytes((ROOT / 'tests/native/project/mask_quality_checks.gd').read_bytes())
+    (project / 'renderer_transform_checks.gd').write_bytes((ROOT / 'tests/native/project/renderer_transform_checks.gd').read_bytes())
     if args.examples:
         for p in (ROOT / 'demo/addons/gd_cubism/examples').rglob('*'):
             if p.suffix not in {'.gd', '.tscn'}: continue
@@ -124,9 +126,13 @@ def main():
             if args.audio_timing:
                 execute('native-controller-audio-timing', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://controller_audio_timing_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_AUDIO_TIMING_PASS')
         execute('native-node', [engine, '--headless', '--path', str(project), '--script', 'res://model2d_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_MODEL2D_PASS')
+        if args.graphics:
+            execute('native-mask-quality', [engine, *hit_flags, '--path', str(project), '--script', 'res://mask_quality_checks.gd', '--quit-after', '10000'], 'CUBISM_MASK_QUALITY_PASS')
         template = json.dumps(str(args.template.resolve()))
         (project / 'export_presets.cfg').write_text('[preset.0]\nname="Model2D"\nplatform="' + ('Windows Desktop' if os.name == 'nt' else 'Linux') + '"\nrunnable=true\nexport_path=""\nexport_filter="resources"\nexport_files=PackedStringArray("res://model2d.tscn", "res://model2d_checks.gd", "res://model2d_render_checks.gd")\ninclude_filter=""\nexclude_filter=""\nscript_export_mode=2\n[preset.0.options]\ncustom_template/debug=' + template + '\ncustom_template/release=' + template + '\nbinary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
         output = run / 'export'
+        presets = (project / 'export_presets.cfg').read_text()
+        (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://renderer_transform_checks.gd", "res://mask_quality_checks.gd", "res://model2d.tscn",'))
         if args.motion:
             presets = (project / 'export_presets.cfg').read_text()
             presets = presets.replace('"res://model2d.tscn",', '"res://controller_checks.gd", "res://model2d.tscn",')
@@ -165,6 +171,7 @@ def main():
                 if args.audio_timing:
                     execute('exported-controller-audio-timing', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://controller_audio_timing_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_AUDIO_TIMING_PASS', output)
             if args.graphics:
+                execute('exported-mask-quality', [str(output / ('game.exe' if os.name == 'nt' else 'game')), *hit_flags, '--script', 'res://mask_quality_checks.gd', '--quit-after', '10000'], 'CUBISM_MASK_QUALITY_PASS', output)
                 captures = run / 'captures'; captures.mkdir()
                 command = [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--rendering-method', 'gl_compatibility', '--audio-driver', 'Dummy', '--script', 'res://model2d_render_checks.gd', '--quit-after', '1000']
                 if os.name != 'nt': command += ['--display-driver', 'x11']
