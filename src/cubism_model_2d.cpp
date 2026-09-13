@@ -66,6 +66,13 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_enable_pose", "value"), &CubismModel2D::set_enable_pose);
     ClassDB::bind_method(D_METHOD("get_enable_pose"), &CubismModel2D::get_enable_pose);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_pose"), "set_enable_pose", "get_enable_pose");
+    ADD_GROUP("Rendering", "");
+    ClassDB::bind_method(D_METHOD("set_mask_quality", "value"), &CubismModel2D::set_mask_quality);
+    ClassDB::bind_method(D_METHOD("get_mask_quality"), &CubismModel2D::get_mask_quality);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "mask_quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Custom"), "set_mask_quality", "get_mask_quality");
+    ClassDB::bind_method(D_METHOD("set_custom_mask_limit", "value"), &CubismModel2D::set_custom_mask_limit);
+    ClassDB::bind_method(D_METHOD("get_custom_mask_limit"), &CubismModel2D::get_custom_mask_limit);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "custom_mask_limit", PROPERTY_HINT_RANGE, "2,4096"), "set_custom_mask_limit", "get_custom_mask_limit");
     ClassDB::bind_method(D_METHOD("advance", "delta"), &CubismModel2D::advance);
     ClassDB::bind_method(D_METHOD("play_motion", "motion_id", "priority", "loop", "speed"), &CubismModel2D::play_motion, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
     ClassDB::bind_method(D_METHOD("play_motion_from_group", "group", "index", "priority", "loop", "speed"), &CubismModel2D::play_motion_from_group, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
@@ -110,6 +117,8 @@ void CubismModel2D::_bind_methods() {
     BIND_ENUM_CONSTANT(LAYER_BASE); BIND_ENUM_CONSTANT(LAYER_MOTION); BIND_ENUM_CONSTANT(LAYER_EXPRESSION);
     BIND_ENUM_CONSTANT(LAYER_EFFECT); BIND_ENUM_CONSTANT(LAYER_PHYSICS); BIND_ENUM_CONSTANT(LAYER_POSE);
     BIND_ENUM_CONSTANT(LAYER_POST_EFFECT);
+    BIND_ENUM_CONSTANT(MASK_LOW); BIND_ENUM_CONSTANT(MASK_MEDIUM);
+    BIND_ENUM_CONSTANT(MASK_HIGH); BIND_ENUM_CONSTANT(MASK_CUSTOM);
 }
 
 CubismModel2D::CubismModel2D() {
@@ -117,10 +126,30 @@ CubismModel2D::CubismModel2D() {
     runtime->enable_preferred_animation();
     runtime->set_name("CubismRuntime");
     runtime->set_process_callback(GDCubismUserModel::MANUAL);
+    update_mask_limit();
     add_child(runtime, false, Node::INTERNAL_MODE_BACK);
     runtime->connect("model_ready", callable_mp(this, &CubismModel2D::on_model_ready));
     runtime->connect("model_failed", callable_mp(this, &CubismModel2D::on_model_failed));
     set_playback_process_mode(IDLE);
+}
+
+void CubismModel2D::update_mask_limit() {
+    const int limits[] = {512, 1024, 2048, custom_mask_limit};
+    runtime->set_mask_viewport_size(limits[mask_quality]);
+}
+
+void CubismModel2D::set_mask_quality(MaskQuality value) {
+    if (value < MASK_LOW || value > MASK_CUSTOM) {
+        emit_signal("runtime_warning", ERR_INVALID_PARAMETER, "Invalid Cubism mask quality.");
+        return;
+    }
+    mask_quality = value;
+    update_mask_limit();
+}
+
+void CubismModel2D::set_custom_mask_limit(int64_t value) {
+    custom_mask_limit = int(CLAMP(value, int64_t(2), int64_t(4096)));
+    update_mask_limit();
 }
 
 void CubismModel2D::_notification(int what) {

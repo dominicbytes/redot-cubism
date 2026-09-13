@@ -18,6 +18,7 @@
 #include <private/internal_cubism_renderer_2d.hpp>
 #include <private/internal_cubism_renderer_resource.hpp>
 #include <private/internal_cubism_user_model.hpp>
+#include "cubism_mask_size.hpp"
 #include <algorithm>
 #include <vector>
 
@@ -258,6 +259,15 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
         aabb = aabb.grow(4.0);  // adds padding around the mask for safety
         Rect2 bounds(aabb.position.x, aabb.position.y, aabb.size.x, aabb.size.y);
 
+        CubismMaskSize mask_size;
+        if (!bounds.position.is_finite() || !cubism_mask_size(bounds.size.x, bounds.size.y, mask_viewport_size, mask_size)) {
+            mask->set_update_mode(SubViewport::UPDATE_DISABLED);
+            mask->set_size(Vector2i(2, 2));
+            continue;
+        }
+        // Apply the allocation limit even when this composition is offscreen.
+        mask->set_size(Vector2i(mask_size.width, mask_size.height));
+
         // detect if the canvas item is going to be culled
         // only cull viewports when not looking at the model in the editor
         Rect2 bounds_in_viewport = viewport_transform.xform(bounds);
@@ -275,23 +285,10 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
             continue;
         }
 
-        Vector2 mask_size = bounds.size;
-        double scalar = 1.0;
-        if (mask_viewport_size > 0) {
-            if (mask_size.x > mask_viewport_size || mask_size.y > mask_viewport_size) {
-                scalar = mask_viewport_size / Math::max(mask_size.x, mask_size.y);
-                Vector2 ratio = Vector2(
-                    Math::min(1.0f, mask_size.x / mask_size.y),
-                    Math::min(1.0f, mask_size.y / mask_size.x)
-                );
-                mask_size = Vector2(mask_viewport_size, mask_viewport_size) * ratio;
-            }
-        }
-
+        const double scalar = mask_size.scale;
         Vector2 viewport_offset = bounds.position;
         Transform2D transform = Transform2D(0, -viewport_offset);
         transform.scale(Vector2(scalar, scalar));
-        mask->set_size(mask_size);
         mask->set_canvas_transform(transform);
 
         Array meshes = res.dict_mask_meshes[mask_name];

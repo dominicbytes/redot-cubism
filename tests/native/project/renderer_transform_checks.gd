@@ -23,7 +23,8 @@ static func run(host: Node, fixture: Dictionary) -> bool:
 	model.pose_update = false
 	model.mask_viewport_size = 128
 	parent.add_child(model)
-	model.assets = fixture.model
+	if fixture.has("resource"): model.model = fixture.resource
+	else: model.assets = fixture.model
 	if not model.is_initialized():
 		viewport.free()
 		return false

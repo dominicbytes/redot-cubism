@@ -17,6 +17,20 @@ coordinates cues, recorded voice, lip sync and stable checkpoints; see the
 Advanced rendering policies and full platform qualification remain required
 work in the canonical plan.
 
+`mask_quality` selects `MASK_LOW` (512), `MASK_MEDIUM` (1024, default),
+`MASK_HIGH` (2048), or `MASK_CUSTOM` (`custom_mask_limit`, clamped to 2–4096).
+These are maximum texture dimensions per mask composition, not a total memory
+budget. Small masks retain their native local pixel resolution; larger masks
+scale down uniformly. Integer dimensions round outward, with a two-pixel minimum
+and transparent padding for very thin bounds. Geometry is never stretched
+independently along X/Y. Invalid bounds disable that mask viewport.
+Settings are saved with the node, survive reload, and apply on its next evaluation.
+Invalid quality values emit `runtime_warning` and preserve the previous setting.
+The legacy node's zero `mask_viewport_size` still requests native resolution,
+now subject to a 4096-pixel safety cap; positive limits are clamped to 2–4096.
+This establishes bounded allocation. Screen-scale adaptation and selectable
+offscreen update policies are still pending.
+
 ```gdscript
 var character := CubismModel2D.new()
 character.playback_process_mode = CubismModel2D.MANUAL

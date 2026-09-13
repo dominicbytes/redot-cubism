@@ -19,6 +19,7 @@ class CubismModel2D : public godot::Node2D {
 public:
     enum PlaybackProcessMode { IDLE, PHYSICS, MANUAL };
     enum ModelState { UNLOADED, LOADING, READY, ERROR, DISPOSING, DISPOSED };
+    enum MaskQuality { MASK_LOW, MASK_MEDIUM, MASK_HIGH, MASK_CUSTOM };
     enum ParameterLayer {
         LAYER_BASE = GDCubismUserModel::WRITE_BASE,
         LAYER_MOTION = GDCubismUserModel::WRITE_MOTION,
@@ -42,6 +43,9 @@ private:
     Ref<CubismModelResource> model;
     PlaybackProcessMode playback_process_mode = IDLE;
     bool paused = false;
+    MaskQuality mask_quality = MASK_MEDIUM;
+    int custom_mask_limit = 1024;
+    void update_mask_limit();
     bool load_requested = false;
     bool autoplay = false;
     StringName default_motion;
@@ -90,6 +94,10 @@ protected:
 
 public:
     CubismModel2D();
+    void set_mask_quality(MaskQuality value);
+    MaskQuality get_mask_quality() const { return mask_quality; }
+    void set_custom_mask_limit(int64_t value);
+    int64_t get_custom_mask_limit() const { return custom_mask_limit; }
     void set_model(const Ref<CubismModelResource> &resource) { load_model(resource); }
     Ref<CubismModelResource> get_model() const { return model; }
     void set_autoplay(bool value) { autoplay = value; }
@@ -158,4 +166,5 @@ public:
 VARIANT_ENUM_CAST(CubismModel2D::PlaybackProcessMode);
 VARIANT_ENUM_CAST(CubismModel2D::ModelState);
 VARIANT_ENUM_CAST(CubismModel2D::ParameterLayer);
+VARIANT_ENUM_CAST(CubismModel2D::MaskQuality);
 #endif

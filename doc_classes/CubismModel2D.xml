@@ -34,6 +34,10 @@
 		<signal name="hit_area_exited"><param index="0" name="hit_area" type="StringName" /><description>Deferred transition out of a previously entered area, including target clear and model unload. Destruction does not promise further callbacks.</description></signal>
 	</signals>
 	<constants>
+		<constant name="MASK_LOW" value="0" enum="MaskQuality">Limit each mask texture dimension to 512 pixels.</constant>
+		<constant name="MASK_MEDIUM" value="1" enum="MaskQuality">Limit each mask texture dimension to 1024 pixels. Default.</constant>
+		<constant name="MASK_HIGH" value="2" enum="MaskQuality">Limit each mask texture dimension to 2048 pixels. Opt in when needed.</constant>
+		<constant name="MASK_CUSTOM" value="3" enum="MaskQuality">Use custom_mask_limit.</constant>
 		<constant name="LAYER_BASE" value="0" enum="ParameterLayer">After loading saved parameters, before motion. Its result can enter the saved primary state.</constant>
 		<constant name="LAYER_MOTION" value="1" enum="ParameterLayer">After motion, before saving primary parameters and applying expression. Its result can persist in the saved primary state.</constant>
 		<constant name="LAYER_EXPRESSION" value="2" enum="ParameterLayer">After expression, before procedural and custom effects.</constant>
@@ -43,6 +47,8 @@
 		<constant name="LAYER_POST_EFFECT" value="6" enum="ParameterLayer">Final parameter overrides before Core drawable update. Default layer; does not alter the saved primary parameters.</constant>
 	</constants>
 	<members>
+		<member name="mask_quality" type="int" setter="set_mask_quality" getter="get_mask_quality" enum="CubismModel2D.MaskQuality" default="1">Maximum per-composition mask texture dimensions. Uses local model pixel bounds, uniform downscaling and outward integer rounding; small masks are not enlarged to fill the limit. Changes apply on the next model evaluation and survive reload. Invalid enum values emit runtime_warning and retain the previous quality.</member>
+		<member name="custom_mask_limit" type="int" setter="set_custom_mask_limit" getter="get_custom_mask_limit" default="1024">Custom maximum dimension in pixels, clamped to [2,4096]. Used only with MASK_CUSTOM. Both settings are saved with the node. This limits each mask separately, not total model memory.</member>
 		<member name="enable_lip_sync" type="bool" setter="set_enable_lip_sync" getter="get_enable_lip_sync" default="true">Apply an attached CubismLipSync component. With no component this has no effect. Disabling releases influence and freezes its envelope. Model pause also freezes the component.</member>
 		<member name="enable_look_target" type="bool" setter="set_enable_look_target" getter="get_enable_look_target" default="true">Apply a target only after set_look_target is called. Disabling releases influence and freezes smoothing. The flag is saved, but targets are transient.</member>
 		<member name="deterministic_seed" type="int" setter="set_deterministic_seed" getter="get_deterministic_seed" default="0">Instance-owned blink RNG seed. Setting it resets blink timing, without changing process-global random state or resetting breath.</member>

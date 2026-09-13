@@ -29,6 +29,7 @@ func _run() -> void:
 				node = model
 			else:
 				var model := GDCubismUserModel.new()
+				model.mask_viewport_size = 1024 # Match the preferred node's medium default.
 				model.playback_process_mode = GDCubismUserModel.MANUAL
 				model.physics_evaluate = false
 				if pose in ["motion", "expression", "expression-clear", "blink-closed", "breath", "look", "look-transformed", "lip-sync"]: model.pose_update = false
