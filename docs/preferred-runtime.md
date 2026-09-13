@@ -62,7 +62,7 @@ between layers. Set/add/multiply select the blend operation explicitly. Later
 native systems can overwrite early-layer values. The BASE and MOTION layers feed
 the native saved primary parameters, so their result can survive later frames
 without repeating the write. Later layers leave the saved primary state alone.
-This is not an AnimationPlayer track-conversion or custom-effect priority API.
+This is separate from AnimationPlayer track conversion and the custom-effect API.
 
 Each queued operation is consumed once. A batch is captured before evaluation:
 writes submitted by a synchronous custom-effect callback, or a deferred motion
@@ -82,6 +82,47 @@ Part opacity remains at POST_EFFECT and is clamped to `[0,1]`. The shared queue
 allows 100,000 pending operations across all layers and part-opacity writes;
 exceeding it reports `ERR_OUT_OF_MEMORY`. Processing or clearing writes releases
 their share of the budget.
+
+## Custom effects
+
+Add a `CubismEffect` directly under the preferred model and connect its
+`effect_process(model, delta)` signal. The signal runs synchronously after lip
+sync and before queued EFFECT-layer writes, physics and pose. Read current stage
+values through `model.get_parameter_value()`; use the effect's own
+`set_parameter_value`, `add_parameter_value` or `multiply_parameter_value` for
+immediate changes at this stage. Their finite-value, weight and clamping rules
+match the corresponding model methods.
+
+```gdscript
+func _on_effect_process(model: CubismModel2D, _delta: float) -> void:
+    if model.has_parameter(&"ParamAngleX"):
+        $Character/HeadBias.add_parameter_value(&"ParamAngleX", 3.0)
+```
+
+Here `HeadBias` is the connected effect node. Lower `effect_priority` values run
+first. Equal priorities sort by case-sensitive node name. Give runtime-created
+siblings stable explicit names to make ties reproducible. Child insertion order
+and object allocation IDs do not order the effects. Each operation still blends
+in callback order; later writers may replace earlier results.
+
+Each model captures effect membership, enabled flags, names and priorities at
+the beginning of its step. Changes during a callback take effect next step.
+Removing/reparenting an effect, queueing its deletion or disabling its Node
+process mode skips it immediately if its callback has not yet started. A model
+reload/unload stops the remaining callbacks for the old model. Model pause and
+speed apply normally. Effects do not need an independent `_process()` method.
+
+An effect can write only during its own active callback. It cannot write for
+another effect or keep write access after returning or awaiting. Reparenting,
+queued deletion and model reload/unload invalidate write access. Use the model's
+queued parameter methods when writing outside the effect stage; those always
+wait until the next step, including when called from this signal.
+
+Legacy `GDCubismEffectCustom` nodes still belong under `GDCubismUserModel`; their
+init/term/prologue/process/epilogue order and direct parameter setters are
+unchanged. Do not reach into the preferred model's hidden runtime to attach
+legacy effects. Port a custom parameter adjustment to the public effect callback
+instead, and use ordinary Node lifecycle methods for scene-owned setup/cleanup.
 
 `tools/run_model2d_tests.py` uses the private Haru imported fixture. It checks
 resource lifetime, parameters, signals, pause and native processing, then loads

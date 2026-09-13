@@ -25,6 +25,7 @@
 #include <memory>
 class CubismAnimator;
 class CubismProceduralEffects;
+class CubismModel2D;
 
 
 // ------------------------------------------------------------------ define(s)
@@ -159,6 +160,8 @@ private:
     std::unique_ptr<CubismAnimator> preferred_animator;
     std::unique_ptr<CubismProceduralEffects> preferred_effects;
     struct ParameterWrite { int index; double value; double weight; int operation; };
+    friend class CubismModel2D;
+    void apply_parameter_write(const ParameterWrite &write);
     std::array<std::vector<ParameterWrite>, WRITE_LAYER_COUNT> parameter_writes;
     std::array<size_t, WRITE_LAYER_COUNT> step_parameter_writes = {};
     size_t queued_parameter_writes = 0;

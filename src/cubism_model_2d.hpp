@@ -12,6 +12,9 @@
 class CubismModel2D : public godot::Node2D {
     GDCLASS(CubismModel2D, godot::Node2D)
     friend class CubismCharacterController;
+    friend class CubismEffect;
+    friend class GDCubismUserModel;
+    friend class InternalCubismUserModel;
 
 public:
     enum PlaybackProcessMode { IDLE, PHYSICS, MANUAL };
@@ -27,6 +30,14 @@ public:
     };
 
 private:
+    struct CustomEffect { uint64_t id; uint64_t revision; int64_t priority; String name; };
+    std::vector<CustomEffect> custom_effects;
+    uint64_t custom_effect_generation = 0;
+    uint64_t active_custom_effect = 0;
+    uint64_t active_custom_effect_revision = 0;
+    void begin_custom_effects();
+    void apply_custom_effects(double delta);
+    Error write_custom_effect(uint64_t effect, uint64_t revision, const StringName &id, double value, double weight, int operation);
     GDCubismUserModel *runtime = nullptr;
     Ref<CubismModelResource> model;
     PlaybackProcessMode playback_process_mode = IDLE;

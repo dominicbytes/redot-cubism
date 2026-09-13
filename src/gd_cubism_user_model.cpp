@@ -21,6 +21,7 @@
 #include <gd_cubism_user_model.hpp>
 #include <cubism_animator.hpp>
 #include <cubism_procedural_effects.hpp>
+#include <cubism_model_2d.hpp>
 #include <cmath>
 #include <set>
 
@@ -579,6 +580,9 @@ void GDCubismUserModel::_update(const double delta) {
         return;
     }
     const double step = MIN(delta * this->speed_scale, 0.1);
+    if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
+        if (preferred->runtime == this) preferred->begin_custom_effects();
+    }
     // Freeze the batch before any native/custom callback. Writes submitted
     // during evaluation belong to the next step, regardless of their layer.
     for (size_t layer = 0; layer < parameter_writes.size(); ++layer) {
@@ -953,26 +957,29 @@ double GDCubismUserModel::evaluated_parameter(int index) const {
 }
 
 void GDCubismUserModel::apply_parameter_writes(WriteLayer layer) {
-    Csm::CubismModel *model = internal_model->GetModel();
     auto &writes = parameter_writes[layer];
     const size_t count = step_parameter_writes[layer];
     for (size_t index = 0; index < count; ++index) {
-        const auto &write = writes[index];
-        if (write.operation == 3) {
-            model->SetPartOpacity(write.index, float(write.value));
-            continue;
-        }
-        const double current = model->GetParameterValue(write.index);
-        double value = write.value;
-        if (write.operation == 0) value = current * (1.0 - write.weight) + value * write.weight;
-        else if (write.operation == 1) value = current + value * write.weight;
-        else value = current * (1.0 + (value - 1.0) * write.weight);
-        value = CLAMP(value, double(model->GetParameterMinimumValue(write.index)), double(model->GetParameterMaximumValue(write.index)));
-        model->SetParameterValue(write.index, float(value));
+        apply_parameter_write(writes[index]);
     }
     queued_parameter_writes -= count;
     writes.erase(writes.begin(), writes.begin() + count);
     step_parameter_writes[layer] = 0;
+}
+
+void GDCubismUserModel::apply_parameter_write(const ParameterWrite &write) {
+    Csm::CubismModel *model = internal_model->GetModel();
+    if (write.operation == 3) {
+        model->SetPartOpacity(write.index, float(write.value));
+        return;
+    }
+    const double current = model->GetParameterValue(write.index);
+    double value = write.value;
+    if (write.operation == 0) value = current * (1.0 - write.weight) + value * write.weight;
+    else if (write.operation == 1) value = current + value * write.weight;
+    else value = current * (1.0 + (value - 1.0) * write.weight);
+    value = CLAMP(value, double(model->GetParameterMinimumValue(write.index)), double(model->GetParameterMaximumValue(write.index)));
+    model->SetParameterValue(write.index, float(value));
 }
 
 void GDCubismUserModel::unload_model() {
