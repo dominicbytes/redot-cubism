@@ -218,12 +218,38 @@ void CubismModel2D::set_playback_process_mode(PlaybackProcessMode mode) {
     set_physics_process_internal(mode == PHYSICS);
 }
 
-void CubismModel2D::step(double delta) {
+void CubismModel2D::step(double delta, bool controller) {
+    if (controller_clock_id && !controller) return;
     if (!paused && is_ready() && is_inside_tree() && can_process()) runtime->advance(delta);
     if (hit_target_active || !hovered_hit_areas.is_empty()) queue_hit_refresh();
 }
 
 void CubismModel2D::advance(double delta) { if (playback_process_mode == MANUAL) step(delta); }
+
+Error CubismModel2D::claim_controller_clock(uint64_t controller) {
+    if (runtime->is_native_busy() || is_queued_for_deletion()) return ERR_BUSY;
+    if (controller_clock_id && controller_clock_id != controller && ObjectDB::get_instance(controller_clock_id)) return ERR_ALREADY_IN_USE;
+    if (controller_clock_id == controller) return OK;
+    before_controller_mode = playback_process_mode;
+    before_controller_speed = get_speed_scale();
+    controller_clock_id = controller;
+    set_playback_process_mode(MANUAL);
+    set_speed_scale(1);
+    return OK;
+}
+
+void CubismModel2D::release_controller_clock(uint64_t controller) {
+    if (controller_clock_id != controller) return;
+    controller_clock_id = 0;
+    set_playback_process_mode(before_controller_mode);
+    set_speed_scale(before_controller_speed);
+}
+
+bool CubismModel2D::advance_controller_clock(uint64_t controller, double delta) {
+    if (controller_clock_id != controller || runtime->is_native_busy() || paused || !is_ready() || !is_inside_tree() || !can_process()) return false;
+    step(delta, true);
+    return true;
+}
 
 void CubismModel2D::set_enable_eye_blink(bool value) { runtime->get_procedural_effects()->enable_eye_blink = value; }
 bool CubismModel2D::get_enable_eye_blink() const { return runtime->get_procedural_effects()->enable_eye_blink; }

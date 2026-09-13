@@ -4,6 +4,7 @@
     "ArrayMesh",
     "AudioStream",
     "AudioServer",
+    "AudioStreamPlayer",
     "Button",
     "CanvasGroup",
     "CanvasItem",

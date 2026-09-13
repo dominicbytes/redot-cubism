@@ -29,6 +29,9 @@ private:
     bool expression_requested = false;
     void start_autoplay(uint64_t expected_generation);
     uint64_t generation = 0;
+    uint64_t controller_clock_id = 0;
+    PlaybackProcessMode before_controller_mode = IDLE;
+    float before_controller_speed = 1;
     std::map<int64_t, Ref<CubismMotionHandle>> motions;
     void motion_started(const Ref<CubismMotionHandle> &handle);
     void motion_event(const String &value, int64_t id);
@@ -40,7 +43,7 @@ private:
     void emit_load_started(uint64_t expected_generation);
     void on_model_ready();
     void on_model_failed(const Dictionary &error);
-    void step(double delta);
+    void step(double delta, bool controller = false);
     Vector2 hit_target;
     bool hit_target_active = false;
     bool hit_refresh_pending = false;
@@ -102,6 +105,10 @@ public:
     Error attach_lip_sync(uint64_t component);
     void detach_lip_sync(uint64_t component);
     void advance(double delta);
+    uint64_t get_runtime_generation() const { return generation; }
+    Error claim_controller_clock(uint64_t controller);
+    void release_controller_clock(uint64_t controller);
+    bool advance_controller_clock(uint64_t controller, double delta);
     Ref<CubismMotionHandle> play_motion(const StringName &id, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
     Ref<CubismMotionHandle> play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
     void stop_motion(double fade_seconds = -1.0);

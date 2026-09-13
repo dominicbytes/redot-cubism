@@ -30,7 +30,7 @@ func _initialize() -> void:
 func _run() -> void:
 	resource = load("res://imported-model.res") as CubismModelResource
 	var node := model()
-	expect(node.get_motion_ids() == PackedStringArray(["Cue/0", "Cue/1", "Eyes/0", "Lips/0", "ModelLips/0"]), "stable motion catalog")
+	expect(node.get_motion_ids() == PackedStringArray(["Cue/0", "Cue/1", "Eyes/0", "Lips/0", "LongCue/0", "ModelLips/0"]), "stable motion catalog")
 	var rejected := node.play_motion(&"missing")
 	expect(rejected.is_finished() and rejected.get_reason() == CubismMotionHandle.FAILED and rejected.get_error() == ERR_DOES_NOT_EXIST, "missing motion terminal failure")
 	expect(node.play_motion_from_group(&"Cue", -1).get_error() == ERR_DOES_NOT_EXIST, "invalid group index")
