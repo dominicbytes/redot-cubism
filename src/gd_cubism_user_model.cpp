@@ -883,6 +883,7 @@ void GDCubismUserModel::_get_property_list(List<godot::PropertyInfo> *p_list) {
 }
 
 void GDCubismUserModel::clear(GDCubismMotionQueueEntryHandle::FinishReason reason) {
+    post_effect_writes.clear();
     if (disposing) return;
     if (native_busy) {
         pending_unload = true;
@@ -918,9 +919,43 @@ void GDCubismUserModel::clear(GDCubismMotionQueueEntryHandle::FinishReason reaso
     if (pending_load && !destroying) call_deferred("_apply_pending_operation");
 }
 
+Error GDCubismUserModel::queue_post_effect_write(int index, double value, double weight, int operation) {
+    if (post_effect_writes.size() >= 100000) return ERR_OUT_OF_MEMORY;
+    post_effect_writes.push_back({index, value, weight, operation});
+    return OK;
+}
+
+double GDCubismUserModel::evaluated_parameter(int index) const {
+    return internal_model->GetModel()->GetParameterValue(index);
+}
+
+void GDCubismUserModel::apply_post_effect_writes() {
+    Csm::CubismModel *model = internal_model->GetModel();
+    for (const auto &write : post_effect_writes) {
+        if (write.operation == 3) {
+            model->SetPartOpacity(write.index, float(write.value));
+            continue;
+        }
+        const double current = model->GetParameterValue(write.index);
+        double value = write.value;
+        if (write.operation == 0) value = current * (1.0 - write.weight) + value * write.weight;
+        else if (write.operation == 1) value = current + value * write.weight;
+        else value = current * (1.0 + (value - 1.0) * write.weight);
+        value = CLAMP(value, double(model->GetParameterMinimumValue(write.index)), double(model->GetParameterMaximumValue(write.index)));
+        model->SetParameterValue(write.index, float(value));
+    }
+    post_effect_writes.clear();
+}
+
 void GDCubismUserModel::unload_model() {
     clear();
     last_error.clear();
+}
+
+void GDCubismUserModel::unload_selected_model() {
+    assets = String();
+    model_resource.unref();
+    unload_model();
 }
 
 void GDCubismUserModel::update_mask_visibility() {

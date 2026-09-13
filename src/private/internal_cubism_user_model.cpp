@@ -358,6 +358,7 @@ void InternalCubismUserModel::epi_update(const double delta) {
         if(this->_pose != nullptr) { this->_pose->UpdateParameters(this->_model, delta); }
     }
 
+    this->_owner_viewport->apply_post_effect_writes();
     this->_model->Update();
     this->effect_batch(delta, EFFECT_CALL_EPILOGUE);
 }

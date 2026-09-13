@@ -2,7 +2,7 @@
 
 Assign a `CubismModelResource` to `GDCubismUserModel.model`. This bridges the
 importer to the existing renderer and motion/expression APIs while the preferred
-`CubismModel2D` API is being implemented. Assigning `assets` selects legacy loading
+[`CubismModel2D` API](preferred-runtime.md) is being implemented. Assigning `assets` selects legacy loading
 and clears `model`; assigning `model` clears `assets`. Tree exit unloads native
 state, and reentry reloads the selected source. Explicit reassignment reloads the
 model. Requests made during native loading are deferred through the existing
