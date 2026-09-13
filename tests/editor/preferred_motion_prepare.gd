@@ -33,6 +33,14 @@ func _run() -> void:
 			"UserData": events})
 		entries.append({"File": filename, "FadeInTime": 0.0, "FadeOutTime": 0.2})
 	manifest.FileReferences.Motions = {"Cue": entries}
+	var expressions: Array = []
+	for blend: String in ["Add", "Multiply", "Overwrite"]:
+		var filename := "test-" + blend + ".exp3.json"
+		_write(source.get_base_dir().path_join(filename), {
+			"Type": "Live2D Expression", "FadeInTime": 0.4, "FadeOutTime": 0.2,
+			"Parameters": [{"Id": "ParamAngleX", "Blend": blend, "Value": 10.0 if blend == "Add" else (2.0 if blend == "Multiply" else -10.0)}]})
+		expressions.append({"Name": blend, "File": filename})
+	manifest.FileReferences.Expressions = expressions
 	_write(source, manifest)
 	var error := CubismModelImporter.import_model(source, "res://imported-model.res")
 	if error != OK:

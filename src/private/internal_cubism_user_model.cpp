@@ -12,6 +12,7 @@
 #include <cubism_manifest_parser.hpp>
 #include <private/redot_cubism_model_setting.hpp>
 #include <cmath>
+#include <algorithm>
 
 #ifdef GD_CUBISM_USE_RENDERER_2D
     #include <private/internal_cubism_renderer_2d.hpp>
@@ -325,7 +326,26 @@ void InternalCubismUserModel::pro_update(const double delta) {
     }
 
     if(this->_expressionManager != nullptr) {
+        std::vector<float> primary;
+        if (blending_expression) {
+            primary.reserve(_model->GetParameterCount());
+            for (int i = 0; i < _model->GetParameterCount(); ++i) primary.push_back(_model->GetParameterValue(i));
+        }
         this->_expressionManager->UpdateMotion(this->_model, delta);
+        if (blending_expression) {
+            if (!expression_blend_first_step) expression_blend_elapsed += delta;
+            expression_blend_first_step = false;
+            const double progress = std::min(1.0, expression_blend_elapsed / expression_blend_duration);
+            const double eased = 0.5 - 0.5 * std::cos(progress * 3.14159265358979323846);
+            expression_blend_weight = expression_blend_start + ((clearing_expression ? 0.0 : 1.0) - expression_blend_start) * eased;
+            for (int i = 0; i < _model->GetParameterCount(); ++i) {
+                _model->SetParameterValue(i, float(primary[i] + (_model->GetParameterValue(i) - primary[i]) * expression_blend_weight));
+            }
+            if (progress >= 1.0) {
+                blending_expression = false;
+                if (clearing_expression) reset_expression_manager();
+            }
+        }
     }
 
     this->_model->GetModelOpacity();
@@ -395,6 +415,10 @@ void InternalCubismUserModel::clear() {
             ACubismMotion::Delete(i->Second);
         }
         this->_map_expression.Clear();
+        expression_buffers.Clear();
+        expression_ids.clear();
+        clearing_expression = false;
+        blending_expression = false;
     }
 
     {
@@ -444,6 +468,58 @@ void InternalCubismUserModel::expression_set(const char* expression_id) {
 void InternalCubismUserModel::expression_stop() {
     if(this->_expressionManager == nullptr) return;
     this->_expressionManager->StopAllMotions();
+}
+
+void InternalCubismUserModel::reset_expression_manager() {
+    // R5 keeps a private fade-weight array across StopAllMotions. Recreate only
+    // this manager when clearing, so a later play cannot inherit stale weights.
+    CSM_DELETE(_expressionManager);
+    _expressionManager = CSM_NEW CubismExpressionMotionManager();
+    clearing_expression = false;
+    blending_expression = false;
+    expression_blend_weight = 1.0;
+}
+
+Error InternalCubismUserModel::preferred_expression_set(const StringName &id, double fade_seconds) {
+    const csmString key = String(id).utf8().ptr();
+    if (!expression_buffers.IsExist(key)) return ERR_DOES_NOT_EXIST;
+    if (_expressionManager->GetCubismMotionQueueEntries()->GetSize() >= 256) return ERR_BUSY;
+    const PackedByteArray buffer = expression_buffers[key];
+    auto *motion = static_cast<CubismExpressionMotion *>(LoadExpression(buffer.ptr(), buffer.size(), key.GetRawString()));
+    if (!motion) return ERR_INVALID_DATA;
+    if (fade_seconds >= 0.0) {
+        motion->SetFadeInTime(float(fade_seconds));
+        motion->SetFadeOutTime(float(fade_seconds));
+    }
+    // The SDK queue owns this new instance. Cached legacy expressions are never
+    // changed and repeated expression plays cannot share mutable fade settings.
+    _expressionManager->StartMotion(motion, true);
+    if (blending_expression) {
+        // Interrupting a clear restores influence over the incoming fade, rather
+        // than jumping the partially cleared expression back to full strength.
+        expression_blend_start = expression_blend_weight;
+        expression_blend_duration = motion->GetFadeInTime();
+        expression_blend_elapsed = 0.0;
+        expression_blend_first_step = true;
+        if (expression_blend_duration <= 0.0) { blending_expression = false; expression_blend_weight = 1.0; }
+    }
+    clearing_expression = false;
+    return OK;
+}
+
+void InternalCubismUserModel::preferred_expression_clear(double fade_seconds) {
+    auto *entries = _expressionManager->GetCubismMotionQueueEntries();
+    if (entries->GetSize() == 0 || fade_seconds == 0.0) { reset_expression_manager(); return; }
+    if (fade_seconds < 0.0) fade_seconds = std::max(0.0f, entries->At(entries->GetSize() - 1)->GetCubismMotion()->GetFadeOutTime());
+    if (fade_seconds == 0.0) { reset_expression_manager(); return; }
+    // R5's empty-expression blend immediately discards overwrite values. Fade
+    // the evaluated expression result against the current primary pose instead.
+    clearing_expression = true;
+    expression_blend_start = blending_expression ? expression_blend_weight : 1.0;
+    blending_expression = true;
+    expression_blend_duration = fade_seconds;
+    expression_blend_elapsed = 0.0;
+    expression_blend_first_step = true;
 }
 
 
@@ -526,6 +602,11 @@ bool InternalCubismUserModel::expression_load() {
         }
 
         this->_map_expression[name] = motion;
+        if (_owner_viewport->get_animator()) {
+            if (expression_buffers.IsExist(name)) return fail_load(expression_pathname, "Duplicate expression ID.");
+            expression_buffers[name] = buffer;
+            expression_ids.append(String::utf8(name.GetRawString()));
+        }
     }
     return true;
 }

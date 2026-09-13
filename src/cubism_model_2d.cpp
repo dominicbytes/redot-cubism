@@ -41,6 +41,11 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("play_motion_from_group", "group", "index", "priority", "loop", "speed"), &CubismModel2D::play_motion_from_group, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
     ClassDB::bind_method(D_METHOD("stop_motion", "fade_out_seconds"), &CubismModel2D::stop_motion, DEFVAL(-1.0));
     ClassDB::bind_method(D_METHOD("get_motion_ids"), &CubismModel2D::get_motion_ids);
+    ClassDB::bind_method(D_METHOD("set_expression", "expression_id", "fade_seconds"), &CubismModel2D::set_expression, DEFVAL(-1.0));
+    ClassDB::bind_method(D_METHOD("clear_expression", "fade_seconds"), &CubismModel2D::clear_expression, DEFVAL(-1.0));
+    ClassDB::bind_method(D_METHOD("get_expression_ids"), &CubismModel2D::get_expression_ids);
+    ClassDB::bind_method(D_METHOD("_expression_changed", "expression_id", "generation"), &CubismModel2D::expression_changed);
+    ClassDB::bind_method(D_METHOD("_deferred_clear_expression", "fade_seconds", "generation"), &CubismModel2D::deferred_clear_expression);
     ClassDB::bind_method(D_METHOD("_motion_started", "handle"), &CubismModel2D::motion_started);
     ClassDB::bind_method(D_METHOD("_deferred_stop_motion", "fade_seconds", "generation"), &CubismModel2D::deferred_stop_motion);
     ClassDB::bind_method(D_METHOD("has_parameter", "id"), &CubismModel2D::has_parameter);
@@ -61,6 +66,7 @@ void CubismModel2D::_bind_methods() {
     ADD_SIGNAL(MethodInfo("motion_looped", handle_property, PropertyInfo(Variant::INT, "loop_count")));
     ADD_SIGNAL(MethodInfo("motion_finished", handle_property, PropertyInfo(Variant::STRING_NAME, "motion_id"), PropertyInfo(Variant::INT, "reason")));
     ADD_SIGNAL(MethodInfo("runtime_warning", PropertyInfo(Variant::INT, "code"), PropertyInfo(Variant::STRING, "message")));
+    ADD_SIGNAL(MethodInfo("expression_changed", PropertyInfo(Variant::STRING_NAME, "expression_id")));
     BIND_ENUM_CONSTANT(IDLE); BIND_ENUM_CONSTANT(PHYSICS); BIND_ENUM_CONSTANT(MANUAL);
     BIND_ENUM_CONSTANT(UNLOADED); BIND_ENUM_CONSTANT(LOADING); BIND_ENUM_CONSTANT(READY);
     BIND_ENUM_CONSTANT(ERROR); BIND_ENUM_CONSTANT(DISPOSING); BIND_ENUM_CONSTANT(DISPOSED);
@@ -147,6 +153,40 @@ void CubismModel2D::step(double delta) {
 void CubismModel2D::advance(double delta) { if (playback_process_mode == MANUAL) step(delta); }
 
 PackedStringArray CubismModel2D::get_motion_ids() const { return runtime->get_animator()->get_motion_ids(); }
+
+PackedStringArray CubismModel2D::get_expression_ids() const {
+    return is_ready() ? runtime->internal_model->get_expression_ids() : PackedStringArray();
+}
+
+Error CubismModel2D::set_expression(const StringName &id, double fade_seconds) {
+    if (!std::isfinite(fade_seconds) || (fade_seconds < 0.0 && fade_seconds != -1.0)
+        || fade_seconds > double(std::numeric_limits<float>::max())) return ERR_INVALID_PARAMETER;
+    if (!is_ready()) return ERR_UNCONFIGURED;
+    if (runtime->is_native_busy()) return ERR_BUSY;
+    const Error result = runtime->internal_model->preferred_expression_set(id, fade_seconds);
+    if (result == OK) call_deferred("_expression_changed", id, generation);
+    return result;
+}
+
+void CubismModel2D::clear_expression(double fade_seconds) {
+    if (!std::isfinite(fade_seconds) || (fade_seconds < 0.0 && fade_seconds != -1.0)
+        || fade_seconds > double(std::numeric_limits<float>::max())) {
+        call_deferred("emit_signal", "runtime_warning", ERR_INVALID_PARAMETER, "Invalid expression fade duration.");
+        return;
+    }
+    if (!is_ready()) return;
+    if (runtime->is_native_busy()) { call_deferred("_deferred_clear_expression", fade_seconds, generation); return; }
+    runtime->internal_model->preferred_expression_clear(fade_seconds);
+    call_deferred("_expression_changed", StringName(), generation);
+}
+
+void CubismModel2D::deferred_clear_expression(double fade_seconds, uint64_t expected_generation) {
+    if (generation == expected_generation) clear_expression(fade_seconds);
+}
+
+void CubismModel2D::expression_changed(const StringName &id, uint64_t expected_generation) {
+    if (generation == expected_generation && is_ready() && !is_queued_for_deletion()) emit_signal("expression_changed", id);
+}
 
 Ref<CubismMotionHandle> CubismModel2D::play_motion(const StringName &id, CubismMotionPriority::Priority priority, bool loop, double speed) {
     if (!is_ready()) return CubismMotionHandle::rejected(id, ERR_UNCONFIGURED);
