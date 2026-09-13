@@ -36,6 +36,7 @@ Dictionary cubism_import_defaults() {
     options["validation/strict_optional_files"] = false;
     options["motions/import_manifest_motions"] = true;
     options["expressions/import"] = true;
+    options["rendering/mask_quality"] = 1;
     options["motions/convert_to_redot_animation"] = false;
     return options;
 }
@@ -47,8 +48,14 @@ Dictionary validate_cubism_import_options(const Dictionary &input) {
     for (int i = 0; i < keys.size(); ++i) {
         String message;
         if (!options.has(keys[i])) message = "Unknown or unavailable import option.";
+        else if (String(keys[i]) == "rendering/mask_quality") {
+            const Variant value = input[keys[i]];
+            if (value.get_type() != Variant::INT || int64_t(value) < 0 || int64_t(value) > 2)
+                message = "Expected Low (0), Medium (1), or High (2) mask quality.";
+            else options[keys[i]] = value;
+        }
         else if (input[keys[i]].get_type() != Variant::BOOL) message = "Expected a boolean import option.";
-        else if (keys[i] == Variant("motions/convert_to_redot_animation") && bool(input[keys[i]])) message = "Redot Animation conversion is not available in P0.";
+        else if (String(keys[i]) == "motions/convert_to_redot_animation" && bool(input[keys[i]])) message = "Redot Animation conversion is not available in P0.";
         else options[keys[i]] = input[keys[i]];
         if (!message.is_empty() && diagnostics.size() < 32) {
             Dictionary diagnostic;

@@ -69,7 +69,7 @@ void CubismModel2D::_bind_methods() {
     ADD_GROUP("Rendering", "");
     ClassDB::bind_method(D_METHOD("set_mask_quality", "value"), &CubismModel2D::set_mask_quality);
     ClassDB::bind_method(D_METHOD("get_mask_quality"), &CubismModel2D::get_mask_quality);
-    ADD_PROPERTY(PropertyInfo(Variant::INT, "mask_quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Custom"), "set_mask_quality", "get_mask_quality");
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "mask_quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Custom,Model Default"), "set_mask_quality", "get_mask_quality");
     ClassDB::bind_method(D_METHOD("set_custom_mask_limit", "value"), &CubismModel2D::set_custom_mask_limit);
     ClassDB::bind_method(D_METHOD("get_custom_mask_limit"), &CubismModel2D::get_custom_mask_limit);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "custom_mask_limit", PROPERTY_HINT_RANGE, "2,4096"), "set_custom_mask_limit", "get_custom_mask_limit");
@@ -128,6 +128,7 @@ void CubismModel2D::_bind_methods() {
     BIND_ENUM_CONSTANT(LAYER_POST_EFFECT);
     BIND_ENUM_CONSTANT(MASK_LOW); BIND_ENUM_CONSTANT(MASK_MEDIUM);
     BIND_ENUM_CONSTANT(MASK_HIGH); BIND_ENUM_CONSTANT(MASK_CUSTOM);
+    BIND_ENUM_CONSTANT(MASK_MODEL);
     BIND_ENUM_CONSTANT(OFFSCREEN_ALWAYS); BIND_ENUM_CONSTANT(OFFSCREEN_REDUCED); BIND_ENUM_CONSTANT(OFFSCREEN_PAUSED);
 }
 
@@ -145,11 +146,13 @@ CubismModel2D::CubismModel2D() {
 
 void CubismModel2D::update_mask_limit() {
     const int limits[] = {512, 1024, 2048, custom_mask_limit};
-    runtime->set_mask_viewport_size(limits[mask_quality]);
+    const int imported = model.is_valid() ? model->get_mask_quality() : MASK_MEDIUM;
+    const int quality = mask_quality == MASK_MODEL ? (imported >= 0 ? imported : MASK_MEDIUM) : mask_quality;
+    runtime->set_mask_viewport_size(limits[quality]);
 }
 
 void CubismModel2D::set_mask_quality(MaskQuality value) {
-    if (value < MASK_LOW || value > MASK_CUSTOM) {
+    if (value < MASK_LOW || value > MASK_MODEL) {
         emit_signal("runtime_warning", ERR_INVALID_PARAMETER, "Invalid Cubism mask quality.");
         return;
     }
@@ -222,6 +225,7 @@ Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
     notify_controller(CubismSpeechHandle::UNLOADED);
     reset_hit_tracking();
     model = resource;
+    update_mask_limit();
     load_requested = model.is_valid();
     ++generation;
     autoplay_started = false;
@@ -255,6 +259,7 @@ void CubismModel2D::emit_load_started(uint64_t expected_generation) {
 }
 
 void CubismModel2D::on_model_ready() {
+    update_mask_limit();
     queue_debug_redraw();
     start_autoplay(generation);
     if (load_requested && is_ready() && !is_queued_for_deletion()) emit_signal("model_ready", model);

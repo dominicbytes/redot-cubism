@@ -116,6 +116,11 @@ void GDCubismPlugin::_enter_tree() {
     cubism_save_dialog->add_option("Strict optional files", PackedStringArray(), 0);
     cubism_save_dialog->add_option("Import manifest motions", PackedStringArray(), 1);
     cubism_save_dialog->add_option("Import expressions", PackedStringArray(), 1);
+    PackedStringArray mask_qualities;
+    mask_qualities.push_back("Low");
+    mask_qualities.push_back("Medium");
+    mask_qualities.push_back("High");
+    cubism_save_dialog->add_option("Mask quality", mask_qualities, 1);
     PackedStringArray save_filters;
     save_filters.push_back("*.res ; Cubism Resource");
     cubism_save_dialog->set_filters(save_filters);
@@ -241,6 +246,7 @@ void GDCubismPlugin::save_cubism_resource(const String &path) {
     options["validation/strict_optional_files"] = selected.get("Strict optional files", false);
     options["motions/import_manifest_motions"] = selected.get("Import manifest motions", true);
     options["expressions/import"] = selected.get("Import expressions", true);
+    options["rendering/mask_quality"] = selected.get("Mask quality", 1);
     dependency_tracker->track(cubism_source_path, path, options);
     const Error error = CubismModelImporter::import_model_with_options(cubism_source_path, path, options);
     if (error != OK) {

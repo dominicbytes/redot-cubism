@@ -98,6 +98,7 @@ public:
     Dictionary get_sdk_compatibility() const { return sdk_compatibility; }
     void set_import_options(const Dictionary &value) { import_options = value; emit_changed(); }
     Dictionary get_import_options() const { return import_options; }
+    int get_mask_quality() const;
     void set_metadata(const Dictionary &value) { metadata = value; emit_changed(); }
     Dictionary get_metadata() const { return metadata; }
 };

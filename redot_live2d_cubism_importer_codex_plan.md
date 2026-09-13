@@ -537,7 +537,7 @@ Effects
 
 Rendering
   rendering_mode: DIRECT | SUBVIEWPORT_FALLBACK
-  mask_quality: LOW | MEDIUM | HIGH | CUSTOM
+  mask_quality: MODEL (default) | LOW | MEDIUM | HIGH | CUSTOM
   custom_mask_limit: int
   offscreen_update_mode: ALWAYS | REDUCED | PAUSED
   premultiplied_alpha: bool
@@ -846,7 +846,7 @@ Default to strict mode for required runtime assets and lenient behavior for opti
 | `motions/discover_unreferenced` | false | Opt-in directory scan |
 | `motions/convert_to_redot_animation` | false | P1 only; reject true as unavailable until PR 6B is implemented |
 | `expressions/import` | true | Catalog and validate expressions |
-| `rendering/mask_quality` | medium | Converted to a platform-neutral resource setting |
+| `rendering/mask_quality` | medium (1) | Integer Low=0/Medium=1/High=2 in resource import_options; preferred nodes inherit with MASK_MODEL (4), or retain explicit Low/Medium/High/Custom node overrides (0/1/2/3) |
 | `rendering/premultiplied_alpha` | false initially | Change only after reference comparison |
 | `textures/load_as_resources` | true, fixed in P0 | Required imported resource edges; not a user-disableable export dependency |
 | `validation/check_moc_consistency` | true when SDK supports it | Guard with feature detection |

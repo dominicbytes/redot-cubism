@@ -22,6 +22,7 @@ func _run() -> void:
 	assert(model.import_options["validation/strict_optional_files"] == true)
 	assert(model.import_options["motions/import_manifest_motions"] == false)
 	assert(model.import_options["expressions/import"] == false)
+	assert(model.get_mask_quality() == 0)
 	if "--cleanup-options" in OS.get_cmdline_user_args():
 		# These extra models share source assets with the independent destructive
 		# dependency tests. Finish option/cache coverage, then remove our fixtures.

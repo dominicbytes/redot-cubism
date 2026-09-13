@@ -44,14 +44,23 @@ func _run() -> void:
 	var output := "res://options-model.res"
 	var variant := source.get_base_dir().path_join("options.model3.json")
 	var options := {"motions/import_manifest_motions": false, "expressions/import": false, "validation/strict_optional_files": true}
+	options["rendering/mask_quality"] = 2
+	for key: Variant in ["rendering/mask_quality", &"rendering/mask_quality"]:
+		for quality: int in [0, 1, 2]:
+			var result := CubismModelFactory.build_with_options(source, {key: quality})
+			expect(result.ok and result.model.get_mask_quality() == quality, "accept String and StringName quality keys")
+	for invalid: Variant in [false, true, 1.0, "medium", -1, 3, 9223372036854775807, [], null]:
+		var result := CubismModelFactory.build_with_options(source, {"rendering/mask_quality": invalid})
+		expect(not result.ok and result.model == null and result.diagnostics[0].path == "rendering/mask_quality", "reject invalid mask quality")
 	for key: String in ["motions/import_manifest_motions", "expressions/import", "validation/strict_optional_files"]:
 		for invalid: Variant in [0, 1, "false", [], null]:
 			var result := CubismModelFactory.build_with_options(source, {key: invalid})
 			expect(not result.ok and result.model == null and result.diagnostics[0].path == key, "reject nonboolean " + key)
-	for unsupported: Dictionary in [{"motions/convert_to_redot_animation": true}, {"expressions/improt": false}]:
+	for unsupported: Dictionary in [{"motions/convert_to_redot_animation": true}, {&"motions/convert_to_redot_animation": true}, {"expressions/improt": false}]:
 		var result := CubismModelFactory.build_with_options(source, unsupported)
 		expect(not result.ok and result.model == null, "reject unavailable option")
 	var defaults := CubismModelFactory.build_with_options(source, {})
+	expect(defaults.ok and defaults.model.get_mask_quality() == 1, "default imported medium mask quality")
 	expect(defaults.ok and not defaults.model.motion_groups.is_empty() and not defaults.model.expressions.is_empty(), "default catalogs preserved")
 	var expressions_only := CubismModelFactory.build_with_options(source, {"motions/import_manifest_motions": false})
 	expect(expressions_only.ok and expressions_only.model.motion_groups.is_empty() and not expressions_only.model.expressions.is_empty(), "disable only motions")
@@ -72,6 +81,7 @@ func _run() -> void:
 	var model := ResourceLoader.load(output, "CubismModelResource", ResourceLoader.CACHE_MODE_IGNORE) as CubismModelResource
 	expect(model != null, "options result saved")
 	if model != null:
+		expect(model.get_mask_quality() == 2, "high mask quality persisted")
 		expect(model.motion_groups.is_empty() and model.expressions.is_empty(), "disabled catalogs absent")
 		expect(model.import_options.get("motions/import_manifest_motions") == false and model.import_options.get("expressions/import") == false, "options persisted")
 		for path: String in model.dependency_paths:
@@ -94,6 +104,14 @@ func _run() -> void:
 	await settle()
 	model = ResourceLoader.load(output, "CubismModelResource", ResourceLoader.CACHE_MODE_IGNORE)
 	expect(model.layout.get("x") == 0.375 and model.motion_groups.is_empty() and model.expressions.is_empty(), "reimport retains options")
+	expect(model.get_mask_quality() == 2, "source reimport retains high mask quality")
+	var previous_fingerprint: String = model.import_fingerprint
+	model.import_options["rendering/mask_quality"] = 0
+	expect(ResourceSaver.save(model, output) == OK, "save low mask quality option")
+	EditorInterface.get_resource_filesystem().update_file(output)
+	await settle()
+	model = ResourceLoader.load(output, "CubismModelResource", ResourceLoader.CACHE_MODE_IGNORE)
+	expect(model.get_mask_quality() == 0 and model.import_fingerprint != previous_fingerprint, "quality-only edit reimports and changes provenance")
 	# Exercise a disabled source becoming available: it still is not a dependency.
 	var excluded := source.get_base_dir().path_join("missing.exp3.json")
 	write_json(excluded, {"deliberately": "not an expression"})

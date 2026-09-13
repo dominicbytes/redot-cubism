@@ -11,7 +11,9 @@ The [model Inspector](model-inspector.md) summarizes those warnings and model
 metadata, updating when the selected resource is reimported.
 The save dialog includes **Strict optional files**, **Import manifest motions**
 and **Import expressions** checkboxes. Motions and expressions are enabled by
-default; strict optional-file validation is disabled by default.
+default; strict optional-file validation is disabled by default. **Mask quality**
+offers Low, Medium (default), and High. Preferred nodes inherit this choice unless
+their `mask_quality` explicitly overrides it.
 
 Editor tools can call
 `CubismModelImporter.import_model(source_file, destination, strict_optional_files=false)`.
@@ -27,7 +29,9 @@ editor API. Reopen and save legacy scenes to retain their export dependencies.
 Use `CubismModelImporter.import_model_with_options(source_file, destination, options)`
 to supply the same choices by their keys: `validation/strict_optional_files`,
 `motions/import_manifest_motions`, and `expressions/import`. All require actual
-booleans. Unspecified choices use the defaults. The old boolean-based method
+booleans. `rendering/mask_quality` requires an integer: 0 (Low), 1 (Medium), or
+2 (High); booleans, floats, strings and other values are rejected. Custom limits
+are per-node overrides. Unspecified choices use the defaults. The old boolean-based method
 remains compatible. The factory offers `build_with_options(source_path, options)`
 for unsaved resources with the same validation.
 
@@ -46,9 +50,11 @@ silently overwritten to match one of potentially several derived resources.
 conversion is unavailable. Other unsupported or misspelled options fail explicitly.
 
 The native importer advertises only `model3.json`, priority 2, import order 100
-(after default texture/audio imports), format version 6, and disables threaded
-import. The Import dock exposes the same three implemented choices. Remaining
-planned settings, including motion discovery and mask quality, are not implemented.
+(after default texture/audio imports), format version 7, and disables threaded
+import. The Import dock exposes the same four implemented choices. Mask quality
+is serialized in `import_options` and participates in import fingerprints, so
+quality-only edits trigger reimport. Motion discovery and premultiplied-alpha
+import settings remain unimplemented.
 
 **Project Settings → Cubism → Import → Maximum File Count** limits the manifest
 plus unique normalized source paths in enabled catalogs. The default is 1,024; allowed
@@ -86,8 +92,8 @@ from explicit import checks. Ordinary JSON and backup files must remain unclaime
 Coexistence with a generic JSON importer and automatic UID discovery are pending.
 The template check loads and animates the resource from the isolated test project; it does
 not claim full-model selective PCK export. Dialog callbacks are exercised in a headless
-editor. The new checkbox layout and defaults have also been checked in a rendered
-Linux X11/GL editor; full interactive workflow and other platform checks remain pending.
+editor. Rendered dialog validation with the new mask-quality selector, the full
+interactive workflow, and other platform checks remain pending.
 
 This action is the plan's provisional fallback. Its saved resources now participate
 in [dependency tracking](dependency-tracking.md). The editor refreshes them after

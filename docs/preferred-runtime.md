@@ -17,8 +17,15 @@ coordinates cues, recorded voice, lip sync and stable checkpoints; see the
 Advanced rendering policies and full platform qualification remain required
 work in the canonical plan.
 
-`mask_quality` selects `MASK_LOW` (512), `MASK_MEDIUM` (1024, default),
-`MASK_HIGH` (2048), or `MASK_CUSTOM` (`custom_mask_limit`, clamped to 2–4096).
+`mask_quality` defaults to `MASK_MODEL`: inherit the imported resource's
+`rendering/mask_quality` setting (Medium unless changed during import).
+Explicit `MASK_LOW` (512), `MASK_MEDIUM` (1024), `MASK_HIGH` (2048), or
+`MASK_CUSTOM` (`custom_mask_limit`, clamped to 2–4096) override that choice.
+Existing Low/Medium/High/Custom enum values remain 0/1/2/3; Model Default is 4.
+Resources created before the import option existed inherit Medium. Assigning or
+reloading a resource reapplies its quality when inheriting; explicit node overrides
+survive reload. After editing import options, reimport the resource and reload the
+node to apply the result.
 These are maximum texture dimensions per mask composition, not a total memory
 budget. Masks follow the current viewport pixel density, measured using the largest
 stretch of the model, camera, canvas and viewport transforms. This includes shear,

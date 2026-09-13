@@ -45,7 +45,26 @@ func _run() -> void:
 		var parameters := runtime.get_parameters()
 		for index in parameters.size():
 			moved = moved or absf(parameters[index].value - before[index]) > 0.0001
-	assert(moved, "Exported native motion must change model parameters")
 	runtime.free()
+	if not moved:
+		printerr("IMPORTED_RESOURCE_MOTION_DID_NOT_MOVE")
+		quit(1)
+		return
+	var high := load("res://mask-quality-model.res") as CubismModelResource
+	if high == null or high.get_mask_quality() != 2:
+		printerr("IMPORTED_MASK_QUALITY_MISSING")
+		quit(1)
+		return
+	var preferred := CubismModel2D.new()
+	preferred.playback_process_mode = CubismModel2D.MANUAL
+	root.add_child(preferred)
+	var error := preferred.load_model(high)
+	var native := preferred.get_child(0, true) as GDCubismUserModel
+	var inherited := error == OK and preferred.is_ready() and preferred.mask_quality == CubismModel2D.MASK_MODEL and native.mask_viewport_size == 2048
+	preferred.free()
+	if not inherited:
+		printerr("IMPORTED_MASK_QUALITY_NOT_APPLIED")
+		quit(1)
+		return
 	print("CUBISM_IMPORTED_RESOURCE_PASS")
 	quit()

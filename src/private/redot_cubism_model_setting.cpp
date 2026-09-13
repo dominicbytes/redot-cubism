@@ -26,6 +26,10 @@ bool finite_float(double value) { return std::isfinite(value) && std::abs(value)
 RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> &resource, String &error) {
     error = "Invalid imported Cubism resource. Reimport the source model.";
     if (resource.is_null() || resource->get_import_schema_version() != 1) return;
+    if (resource->get_mask_quality() < 0) {
+        error = "Invalid rendering/mask_quality in imported Cubism resource. Reimport the source model.";
+        return;
+    }
     if (!path_valid(resource->get_moc_path(), ".moc3")
         || !path_valid(resource->get_physics_path(), ".physics3.json", true)
         || !path_valid(resource->get_pose_path(), ".pose3.json", true)
