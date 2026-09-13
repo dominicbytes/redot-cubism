@@ -80,9 +80,9 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("_deferred_stop_motion", "fade_seconds", "generation"), &CubismModel2D::deferred_stop_motion);
     ClassDB::bind_method(D_METHOD("has_parameter", "id"), &CubismModel2D::has_parameter);
     ClassDB::bind_method(D_METHOD("get_parameter_value", "id"), &CubismModel2D::get_parameter_value);
-    ClassDB::bind_method(D_METHOD("set_parameter_value", "id", "value", "weight"), &CubismModel2D::set_parameter_value, DEFVAL(1.0));
-    ClassDB::bind_method(D_METHOD("add_parameter_value", "id", "value", "weight"), &CubismModel2D::add_parameter_value, DEFVAL(1.0));
-    ClassDB::bind_method(D_METHOD("multiply_parameter_value", "id", "value", "weight"), &CubismModel2D::multiply_parameter_value, DEFVAL(1.0));
+    ClassDB::bind_method(D_METHOD("set_parameter_value", "id", "value", "weight", "layer"), &CubismModel2D::set_parameter_value, DEFVAL(1.0), DEFVAL(LAYER_POST_EFFECT));
+    ClassDB::bind_method(D_METHOD("add_parameter_value", "id", "value", "weight", "layer"), &CubismModel2D::add_parameter_value, DEFVAL(1.0), DEFVAL(LAYER_POST_EFFECT));
+    ClassDB::bind_method(D_METHOD("multiply_parameter_value", "id", "value", "weight", "layer"), &CubismModel2D::multiply_parameter_value, DEFVAL(1.0), DEFVAL(LAYER_POST_EFFECT));
     ClassDB::bind_method(D_METHOD("set_part_opacity", "id", "opacity"), &CubismModel2D::set_part_opacity);
     ClassDB::bind_method(D_METHOD("get_parameter_ids"), &CubismModel2D::get_parameter_ids);
     ClassDB::bind_method(D_METHOD("get_part_ids"), &CubismModel2D::get_part_ids);
@@ -107,6 +107,9 @@ void CubismModel2D::_bind_methods() {
     BIND_ENUM_CONSTANT(IDLE); BIND_ENUM_CONSTANT(PHYSICS); BIND_ENUM_CONSTANT(MANUAL);
     BIND_ENUM_CONSTANT(UNLOADED); BIND_ENUM_CONSTANT(LOADING); BIND_ENUM_CONSTANT(READY);
     BIND_ENUM_CONSTANT(ERROR); BIND_ENUM_CONSTANT(DISPOSING); BIND_ENUM_CONSTANT(DISPOSED);
+    BIND_ENUM_CONSTANT(LAYER_BASE); BIND_ENUM_CONSTANT(LAYER_MOTION); BIND_ENUM_CONSTANT(LAYER_EXPRESSION);
+    BIND_ENUM_CONSTANT(LAYER_EFFECT); BIND_ENUM_CONSTANT(LAYER_PHYSICS); BIND_ENUM_CONSTANT(LAYER_POSE);
+    BIND_ENUM_CONSTANT(LAYER_POST_EFFECT);
 }
 
 CubismModel2D::CubismModel2D() {
@@ -508,12 +511,13 @@ double CubismModel2D::get_parameter_value(const StringName &id) const {
     return index < 0 ? 0.0 : runtime->evaluated_parameter(index);
 }
 
-Error CubismModel2D::queue_parameter(const StringName &id, double value, double weight, int operation) {
+Error CubismModel2D::queue_parameter(const StringName &id, double value, double weight, int operation, ParameterLayer layer) {
+    if (layer < LAYER_BASE || layer > LAYER_POST_EFFECT) return ERR_INVALID_PARAMETER;
     if (!std::isfinite(value) || !std::isfinite(weight) || weight < 0.0 || weight > 1.0) return ERR_INVALID_PARAMETER;
     if (!is_ready()) return ERR_UNCONFIGURED;
     const int index = parameter_index(id);
     if (index < 0) return ERR_DOES_NOT_EXIST;
-    return runtime->queue_post_effect_write(index, value, weight, operation);
+    return runtime->queue_parameter_write(index, value, weight, operation, GDCubismUserModel::WriteLayer(layer));
 }
 
 Error CubismModel2D::set_part_opacity(const StringName &id, double opacity) {
@@ -522,7 +526,7 @@ Error CubismModel2D::set_part_opacity(const StringName &id, double opacity) {
     const Array parts = runtime->get_part_opacities();
     for (int i = 0; i < parts.size(); ++i) {
         const Ref<GDCubismPartOpacity> part = parts[i];
-        if (part->get_id() == String(id)) return runtime->queue_post_effect_write(i, CLAMP(opacity, 0.0, 1.0), 1.0, 3);
+        if (part->get_id() == String(id)) return runtime->queue_parameter_write(i, CLAMP(opacity, 0.0, 1.0), 1.0, 3);
     }
     return ERR_DOES_NOT_EXIST;
 }

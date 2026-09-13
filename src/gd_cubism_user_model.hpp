@@ -21,6 +21,7 @@
 #include <gd_cubism_motion_entry.hpp>
 #include <cubism_model_resource.hpp>
 #include <vector>
+#include <array>
 #include <memory>
 class CubismAnimator;
 class CubismProceduralEffects;
@@ -150,12 +151,18 @@ protected:
     static void _bind_methods();
     void _notification(int p_what);
 
+public:
+    // Internal pipeline stages; the preferred API exposes ParameterLayer.
+    enum WriteLayer { WRITE_BASE, WRITE_MOTION, WRITE_EXPRESSION, WRITE_EFFECT, WRITE_PHYSICS, WRITE_POSE, WRITE_POST_EFFECT, WRITE_LAYER_COUNT };
+
 private:
     std::unique_ptr<CubismAnimator> preferred_animator;
     std::unique_ptr<CubismProceduralEffects> preferred_effects;
-    struct PostEffectWrite { int index; double value; double weight; int operation; };
-    std::vector<PostEffectWrite> post_effect_writes;
-    void apply_post_effect_writes();
+    struct ParameterWrite { int index; double value; double weight; int operation; };
+    std::array<std::vector<ParameterWrite>, WRITE_LAYER_COUNT> parameter_writes;
+    std::array<size_t, WRITE_LAYER_COUNT> step_parameter_writes = {};
+    size_t queued_parameter_writes = 0;
+    void apply_parameter_writes(WriteLayer layer);
     struct PendingSignal {
         StringName name;
         Variant payload;
@@ -192,7 +199,7 @@ public:
     CubismAnimator *get_animator() const { return preferred_animator.get(); }
     CubismProceduralEffects *get_procedural_effects() const { return preferred_effects.get(); }
     // Internal preferred-API bridge; legacy parameter setters remain unchanged.
-    Error queue_post_effect_write(int index, double value, double weight, int operation);
+    Error queue_parameter_write(int index, double value, double weight, int operation, WriteLayer layer = WRITE_POST_EFFECT);
     double evaluated_parameter(int index) const;
     void unload_selected_model();
     Ref<CubismModelResource> get_model() const { return assets.is_empty() ? model_resource : Ref<CubismModelResource>(); }

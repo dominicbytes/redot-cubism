@@ -579,6 +579,11 @@ void GDCubismUserModel::_update(const double delta) {
         return;
     }
     const double step = MIN(delta * this->speed_scale, 0.1);
+    // Freeze the batch before any native/custom callback. Writes submitted
+    // during evaluation belong to the next step, regardless of their layer.
+    for (size_t layer = 0; layer < parameter_writes.size(); ++layer) {
+        step_parameter_writes[layer] = parameter_writes[layer].size();
+    }
     native_busy = true;
 
     this->internal_model->pro_update(step);
@@ -890,7 +895,9 @@ void GDCubismUserModel::_get_property_list(List<godot::PropertyInfo> *p_list) {
 }
 
 void GDCubismUserModel::clear(GDCubismMotionQueueEntryHandle::FinishReason reason) {
-    post_effect_writes.clear();
+    for (auto &writes : parameter_writes) writes.clear();
+    step_parameter_writes.fill(0);
+    queued_parameter_writes = 0;
     if (disposing) return;
     if (native_busy) {
         pending_unload = true;
@@ -933,9 +940,11 @@ void GDCubismUserModel::clear(GDCubismMotionQueueEntryHandle::FinishReason reaso
     if (pending_load && !destroying) call_deferred("_apply_pending_operation");
 }
 
-Error GDCubismUserModel::queue_post_effect_write(int index, double value, double weight, int operation) {
-    if (post_effect_writes.size() >= 100000) return ERR_OUT_OF_MEMORY;
-    post_effect_writes.push_back({index, value, weight, operation});
+Error GDCubismUserModel::queue_parameter_write(int index, double value, double weight, int operation, WriteLayer layer) {
+    if (layer < WRITE_BASE || layer >= WRITE_LAYER_COUNT) return ERR_INVALID_PARAMETER;
+    if (queued_parameter_writes >= 100000) return ERR_OUT_OF_MEMORY;
+    parameter_writes[layer].push_back({index, value, weight, operation});
+    ++queued_parameter_writes;
     return OK;
 }
 
@@ -943,9 +952,12 @@ double GDCubismUserModel::evaluated_parameter(int index) const {
     return internal_model->GetModel()->GetParameterValue(index);
 }
 
-void GDCubismUserModel::apply_post_effect_writes() {
+void GDCubismUserModel::apply_parameter_writes(WriteLayer layer) {
     Csm::CubismModel *model = internal_model->GetModel();
-    for (const auto &write : post_effect_writes) {
+    auto &writes = parameter_writes[layer];
+    const size_t count = step_parameter_writes[layer];
+    for (size_t index = 0; index < count; ++index) {
+        const auto &write = writes[index];
         if (write.operation == 3) {
             model->SetPartOpacity(write.index, float(write.value));
             continue;
@@ -958,7 +970,9 @@ void GDCubismUserModel::apply_post_effect_writes() {
         value = CLAMP(value, double(model->GetParameterMinimumValue(write.index)), double(model->GetParameterMaximumValue(write.index)));
         model->SetParameterValue(write.index, float(value));
     }
-    post_effect_writes.clear();
+    queued_parameter_writes -= count;
+    writes.erase(writes.begin(), writes.begin() + count);
+    step_parameter_writes[layer] = 0;
 }
 
 void GDCubismUserModel::unload_model() {
