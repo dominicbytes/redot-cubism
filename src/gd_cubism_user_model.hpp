@@ -130,6 +130,8 @@ public:
     float speed_scale;
     int32_t mask_viewport_size;
     CubismMaskOffscreenPolicy mask_offscreen_policy = CubismMaskOffscreenPolicy::PAUSED;
+    bool use_subviewport_fallback = false;
+    String get_rendering_error() const;
     
     ParameterMode parameter_mode;
     bool physics_evaluate;

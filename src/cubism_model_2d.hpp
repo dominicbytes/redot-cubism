@@ -21,6 +21,7 @@ public:
     enum ModelState { UNLOADED, LOADING, READY, ERROR, DISPOSING, DISPOSED };
     enum MaskQuality { MASK_LOW, MASK_MEDIUM, MASK_HIGH, MASK_CUSTOM, MASK_MODEL };
     enum OffscreenUpdateMode { OFFSCREEN_ALWAYS, OFFSCREEN_REDUCED, OFFSCREEN_PAUSED };
+    enum RenderingMode { DIRECT, SUBVIEWPORT_FALLBACK };
     enum ParameterLayer {
         LAYER_BASE = GDCubismUserModel::WRITE_BASE,
         LAYER_MOTION = GDCubismUserModel::WRITE_MOTION,
@@ -41,6 +42,8 @@ private:
     void apply_custom_effects(double delta);
     Error write_custom_effect(uint64_t effect, uint64_t revision, const StringName &id, double value, double weight, int operation);
     GDCubismUserModel *runtime = nullptr;
+    bool rendering_refresh_needed = false;
+    void refresh_rendering();
     Ref<CubismModelResource> model;
     PlaybackProcessMode playback_process_mode = IDLE;
     bool paused = false;
@@ -101,6 +104,9 @@ protected:
 
 public:
     CubismModel2D();
+    void set_rendering_mode(RenderingMode value);
+    RenderingMode get_rendering_mode() const { return runtime->use_subviewport_fallback ? SUBVIEWPORT_FALLBACK : DIRECT; }
+    String get_rendering_error() const { return runtime->get_rendering_error(); }
     bool get_premultiplied_alpha() const;
     void set_debug_draw_bounds(bool value);
     bool get_debug_draw_bounds() const { return debug_draw_bounds; }
@@ -182,4 +188,5 @@ VARIANT_ENUM_CAST(CubismModel2D::ModelState);
 VARIANT_ENUM_CAST(CubismModel2D::ParameterLayer);
 VARIANT_ENUM_CAST(CubismModel2D::MaskQuality);
 VARIANT_ENUM_CAST(CubismModel2D::OffscreenUpdateMode);
+VARIANT_ENUM_CAST(CubismModel2D::RenderingMode);
 #endif

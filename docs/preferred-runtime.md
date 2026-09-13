@@ -17,6 +17,20 @@ coordinates cues, recorded voice, lip sync and stable checkpoints; see the
 Advanced rendering policies and full platform qualification remain required
 work in the canonical plan.
 
+`rendering_mode` defaults to `DIRECT`. Select `SUBVIEWPORT_FALLBACK` explicitly
+to composite ordered drawable atlas cells into one output item. The mode is
+saved with the node; its transient viewports/meshes are not. It preserves the
+native animation state and refreshes mapping when a paused/manual character or
+its camera moves. It does not promise improved performance.
+
+The current fallback supports GL Compatibility SDR targets larger than 40 pixels
+on both axes, at most 512 drawable meshes, and an atlas within 4096 pixels per
+axis and 8,388,608 texels. An unsupported configuration leaves the character
+undrawn, sets the read-only `rendering_error`, and emits `runtime_warning` once
+per changed error. The selected mode remains unchanged. Adjust the target/model
+size or select Direct to recover. See [ADR-003](architecture/ADR-003-direct-rendering.md)
+for the evidence, full-model comparison scope and remaining qualification.
+
 `premultiplied_alpha` is read-only and reports the texture format of the loaded
 model (false when unloaded). Set `rendering/premultiplied_alpha` during import;
 then reimport and reload the node. This couples texture preprocessing and shader

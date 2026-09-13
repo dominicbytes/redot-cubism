@@ -537,6 +537,7 @@ Effects
 
 Rendering
   rendering_mode: DIRECT | SUBVIEWPORT_FALLBACK
+  rendering_error: read-only String (last fallback configuration error)
   mask_quality: MODEL (default) | LOW | MEDIUM | HIGH | CUSTOM
   custom_mask_limit: int
   offscreen_update_mode: ALWAYS | REDUCED | PAUSED
@@ -1134,6 +1135,17 @@ Keep GDCubism v0.9's direct-rendering approach:
 - no full-model SubViewport by default.
 
 A full-model SubViewport remains an explicit fallback mode, not the normal path.
+
+Implementation refinement (ADR-003): a flat transparent RGBA image cannot retain
+destination-dependent blend operations. `SUBVIEWPORT_FALLBACK` therefore uses
+renderer-owned drawable atlas cells and a single ordered backdrop compositor.
+The current implementation targets GL Compatibility SDR, parent targets above
+40 pixels on both axes, at most 512 drawable meshes, and an atlas bounded by
+4096 pixels per axis / 8,388,608 texels. Unsupported configurations expose a
+read-only `rendering_error`, warn once per changed error and draw no character;
+the requested mode stays selected until the user changes it. No silent Direct
+switch or downsampling. Final native/export/platform qualification remains a
+release gate; see ADR-003 for the exact evidence and limits.
 
 ## 13.2 Drawable resource ownership
 

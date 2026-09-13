@@ -8,6 +8,7 @@
 #include "cubism_character_controller.hpp"
 #include "private/internal_cubism_user_model.hpp"
 #include <godot_cpp/variant/callable_method_pointer.hpp>
+#include <godot_cpp/classes/rendering_server.hpp>
 #include <cmath>
 #include <limits>
 
@@ -67,6 +68,12 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_enable_pose"), &CubismModel2D::get_enable_pose);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_pose"), "set_enable_pose", "get_enable_pose");
     ADD_GROUP("Rendering", "");
+    ClassDB::bind_method(D_METHOD("set_rendering_mode", "value"), &CubismModel2D::set_rendering_mode);
+    ClassDB::bind_method(D_METHOD("get_rendering_mode"), &CubismModel2D::get_rendering_mode);
+    ClassDB::bind_method(D_METHOD("get_rendering_error"), &CubismModel2D::get_rendering_error);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "rendering_mode", PROPERTY_HINT_ENUM, "Direct,SubViewport Fallback"), "set_rendering_mode", "get_rendering_mode");
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "rendering_error", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY), "", "get_rendering_error");
+    BIND_ENUM_CONSTANT(DIRECT); BIND_ENUM_CONSTANT(SUBVIEWPORT_FALLBACK);
     ClassDB::bind_method(D_METHOD("get_premultiplied_alpha"), &CubismModel2D::get_premultiplied_alpha);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "premultiplied_alpha", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY), "", "get_premultiplied_alpha");
     ClassDB::bind_method(D_METHOD("set_mask_quality", "value"), &CubismModel2D::set_mask_quality);
@@ -144,6 +151,28 @@ CubismModel2D::CubismModel2D() {
     runtime->connect("model_ready", callable_mp(this, &CubismModel2D::on_model_ready));
     runtime->connect("model_failed", callable_mp(this, &CubismModel2D::on_model_failed));
     set_playback_process_mode(IDLE);
+    RenderingServer::get_singleton()->connect("frame_pre_draw", callable_mp(this, &CubismModel2D::refresh_rendering));
+}
+
+void CubismModel2D::set_rendering_mode(RenderingMode value) {
+    if (value < DIRECT || value > SUBVIEWPORT_FALLBACK) {
+        emit_signal("runtime_warning", ERR_INVALID_PARAMETER, "Invalid Cubism rendering mode.");
+        return;
+    }
+    runtime->use_subviewport_fallback = value == SUBVIEWPORT_FALLBACK;
+    rendering_refresh_needed = true;
+}
+
+void CubismModel2D::refresh_rendering() {
+    if ((!runtime->use_subviewport_fallback && !rendering_refresh_needed) || !is_inside_tree()
+            || !is_ready() || runtime->is_native_busy() || runtime->is_destroying()) return;
+    // Transform/visibility changes must update the offscreen mapping even while
+    // playback is paused or manual. This does not advance any animation clock.
+    rendering_refresh_needed = false;
+    runtime->native_busy = true;
+    runtime->internal_model->update_node();
+    runtime->native_busy = false;
+    runtime->apply_pending_operation();
 }
 
 void CubismModel2D::update_mask_limit() {

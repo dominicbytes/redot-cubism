@@ -995,6 +995,7 @@ void GDCubismUserModel::unload_selected_model() {
 
 void GDCubismUserModel::update_mask_visibility() {
     if (!is_initialized()) return;
+    if (!is_visible_in_tree()) internal_model->_renderer_resource.compositor.set_visible(false);
     const SubViewport::UpdateMode mode = is_visible_in_tree()
         ? SubViewport::UPDATE_ALWAYS : SubViewport::UPDATE_DISABLED;
     const Array masks = internal_model->_renderer_resource.dict_mask.values();
@@ -1002,6 +1003,10 @@ void GDCubismUserModel::update_mask_visibility() {
         SubViewport *mask = Object::cast_to<SubViewport>(masks[i]);
         mask->set_update_mode(mode);
     }
+}
+
+String GDCubismUserModel::get_rendering_error() const {
+    return internal_model ? internal_model->_renderer_resource.compositor.get_error() : String();
 }
 
 void GDCubismUserModel::apply_pending_operation() {

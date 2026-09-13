@@ -10,6 +10,7 @@
     "CanvasItem",
     "Control",
     "DirAccess",
+    "DisplayServer",
     "EditorFileDialog",
     "EditorFileSystem",
     "EditorFileSystemDirectory",

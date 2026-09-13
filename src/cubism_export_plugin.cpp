@@ -65,7 +65,7 @@ void CubismExportPlugin::_export_file(const String &path, const String &type, co
         if (!seen_raw.has(file)) payload[file] = bytes;
     }
     if (!shaders_added) {
-        for (const char *name : {"mask", "mask_add", "mask_add_inv", "mask_mix", "mask_mix_inv", "mask_mul", "mask_mul_inv", "norm_add", "norm_mix", "norm_mul"}) {
+        for (const char *name : {"compositor", "mask", "mask_add", "mask_add_inv", "mask_mix", "mask_mix_inv", "mask_mul", "mask_mul_inv", "norm_add", "norm_mix", "norm_mul"}) {
             const String file = String("res://addons/gd_cubism/res/shader/2d_cubism_") + name + String(".gdshader");
             if (seen_raw.has(file)) continue;
             if (CubismManifestParser::validate_project_file(file)["status"] != String("file")) {

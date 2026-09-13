@@ -205,6 +205,7 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
     struct OrderedDrawable {
         Csm::csmInt32 order;
         MeshInstance2D *node;
+        int blend;
     };
     std::vector<OrderedDrawable> drawables;
     drawables.reserve(model->GetDrawableCount());
@@ -232,7 +233,9 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
         this->update_material(model, index, mat);
         // Drawable order is local to this character, not a canvas-wide layer.
         node->set_z_index(0);
-        drawables.push_back({renderOrder[index], node});
+        const auto blend = model->GetDrawableBlendModeType(index).GetColorBlendType();
+        drawables.push_back({renderOrder[index], node,
+            blend == csmColorBlendType_AddCompatible ? 1 : (blend == csmColorBlendType_MultiplyCompatible ? 2 : 0)});
         
         // adjust real bounds to prevent the mesh being culled
         AABB bounds = ary_mesh->get_custom_aabb();
@@ -324,6 +327,14 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
             mat->set_shader_parameter("mask_scale", scalar);
             mat->set_shader_parameter("mesh_offset", viewport_offset);
         }
+    }
+    if (res._owner_viewport->use_subviewport_fallback) {
+        std::vector<CubismCompositionDrawable> composition;
+        composition.reserve(drawables.size());
+        for (const auto &drawable : drawables) composition.push_back({drawable.node, drawable.blend});
+        res.compositor.update(res._owner_viewport, composition);
+    } else {
+        res.compositor.clear();
     }
 }
 
