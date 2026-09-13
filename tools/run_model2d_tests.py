@@ -22,8 +22,10 @@ def main():
     parser.add_argument('--mode', choices=['debug', 'release'], default='debug')
     parser.add_argument('--graphics', action='store_true')
     parser.add_argument('--motion', action='store_true', help='Prepare and exercise deterministic native motion fixtures')
+    parser.add_argument('--audio-timing', action='store_true', help='Measure real 30-second cues at fixed/variable frame rates; requires --motion')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
+    if args.audio_timing and not args.motion: parser.error('--audio-timing requires --motion')
     previous = json.loads(args.importer_report.read_text())
     if previous['status'] != 'PASS': parser.error('Requires a passing imported-resource fixture')
     engine = os.environ['REDOT_BIN']
@@ -56,6 +58,7 @@ def main():
         (project / 'lip_sync_checks.gd').write_bytes((ROOT / 'tests/native/project/lip_sync_checks.gd').read_bytes())
         (project / 'controller_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_checks.gd').read_bytes())
         (project / 'controller_utility_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_utility_checks.gd').read_bytes())
+        (project / 'controller_audio_timing_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_audio_timing_checks.gd').read_bytes())
         driver = project / 'addons/motion_test'
         driver.mkdir(exist_ok=True)
         (driver / 'checks.gd').write_bytes((ROOT / 'tests/editor/preferred_motion_prepare.gd').read_bytes())
@@ -97,6 +100,8 @@ def main():
             execute('native-lip', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://lip_sync_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_LIP_SYNC_PASS')
             execute('native-controller', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://controller_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_PASS')
             execute('native-controller-utilities', [engine, '--headless', '--path', str(project), '--script', 'res://controller_utility_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_UTILITIES_PASS')
+            if args.audio_timing:
+                execute('native-controller-audio-timing', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://controller_audio_timing_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_AUDIO_TIMING_PASS')
         execute('native-node', [engine, '--headless', '--path', str(project), '--script', 'res://model2d_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_MODEL2D_PASS')
         template = json.dumps(str(args.template.resolve()))
         (project / 'export_presets.cfg').write_text('[preset.0]\nname="Model2D"\nplatform="' + ('Windows Desktop' if os.name == 'nt' else 'Linux') + '"\nrunnable=true\nexport_path=""\nexport_filter="resources"\nexport_files=PackedStringArray("res://model2d.tscn", "res://model2d_checks.gd", "res://model2d_render_checks.gd")\ninclude_filter=""\nexclude_filter=""\nscript_export_mode=2\n[preset.0.options]\ncustom_template/debug=' + template + '\ncustom_template/release=' + template + '\nbinary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
@@ -105,6 +110,8 @@ def main():
             presets = (project / 'export_presets.cfg').read_text()
             presets = presets.replace('"res://model2d.tscn",', '"res://controller_checks.gd", "res://model2d.tscn",')
             presets = presets.replace('"res://model2d.tscn",', '"res://controller_utility_checks.gd", "res://model2d.tscn",')
+            if args.audio_timing:
+                presets = presets.replace('"res://model2d.tscn",', '"res://controller_audio_timing_checks.gd", "res://model2d.tscn",')
             (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://lip-sync.tscn", "res://lip_sync_checks.gd", "res://hit_checks.gd", "res://look_checks.gd", "res://procedural_checks.gd", "res://autoplay.tscn", "res://autoplay_checks.gd", "res://expression_api_checks.gd", "res://motion_api_checks.gd", "res://model2d.tscn",'))
         execute('checked-export', [sys.executable, str(ROOT / 'tools/checked_export.py'), '--project', str(project), '--preset', 'Model2D', '--output', str(output), '--redot-bin', engine, '--mode', args.mode, '--report', str(run / 'checked.json')])
         project.rename(run / 'source-not-available')
@@ -120,6 +127,8 @@ def main():
                 execute('exported-lip', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://lip_sync_checks.gd', '--quit-after', '10000'], 'CUBISM_LIP_SYNC_PASS', output)
                 execute('exported-controller', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://controller_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_PASS', output)
                 execute('exported-controller-utilities', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://controller_utility_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_UTILITIES_PASS', output)
+                if args.audio_timing:
+                    execute('exported-controller-audio-timing', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://controller_audio_timing_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_AUDIO_TIMING_PASS', output)
             if args.graphics:
                 captures = run / 'captures'; captures.mkdir()
                 command = [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--rendering-method', 'gl_compatibility', '--audio-driver', 'Dummy', '--script', 'res://model2d_render_checks.gd', '--quit-after', '1000']

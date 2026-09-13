@@ -151,6 +151,29 @@ the default sprite material fails the negative control. These are normal-blend,
 single-model experiments, not the public model's future rendering-mode setting.
 See [ADR-003](../../docs/architecture/ADR-003-direct-rendering.md) for limitations.
 
+## Recorded-audio controller timing
+
+Add `--audio-timing` to `tools/run_model2d_tests.py --motion` to include the
+long controller timing checks in both the native and checked exported game.
+The test plays generated 30-second WAV streams through the actual engine mixer
+with frame caps of 15, 30 and 60 fps, then variable updates with 250 ms main-thread
+stalls. It also exercises two controller voices on separate buses through pause
+and stop. No microphone, output device or optional MotionSync plugin is required.
+Weak references verify both disposed controller playbacks are released within
+one second, allowing the engine's mixer and main-thread cleanup to finish.
+Each process retains the harness's 600-second timeout and a 10000-frame limit.
+
+The timing oracle brackets the raw AudioStreamPlayer playback position around
+each controller update and subtracts output latency. It compares the native
+motion handle time and independently calculated authored mouth curve against
+that interval; it does not compare the controller's two derived clocks with
+each other. The fixed tolerance is 120 ms, with a mouth tolerance of
+`0.12 / 15 + 0.0001` for the fixture's triangular curve. The observed mixer
+buffer must be smaller than the timing budget. Logs include frame/sample counts,
+actual wall time, maximum update interval, stall count, buffer duration and
+maximum clock/pose errors. These checks qualify the engine's buffered playback
+clock under the tested scheduling conditions, not physical audio latency.
+
 ## AddressSanitizer
 
 Build the addon with the usual pinned inputs and `sanitize=address`, using a

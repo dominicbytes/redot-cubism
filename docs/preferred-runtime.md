@@ -429,8 +429,15 @@ while paused. Manual clock mode does not sample an audio bus. The test suite dri
 a 30-second native motion at 15/30/60 fps and checks both handle time and authored
 mouth values against independent curve values. Real generated-audio checks cover
 voice-only lip sync, authored mouth ownership, pause/resume and short-voice endings.
-Long real-audio drift measurements, hardware/platform coverage and complete
-controller workflows are still release requirements.
+The optional `tools/run_model2d_tests.py --motion --audio-timing` suite plays real
+30-second WAV cues at 15/30/60 fps caps and variable updates with 250 ms stalls.
+It compares native motion time and authored mouth values against independent
+player-clock samples. The declared tolerance is 120 ms against the buffered
+engine clock, with `0.12 / 15 + 0.0001` mouth error for the fixture's triangular
+curve. Logs report the observed buffer duration, scheduling and maximum errors.
+Two controller voices on separate buses are checked through pause, stop and
+asynchronous playback release. Physical-device latency, broader platform
+coverage and complete controller workflows remain release requirements.
 
 ## Idle, visibility and look utilities
 

@@ -42,6 +42,12 @@ func clock_sample(controller: CubismCharacterController) -> Array:
 	var player := controller.get_node("Voice") as AudioStreamPlayer
 	return [player.get_playback_position(), player.playing, player.stream_paused, controller.get_audio_position(), AudioServer.get_time_since_last_mix(), AudioServer.get_time_to_next_mix()]
 
+func playbacks_released(playbacks: Array[WeakRef]) -> bool:
+	# Temporary strong get_ref() values must not survive across an await.
+	for playback in playbacks:
+		if playback.get_ref() != null: return false
+	return true
+
 func _initialize() -> void:
 	_run.call_deferred()
 
@@ -249,13 +255,20 @@ func _run() -> void:
 	if not (speech.is_finished() and speech.get_reason() == CubismSpeechHandle.COMPLETED):
 		print("CUBISM_RESUME_DIAGNOSTIC terminal=", speech.is_finished(), " reason=", speech.get_reason(), " error=", speech.get_error(), " trace=", audio_trace)
 	controller.manual_process = false
+	var playbacks: Array[WeakRef] = []
 	for repetition in 5:
 		speech = controller.speak(wave(0.1), &"")
+		playbacks.append(weakref(controller.get_node("Voice").get_stream_playback()))
 		for frame in 90:
 			await process_frame
 			if speech.is_finished(): break
 		expect(speech.is_finished() and speech.get_reason() == CubismSpeechHandle.COMPLETED, "automatic short-voice end preserves clock")
 	dispose(p)
+	# Stop queues mixer-thread removal and subsequent main-thread reference cleanup.
+	var cleanup_deadline := Time.get_ticks_msec() + 1000
+	while not playbacks_released(playbacks) and Time.get_ticks_msec() < cleanup_deadline:
+		await create_timer(0.01).timeout
+	expect(playbacks_released(playbacks), "short voice playbacks released before shutdown")
 	await process_frame
 	print("CUBISM_CONTROLLER checks=", checks, " failures=", failures.size())
 	for failure in failures: printerr("CONTROLLER_CHECK_FAILED: ", failure)
