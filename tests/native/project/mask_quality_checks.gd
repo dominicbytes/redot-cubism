@@ -45,7 +45,7 @@ func _run() -> void:
 	node.playback_process_mode = CubismModel2D.MANUAL
 	node.enable_physics = false
 	node.enable_pose = false
-	expect(node.mask_quality == CubismModel2D.MASK_MEDIUM and node.custom_mask_limit == 1024, "default medium mask quality")
+	expect(node.mask_quality == CubismModel2D.MASK_MODEL and node.custom_mask_limit == 1024, "default inherited mask quality")
 	viewport.add_child(node)
 	expect(node.load_model(resource) == OK, "preferred fixture loads")
 	if not node.is_ready():
@@ -57,6 +57,42 @@ func _run() -> void:
 	node.scale = Vector2.ONE * 256.0 / maxf(canvas.size_in_pixels.x, canvas.size_in_pixels.y)
 	node.advance(0.05)
 	var count := masks(node).size()
+	var runtime := node.get_child(0, true) as GDCubismUserModel
+	for quality: int in [0, 1, 2]:
+		var imported := resource.duplicate(true) as CubismModelResource
+		imported.import_options["rendering/mask_quality"] = quality
+		expect(node.load_model(imported) == OK, "load imported mask quality")
+		node.advance(0.05)
+		var limit: int = [512, 1024, 2048][quality]
+		expect(runtime.mask_viewport_size == limit, "imported quality reaches renderer")
+		bounded(node, limit, count)
+		node.mask_quality = CubismModel2D.MASK_CUSTOM
+		node.custom_mask_limit = 127
+		expect(node.reload_model() == OK and runtime.mask_viewport_size == 127, "explicit override wins on resource reload")
+		node.mask_quality = CubismModel2D.MASK_MODEL
+		expect(runtime.mask_viewport_size == limit, "returning to model quality restores imported limit")
+	var inherited_scene := PackedScene.new()
+	expect(inherited_scene.pack(node) == OK, "pack inherited quality")
+	expect(ResourceSaver.save(inherited_scene, "user://inherited-quality.tscn") == OK, "save inherited quality")
+	var saved_inherited := ResourceLoader.load("user://inherited-quality.tscn", "PackedScene", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
+	if saved_inherited:
+		var restored := saved_inherited.instantiate() as CubismModel2D
+		viewport.add_child(restored)
+		restored.advance(0.05)
+		var restored_runtime := restored.get_child(0, true) as GDCubismUserModel
+		expect(restored.mask_quality == CubismModel2D.MASK_MODEL and restored_runtime.mask_viewport_size == 2048, "saved scene inherits imported high quality")
+		bounded(restored, 2048, count)
+		restored.free()
+	else: expect(false, "load inherited-quality scene")
+	expect(DirAccess.remove_absolute("user://inherited-quality.tscn") == OK, "remove inherited test scene")
+	var old_resource := resource.duplicate(true) as CubismModelResource
+	old_resource.import_options.erase("rendering/mask_quality")
+	expect(node.load_model(old_resource) == OK and runtime.mask_viewport_size == 1024, "older resource inherits medium")
+	var invalid_resource := resource.duplicate(true) as CubismModelResource
+	invalid_resource.import_options["rendering/mask_quality"] = true
+	expect(node.load_model(invalid_resource) != OK and not node.is_ready(), "invalid imported quality fails runtime validation")
+	expect(node.load_model(resource) == OK, "restore original resource")
+	node.advance(0.05)
 	bounded(node, 1024, count)
 	var original := await capture(viewport)
 	expect(original.get_used_rect().size.x > 0 and original.get_used_rect().size.y > 0, "default mask quality produces visible pixels")

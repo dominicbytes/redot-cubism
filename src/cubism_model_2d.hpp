@@ -19,7 +19,7 @@ class CubismModel2D : public godot::Node2D {
 public:
     enum PlaybackProcessMode { IDLE, PHYSICS, MANUAL };
     enum ModelState { UNLOADED, LOADING, READY, ERROR, DISPOSING, DISPOSED };
-    enum MaskQuality { MASK_LOW, MASK_MEDIUM, MASK_HIGH, MASK_CUSTOM };
+    enum MaskQuality { MASK_LOW, MASK_MEDIUM, MASK_HIGH, MASK_CUSTOM, MASK_MODEL };
     enum OffscreenUpdateMode { OFFSCREEN_ALWAYS, OFFSCREEN_REDUCED, OFFSCREEN_PAUSED };
     enum ParameterLayer {
         LAYER_BASE = GDCubismUserModel::WRITE_BASE,
@@ -50,7 +50,7 @@ private:
     void configure_debug_overlay();
     void queue_debug_redraw();
     void draw_debug_overlay();
-    MaskQuality mask_quality = MASK_MEDIUM;
+    MaskQuality mask_quality = MASK_MODEL;
     int custom_mask_limit = 1024;
     void update_mask_limit();
     bool load_requested = false;

@@ -2,7 +2,7 @@
 
 `CubismModelResource` is a native, serializable Redot `Resource` for imported
 model data. Creating or loading one does not create a Cubism model or renderer.
-The editor importer and runtime resource-loading adapter are still pending.
+The editor importer creates it and the runtime adapter validates it before loading.
 Saving a resource is not evidence that its contents describe a valid model.
 
 The stored properties follow the implementation plan:
@@ -26,7 +26,13 @@ Every property has a corresponding native `set_<name>` and `get_<name>` method.
 Setters emit `changed`. Schema version defaults to 1; other fields start empty
 or zero. `metadata` retains unknown JSON metadata when the importer populates
 it. [Motion/expression descriptors](descriptors.md) provide native resources
-for the animation catalogs; importer population remains pending.
+for the imported animation catalogs.
+
+`get_mask_quality()` reads the platform-neutral `rendering/mask_quality` entry in
+`import_options`: Low=0, Medium=1, High=2. The dictionary is the only serialized
+copy of the setting. An absent entry defaults to Medium for older resources;
+an invalid type or value returns -1 and runtime loading rejects the resource.
+Preferred nodes inherit this setting by default and may explicitly override it.
 
 Texture arrays preserve index order and carry real Redot resource references;
 path arrays alone do not establish engine dependencies. Shared references stay

@@ -1,13 +1,24 @@
 # SPDX-License-Identifier: MIT
 extends SceneTree
 
+var checks := 0
+var failures: Array[String] = []
+
+func expect(value: bool, label: String) -> void:
+	checks += 1
+	if not value: failures.append(label)
+
 func _initialize() -> void:
 	_run.call_deferred()
 
 func _run() -> void:
-	var resource := load("res://imported-model.res") as CubismModelResource
+	var source := load("res://imported-model.res") as CubismModelResource
+	var resource := source.duplicate(true) as CubismModelResource
+	# Dependency tests deliberately leave edited layout in their fixture. These
+	# fixed legacy look targets use zero-layout coordinates; layout conversion is
+	# independently exercised by look_checks.gd and debug_overlay_checks.gd.
+	resource.layout = {}
 	var capture_dir: String = OS.get_cmdline_user_args()[0]
-	var ok := true
 	var poses := ["normal", "transformed"]
 	if OS.get_cmdline_user_args().has("--motion"): poses.append_array(["motion", "expression", "expression-clear", "blink-closed", "breath", "look", "look-transformed", "lip-sync", "controller-fade"])
 	for pose: String in poses:
@@ -50,7 +61,7 @@ func _run() -> void:
 					for frame in 200:
 						node.call("advance", 0.05)
 						if is_zero_approx((node as CubismModel2D).get_parameter_value(&"ParamEyeLOpen")): break
-					ok = ok and is_zero_approx((node as CubismModel2D).get_parameter_value(&"ParamEyeLOpen"))
+					expect(is_zero_approx((node as CubismModel2D).get_parameter_value(&"ParamEyeLOpen")), pose + ": eye closes")
 				else:
 					for parameter: GDCubismParameter in (node as GDCubismUserModel).get_parameters():
 						if parameter.get_id() in ["ParamEyeLOpen", "ParamEyeROpen"]: parameter.value = 0.0
@@ -73,7 +84,7 @@ func _run() -> void:
 					node.add_child(lip)
 					lip.profile = CubismLipSyncProfile.new()
 					lip.profile.attack = 0.0
-					ok = ok and lip.set_target_model(node as CubismModel2D) == OK
+					expect(lip.set_target_model(node as CubismModel2D) == OK, pose + ": attach lip sync")
 					lip.submit_sample(0.5)
 				else:
 					for parameter: GDCubismParameter in (node as GDCubismUserModel).get_parameters():
@@ -86,7 +97,7 @@ func _run() -> void:
 			if pose == "motion":
 				if preferred:
 					var handle := (node as CubismModel2D).play_motion(&"Cue/0")
-					ok = ok and handle.get_error() == OK
+					expect(handle.get_error() == OK, pose + ": start motion")
 					for frame in 5: node.call("advance", 0.05)
 				else:
 					for parameter: GDCubismParameter in (node as GDCubismUserModel).get_parameters():
@@ -94,7 +105,7 @@ func _run() -> void:
 					node.call("advance", 0.05)
 			if pose in ["expression", "expression-clear"]:
 				if preferred:
-					ok = ok and (node as CubismModel2D).set_expression(&"Add" if pose == "expression" else &"Overwrite", 0.0) == OK
+					expect((node as CubismModel2D).set_expression(&"Add" if pose == "expression" else &"Overwrite", 0.0) == OK, pose + ": set expression")
 					node.call("advance", 0.05)
 					if pose == "expression-clear":
 						(node as CubismModel2D).clear_expression(0.2)
@@ -106,7 +117,7 @@ func _run() -> void:
 			if transformed:
 				if preferred:
 					(node as CubismModel2D).enable_pose = false
-					ok = ok and (node as CubismModel2D).set_part_opacity(StringName((node as CubismModel2D).get_part_ids()[0]), 0.5) == OK
+					expect((node as CubismModel2D).set_part_opacity(StringName((node as CubismModel2D).get_part_ids()[0]), 0.5) == OK, pose + ": set part opacity")
 				else:
 					(node as GDCubismUserModel).pose_update = false
 					(node as GDCubismUserModel).get_part_opacities()[0].value = 0.5
@@ -118,21 +129,23 @@ func _run() -> void:
 					node.add_child(controller)
 					controller.target_model = node as CubismModel2D
 					controller.transition_seconds = 0.2
-					ok = ok and controller.hide_character(&"fade") == OK
+					expect(controller.hide_character(&"fade") == OK, pose + ": start fade")
 					controller.advance(0.1)
 				else: node.modulate.a = 0.5
 			for frame in 4:
 				await process_frame
 				RenderingServer.force_draw(false)
 			var image := viewport.get_texture().get_image()
-			ok = ok and image.get_used_rect().size.x > 10 and image.get_used_rect().size.y > 10
 			var label := pose + "-" + ("preferred" if preferred else "legacy")
+			expect(image.get_used_rect().size.x > 10 and image.get_used_rect().size.y > 10, label + ": visible model")
 			var saved := image.save_png(capture_dir.path_join(label + ".png"))
-			ok = ok and saved == OK
+			expect(saved == OK, label + ": save capture")
 			if preferred:
-				ok = ok and reference.get_data() == image.get_data()
+				expect(reference.get_data() == image.get_data(), pose + ": pixels match legacy reference")
 			else:
 				reference = image
 			viewport.free()
+	var ok := failures.is_empty()
+	print("CUBISM_MODEL2D_RENDER " + JSON.stringify({"checks": checks, "failures": failures}))
 	print("CUBISM_MODEL2D_RENDER_PASS" if ok else "CUBISM_MODEL2D_RENDER_FAIL")
 	quit(0 if ok else 1)

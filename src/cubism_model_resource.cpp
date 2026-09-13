@@ -2,7 +2,15 @@
 #include "cubism_model_resource.hpp"
 #include <godot_cpp/core/class_db.hpp>
 
+int CubismModelResource::get_mask_quality() const {
+    // The import-options dictionary is the one serialized source of this setting.
+    // Resources made before this option existed retain medium quality.
+    const Variant value = import_options.get("rendering/mask_quality", 1);
+    return value.get_type() == Variant::INT && int64_t(value) >= 0 && int64_t(value) <= 2 ? int(value) : -1;
+}
+
 void CubismModelResource::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("get_mask_quality"), &CubismModelResource::get_mask_quality);
     ClassDB::bind_method(D_METHOD("set_runtime_extension", "value"), &CubismModelResource::set_runtime_extension);
     ClassDB::bind_method(D_METHOD("get_runtime_extension"), &CubismModelResource::get_runtime_extension);
     // A real serialized edge lets Redot select/export the descriptor and native

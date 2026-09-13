@@ -200,6 +200,14 @@ def main():
                 if not ok:
                     break
     if ok:
+        editor_script.write_bytes((ROOT / "tests/editor/mask_quality_import_checks.gd").read_bytes())
+        (driver / "plugin.cfg").write_text('[plugin]\nname="Mask Quality Test"\ndescription="Test driver"\nauthor="Tests"\nversion="1"\nscript="checks.gd"\n')
+        (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
+        ok = execute("mask-quality-import", ["--editor", "--quit-after", "10000"], "CUBISM_MASK_QUALITY_IMPORT_PASS")
+        (project / "project.godot").write_text(project_config)
+        editor_script.unlink()
+        (driver / "plugin.cfg").unlink()
+    if ok:
         ok = execute("editor-restart", ["--editor", "--import", "--quit-after", "1000"])
     if ok:
         (project / "imported_resource_checks.gd").write_bytes((ROOT / "tests/native/project/imported_resource_checks.gd").read_bytes())
@@ -216,7 +224,7 @@ def main():
             template = json.dumps(str(args.template.resolve()))
             (project / "export_presets.cfg").write_text(
                 f'[preset.0]\nname="Textures"\nplatform="{platform}"\nrunnable=true\nexport_filter="resources"\n'
-                'export_files=PackedStringArray("res://imported-model.res", "res://texture_export_checks.gd", "res://imported_resource_checks.gd", "res://texture_export_scene.tscn")\n'
+                'export_files=PackedStringArray("res://imported-model.res", "res://mask-quality-model.res", "res://texture_export_checks.gd", "res://imported_resource_checks.gd", "res://texture_export_scene.tscn")\n'
                 'include_filter="texture-expected.json"\nexclude_filter="addons/import_test/*"\nexport_path=""\nscript_export_mode=2\n'
                 f'[preset.0.options]\ncustom_template/debug={template}\ncustom_template/release={template}\n'
                 'binary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
