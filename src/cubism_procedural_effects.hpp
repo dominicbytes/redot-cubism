@@ -30,6 +30,8 @@ public:
     bool enable_eye_blink = false;
     bool enable_breath = false;
     bool enable_look_target = true;
+    bool enable_lip_sync = true;
+    uint64_t lip_sync_id = 0;
     ~CubismProceduralEffects() { clear(); }
     void clear();
     void configure(Csm::ICubismModelSetting *setting, Csm::CubismModel *model);

@@ -28,6 +28,7 @@
 #include <cubism_manifest_parser.hpp>
 #include <cubism_model_resource.hpp>
 #include <cubism_model_2d.hpp>
+#include <cubism_lip_sync.hpp>
 #include <cubism_model_factory.hpp>
 #include <cubism_descriptors.hpp>
 #include <cubism_import_options.hpp>
@@ -116,6 +117,8 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     ClassDB::register_class<GDCubismMotionEntry>();
     ClassDB::register_class<GDCubismUserModel>();
     ClassDB::register_class<CubismModel2D>();
+    ClassDB::register_class<CubismLipSyncProfile>();
+    ClassDB::register_class<CubismLipSync>();
 
     motionLoader.instantiate();
 

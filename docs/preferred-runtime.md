@@ -12,7 +12,7 @@ speed and pause controls, physics/pose switches, parameter/part IDs, parameter
 writes, part-opacity writes and canvas information. Native motion playback now
 provides IDs/groups, priorities, independent speed/loop state, fades and retained
 handles with deferred events and terminal signals. It does **not yet complete**
-lip sync, advanced rendering policies or character/audio controller.
+advanced rendering policies or character/audio controller.
 Those remain required work in the canonical plan.
 
 ```gdscript
@@ -308,3 +308,53 @@ visibility, pause, processing, clear/reload/unload/tree exit and callback unload
 The headless path uses the fixture's original static hit areas because the existing
 renderer compatibility guard skips mesh refresh without a visible window.
 Animated geometry coverage requires the graphics run.
+
+
+## Deterministic lip sync
+
+Add a `CubismLipSync` node and assign its `target_model`. One live component may
+own a model; a second assignment returns `ERR_ALREADY_IN_USE` and retains the
+previous selection. Each component owns its envelope while profiles can be shared. A null profile uses
+internal defaults; assign a new CubismLipSyncProfile to customize settings.
+The model drives the component after look, before custom effects, physics, pose
+and queued manual overrides. No child processing priority or extra advance call
+is needed. Model pause/speed and the model's 0.1-second step cap govern its clock.
+`enable_lip_sync` defaults to true and has no effect without an attached component;
+disabling the model switch freezes the envelope and releases its contribution.
+
+`MANUAL_VALUE` retains the newest finite nonnegative `submit_sample(value)` input,
+clamped to [0,1]. Invalid samples return an error without changing the input.
+`submit_peak_db(left, right)` supplies manual input through the same dB conversion
+as bus sampling; negative infinity means silence, while NaN/+infinity are errors.
+`AUDIO_BUS_PEAK` reads the maximum channel peak from the selected Redot audio bus.
+Give each character its own voice bus to prevent unrelated sounds driving its
+mouth. A missing bus produces silence and `ERR_DOES_NOT_EXIST` from `get_last_error()`.
+
+The profile gates amplitude before gain, then clamps the desired envelope to [0,1].
+For a time constant `tau`, one step follows `desired + (old - desired) * exp(-dt/tau)`;
+attack is used when rising, release when falling, and zero means immediate change.
+The normalized result maps between `minimum` and `maximum` and is added to each
+existing target parameter. Empty IDs use the manifest lip-sync group; duplicates
+apply once, and missing IDs are skipped and reported. Defaults are gain1, gate0.02,
+attack0.03s, release0.08s, minimum0 and maximum0.8 (the SDK sample's additive weight).
+The optional mouth-form ID receives a fixed configured value instead of amplitude.
+
+Motion parameter curves, Model/LipSync curves and active expression parameters
+retain ownership by default, including native outgoing fades. Ownership is read
+from loaded motion bytes and native expression entries, not mutable descriptor
+metadata. `blend_with_authored=true` explicitly allows additive envelope influence;
+optional mouth form then writes its configured value. Final manual overrides still
+win. This preserves the SDK's saved primary pose: disabling the envelope releases
+its addition, not any pose authored by a motion or expression.
+
+Setting component `enabled=false` stops and resets its sample/envelope. `reset()`
+clears state while retaining enablement; a nonzero profile minimum can still
+contribute. Reload/unload and component tree exit reset state. Profiles and target
+selection serialize; samples and envelopes do not. Model destruction clears the
+component target. Audio stopping makes a bus-driven envelope release toward silence;
+use a zero release or disable the component for immediate removal.
+
+This component does not start audio or maintain audio/motion alignment. The
+character controller, speech handles and audio-clock coordination remain required.
+The lip suite uses known amplitude vectors and generated PCM voices with Dummy
+audio, including two separate buses; no microphone or audio device is required.

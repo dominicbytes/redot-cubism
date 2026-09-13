@@ -22,6 +22,7 @@
 #include <private/internal_cubism_user_model.hpp>
 #include <cubism_animator.hpp>
 #include <cubism_procedural_effects.hpp>
+#include <cubism_lip_sync.hpp>
 
 
 // ------------------------------------------------------------------ define(s)
@@ -367,6 +368,11 @@ void InternalCubismUserModel::efx_update(const double delta) {
     }
 
     if (_owner_viewport->get_procedural_effects()) _owner_viewport->get_procedural_effects()->update(_model, float(delta), primary_motion_updated);
+    if (auto *effects = _owner_viewport->get_procedural_effects()) {
+        if (effects->enable_lip_sync) {
+            if (auto *lip = Object::cast_to<CubismLipSync>(ObjectDB::get_instance(effects->lip_sync_id))) lip->apply(*this, delta);
+        }
+    }
     this->effect_batch(delta, EFFECT_CALL_PROCESS);
 }
 
@@ -433,6 +439,7 @@ void InternalCubismUserModel::clear() {
         this->_map_motion.Clear();
         motion_buffers.Clear();
         motion_fps.Clear();
+        motion_parameters.Clear();
     }
 
     this->effect_term();
@@ -483,6 +490,38 @@ Vector2 InternalCubismUserModel::look_direction(const Vector2 &local_point) cons
     const double y = (double(local_point.y) - layout[2].y) / layout[1].y;
     return Vector2(CLAMP(2.0 * x / _model->GetCanvasWidthPixel(), -1.0, 1.0),
         CLAMP(-2.0 * y / _model->GetCanvasHeightPixel(), -1.0, 1.0));
+}
+
+PackedStringArray InternalCubismUserModel::get_lip_sync_ids() const {
+    PackedStringArray ids;
+    for (unsigned int i = 0; i < _list_lipsync.GetSize(); ++i) ids.push_back(String::utf8(_list_lipsync[i]->GetString().GetRawString()));
+    return ids;
+}
+
+PackedStringArray InternalCubismUserModel::get_motion_parameter_ids(const StringName &group, int index) const {
+    const csmString key = Utils::CubismString::GetFormatedString("%s_%d", String(group).utf8().ptr(), index);
+    for (auto entry = motion_parameters.Begin(); entry != motion_parameters.End(); ++entry) {
+        if (entry->First == key) return entry->Second;
+    }
+    return PackedStringArray();
+}
+
+bool InternalCubismUserModel::has_authored_parameter(const String &id) const {
+    if (auto *animator = _owner_viewport->get_animator()) if (animator->has_authored_parameter(id)) return true;
+    if (_expressionManager) {
+        const auto *entries = _expressionManager->GetCubismMotionQueueEntries();
+        for (unsigned int i = 0; i < entries->GetSize(); ++i) {
+            auto *entry = (*entries)[i];
+            if (!entry || entry->IsFinished()) continue;
+            auto *expression = static_cast<CubismExpressionMotion *>(entry->GetCubismMotion());
+            if (!expression) continue;
+            const auto parameters = expression->GetExpressionParameters();
+            for (unsigned int j = 0; j < parameters.GetSize(); ++j) {
+                if (String::utf8(parameters[j].ParameterId->GetString().GetRawString()) == id) return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool InternalCubismUserModel::hit_test(const StringName &name, const Vector2 &local_point) {
@@ -728,6 +767,17 @@ bool InternalCubismUserModel::motion_load() {
                 const Dictionary json = JSON::parse_string(buffer.get_string_from_utf8());
                 const Dictionary metadata = json.get("Meta", Dictionary());
                 motion_fps[name] = metadata.get("Fps", 0.0);
+                PackedStringArray parameters;
+                const Array curves = json.get("Curves", Array());
+                for (const Dictionary curve : curves) {
+                    const String target = curve.get("Target", String());
+                    const String id = curve.get("Id", String());
+                    if (target == "Parameter" && !parameters.has(id)) parameters.push_back(id);
+                    if (target == "Model" && id == "LipSync") {
+                        for (const String &lip_id : get_lip_sync_ids()) if (!parameters.has(lip_id)) parameters.push_back(lip_id);
+                    }
+                }
+                motion_parameters[name] = parameters;
             }
         }
     }

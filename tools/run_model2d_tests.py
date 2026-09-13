@@ -53,6 +53,7 @@ def main():
         (project / 'procedural_checks.gd').write_bytes((ROOT / 'tests/native/project/procedural_checks.gd').read_bytes())
         (project / 'look_checks.gd').write_bytes((ROOT / 'tests/native/project/look_checks.gd').read_bytes())
         (project / 'hit_checks.gd').write_bytes((ROOT / 'tests/native/project/hit_checks.gd').read_bytes())
+        (project / 'lip_sync_checks.gd').write_bytes((ROOT / 'tests/native/project/lip_sync_checks.gd').read_bytes())
         driver = project / 'addons/motion_test'
         driver.mkdir(exist_ok=True)
         (driver / 'checks.gd').write_bytes((ROOT / 'tests/editor/preferred_motion_prepare.gd').read_bytes())
@@ -91,13 +92,14 @@ def main():
             execute('native-procedural', [engine, '--headless', '--path', str(project), '--script', 'res://procedural_checks.gd', '--quit-after', '10000'], 'CUBISM_PROCEDURAL_PASS')
             execute('native-look', [engine, '--headless', '--path', str(project), '--script', 'res://look_checks.gd', '--quit-after', '10000'], 'CUBISM_LOOK_PASS')
             execute('native-hit', [engine, *hit_flags, '--path', str(project), '--script', 'res://hit_checks.gd', '--quit-after', '10000', *hit_args], 'CUBISM_HIT_PASS')
+            execute('native-lip', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://lip_sync_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_LIP_SYNC_PASS')
         execute('native-node', [engine, '--headless', '--path', str(project), '--script', 'res://model2d_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_MODEL2D_PASS')
         template = json.dumps(str(args.template.resolve()))
         (project / 'export_presets.cfg').write_text('[preset.0]\nname="Model2D"\nplatform="' + ('Windows Desktop' if os.name == 'nt' else 'Linux') + '"\nrunnable=true\nexport_path=""\nexport_filter="resources"\nexport_files=PackedStringArray("res://model2d.tscn", "res://model2d_checks.gd", "res://model2d_render_checks.gd")\ninclude_filter=""\nexclude_filter=""\nscript_export_mode=2\n[preset.0.options]\ncustom_template/debug=' + template + '\ncustom_template/release=' + template + '\nbinary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
         output = run / 'export'
         if args.motion:
             presets = (project / 'export_presets.cfg').read_text()
-            (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://hit_checks.gd", "res://look_checks.gd", "res://procedural_checks.gd", "res://autoplay.tscn", "res://autoplay_checks.gd", "res://expression_api_checks.gd", "res://motion_api_checks.gd", "res://model2d.tscn",'))
+            (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://lip-sync.tscn", "res://lip_sync_checks.gd", "res://hit_checks.gd", "res://look_checks.gd", "res://procedural_checks.gd", "res://autoplay.tscn", "res://autoplay_checks.gd", "res://expression_api_checks.gd", "res://motion_api_checks.gd", "res://model2d.tscn",'))
         execute('checked-export', [sys.executable, str(ROOT / 'tools/checked_export.py'), '--project', str(project), '--preset', 'Model2D', '--output', str(output), '--redot-bin', engine, '--mode', args.mode, '--report', str(run / 'checked.json')])
         project.rename(run / 'source-not-available')
         try:
@@ -109,6 +111,7 @@ def main():
                 execute('exported-procedural', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://procedural_checks.gd', '--quit-after', '10000'], 'CUBISM_PROCEDURAL_PASS', output)
                 execute('exported-look', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://look_checks.gd', '--quit-after', '10000'], 'CUBISM_LOOK_PASS', output)
                 execute('exported-hit', [str(output / ('game.exe' if os.name == 'nt' else 'game')), *hit_flags, '--script', 'res://hit_checks.gd', '--quit-after', '10000', *hit_args], 'CUBISM_HIT_PASS', output)
+                execute('exported-lip', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://lip_sync_checks.gd', '--quit-after', '10000'], 'CUBISM_LIP_SYNC_PASS', output)
             if args.graphics:
                 captures = run / 'captures'; captures.mkdir()
                 command = [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--rendering-method', 'gl_compatibility', '--audio-driver', 'Dummy', '--script', 'res://model2d_render_checks.gd', '--quit-after', '1000']

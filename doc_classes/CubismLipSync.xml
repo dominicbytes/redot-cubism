@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismLipSync" inherits="Node" version="4.3">
+	<brief_description>Deterministic lip-sync component driven by its target model clock.</brief_description>
+	<description>Deterministic lip-sync component driven by its target model clock. Attach one component per CubismModel2D. Sampling occurs after look and before custom effects, physics, pose and manual overrides. Does not start audio or synchronize a motion to a voice. The separate character controller remains under development.</description>
+	<methods>
+		<method name="submit_sample">
+			<return type="int" />
+			<param index="0" name="value" type="float" />
+			<description>Accept a finite nonnegative amplitude, clamped to [0,1]. Returns ERR_INVALID_PARAMETER for invalid inputs and retains the previous sample. Used by MANUAL_VALUE mode.</description>
+		</method>
+		<method name="submit_peak_db">
+			<return type="int" />
+			<param index="0" name="left_db" type="float" />
+			<param index="1" name="right_db" type="float" />
+			<description>Convert the larger channel peak to a manual amplitude. Negative infinity is silence; NaN and positive infinity are rejected. Positive finite dB clips to one.</description>
+		</method>
+		<method name="get_envelope">
+			<return type="float" />
+			<description>Current normalized envelope. Attack/release use an exponential one-pole response in the target model clock.</description>
+		</method>
+		<method name="get_output_value">
+			<return type="float" />
+			<description>Current envelope mapped between profile minimum and maximum, before native parameter clamping.</description>
+		</method>
+		<method name="get_last_error">
+			<return type="int" />
+			<description>Most recent operation/frame error. Missing buses or parameters are ERR_DOES_NOT_EXIST. Valid parameters still receive the sample.</description>
+		</method>
+		<method name="reset">
+			<return type="void" />
+			<description>Reset sample and envelope without changing settings or enabled state. A nonzero profile minimum still contributes when enabled. Disable to release all influence.</description>
+		</method>
+	</methods>
+	<members>
+		<member name="target_model" type="CubismModel2D" setter="set_target_model" getter="get_target_model">Target node. set_target_model returns ERR_ALREADY_IN_USE if another live component owns it, retaining the previous assignment. Selection survives component tree exit/reentry; model destruction clears it.</member>
+		<member name="profile" type="CubismLipSyncProfile" setter="set_profile" getter="get_profile">Shared configuration with independent envelope state per component. Replacing it resets sampling state; null uses internal default settings.</member>
+		<member name="input_mode" type="int" setter="set_input_mode" getter="get_input_mode" default="0">MANUAL_VALUE (0) retains the latest submitted amplitude. AUDIO_BUS_PEAK (1) samples the maximum absolute dB peak across stereo bus channels. Changing mode resets the envelope.</member>
+		<member name="audio_bus" type="StringName" setter="set_audio_bus" getter="get_audio_bus" default="&amp;&quot;Master&quot;">Bus read in AUDIO_BUS_PEAK mode. Use a separate voice bus for each character. Missing buses are silent and reported by get_last_error.</member>
+		<member name="enabled" type="bool" setter="set_enabled" getter="get_enabled" default="true">Disabling resets sample/envelope and releases influence on the next model update. Does not stop an AudioStreamPlayer.</member>
+	</members>
+</class>

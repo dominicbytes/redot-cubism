@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 #include "cubism_procedural_effects.hpp"
+#include "cubism_lip_sync.hpp"
 #include <Id/CubismIdManager.hpp>
 #include <algorithm>
 
 void CubismProceduralEffects::clear() {
+    if (auto *lip = godot::Object::cast_to<CubismLipSync>(godot::ObjectDB::get_instance(lip_sync_id))) lip->reset();
     if (breath) Csm::CubismBreath::Delete(breath);
     breath = nullptr;
     eye_indices.clear();

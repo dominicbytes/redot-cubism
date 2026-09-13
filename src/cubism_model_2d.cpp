@@ -4,6 +4,7 @@
 #include "gd_cubism_value_part_opacity.hpp"
 #include "cubism_animator.hpp"
 #include "cubism_procedural_effects.hpp"
+#include "cubism_lip_sync.hpp"
 #include "private/internal_cubism_user_model.hpp"
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <cmath>
@@ -53,6 +54,9 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_enable_look_target", "value"), &CubismModel2D::set_enable_look_target);
     ClassDB::bind_method(D_METHOD("get_enable_look_target"), &CubismModel2D::get_enable_look_target);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_look_target"), "set_enable_look_target", "get_enable_look_target");
+    ClassDB::bind_method(D_METHOD("set_enable_lip_sync", "value"), &CubismModel2D::set_enable_lip_sync);
+    ClassDB::bind_method(D_METHOD("get_enable_lip_sync"), &CubismModel2D::get_enable_lip_sync);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_lip_sync"), "set_enable_lip_sync", "get_enable_lip_sync");
     ClassDB::bind_method(D_METHOD("set_look_target", "local_target", "weight"), &CubismModel2D::set_look_target, DEFVAL(1.0));
     ClassDB::bind_method(D_METHOD("clear_look_target"), &CubismModel2D::clear_look_target);
     ClassDB::bind_method(D_METHOD("set_enable_physics", "value"), &CubismModel2D::set_enable_physics);
@@ -146,7 +150,10 @@ void CubismModel2D::_notification(int what) {
             break;
         case NOTIFICATION_PREDELETE:
             if (runtime->is_native_busy()) { cancel_free(); queue_free(); }
-            else runtime->get_animator()->clear(CubismMotionHandle::MODEL_DISPOSED);
+            else {
+                if (auto *lip = Object::cast_to<CubismLipSync>(ObjectDB::get_instance(runtime->get_procedural_effects()->lip_sync_id))) lip->set_target_model(nullptr);
+                runtime->get_animator()->clear(CubismMotionHandle::MODEL_DISPOSED);
+            }
             break;
     }
 }
@@ -242,6 +249,22 @@ void CubismModel2D::set_look_target(const Vector2 &local_target, double weight) 
 }
 
 void CubismModel2D::clear_look_target() { runtime->get_procedural_effects()->clear_look_target(); }
+
+void CubismModel2D::set_enable_lip_sync(bool value) { runtime->get_procedural_effects()->enable_lip_sync = value; }
+bool CubismModel2D::get_enable_lip_sync() const { return runtime->get_procedural_effects()->enable_lip_sync; }
+
+Error CubismModel2D::attach_lip_sync(uint64_t component) {
+    if (is_queued_for_deletion()) return ERR_UNAVAILABLE;
+    auto *effects = runtime->get_procedural_effects();
+    if (effects->lip_sync_id != component && ObjectDB::get_instance(effects->lip_sync_id)) return ERR_ALREADY_IN_USE;
+    effects->lip_sync_id = component;
+    return OK;
+}
+
+void CubismModel2D::detach_lip_sync(uint64_t component) {
+    auto *effects = runtime->get_procedural_effects();
+    if (effects->lip_sync_id == component) effects->lip_sync_id = 0;
+}
 
 PackedStringArray CubismModel2D::get_hit_area_names() const {
     PackedStringArray names;
