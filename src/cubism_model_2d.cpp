@@ -3,6 +3,7 @@
 #include "gd_cubism_value_parameter.hpp"
 #include "gd_cubism_value_part_opacity.hpp"
 #include "cubism_animator.hpp"
+#include "cubism_procedural_effects.hpp"
 #include "private/internal_cubism_user_model.hpp"
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <cmath>
@@ -39,7 +40,16 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_paused", "value"), &CubismModel2D::set_paused);
     ClassDB::bind_method(D_METHOD("get_paused"), &CubismModel2D::get_paused);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "paused"), "set_paused", "get_paused");
+    ClassDB::bind_method(D_METHOD("set_deterministic_seed", "seed"), &CubismModel2D::set_deterministic_seed);
+    ClassDB::bind_method(D_METHOD("get_deterministic_seed"), &CubismModel2D::get_deterministic_seed);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "deterministic_seed"), "set_deterministic_seed", "get_deterministic_seed");
     ADD_GROUP("Effects", "");
+    ClassDB::bind_method(D_METHOD("set_enable_eye_blink", "value"), &CubismModel2D::set_enable_eye_blink);
+    ClassDB::bind_method(D_METHOD("get_enable_eye_blink"), &CubismModel2D::get_enable_eye_blink);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_eye_blink"), "set_enable_eye_blink", "get_enable_eye_blink");
+    ClassDB::bind_method(D_METHOD("set_enable_breath", "value"), &CubismModel2D::set_enable_breath);
+    ClassDB::bind_method(D_METHOD("get_enable_breath"), &CubismModel2D::get_enable_breath);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_breath"), "set_enable_breath", "get_enable_breath");
     ClassDB::bind_method(D_METHOD("set_enable_physics", "value"), &CubismModel2D::set_enable_physics);
     ClassDB::bind_method(D_METHOD("get_enable_physics"), &CubismModel2D::get_enable_physics);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_physics"), "set_enable_physics", "get_enable_physics");
@@ -184,6 +194,13 @@ void CubismModel2D::step(double delta) {
 }
 
 void CubismModel2D::advance(double delta) { if (playback_process_mode == MANUAL) step(delta); }
+
+void CubismModel2D::set_enable_eye_blink(bool value) { runtime->get_procedural_effects()->enable_eye_blink = value; }
+bool CubismModel2D::get_enable_eye_blink() const { return runtime->get_procedural_effects()->enable_eye_blink; }
+void CubismModel2D::set_enable_breath(bool value) { runtime->get_procedural_effects()->enable_breath = value; }
+bool CubismModel2D::get_enable_breath() const { return runtime->get_procedural_effects()->enable_breath; }
+void CubismModel2D::set_deterministic_seed(int64_t value) { runtime->get_procedural_effects()->set_seed(value); }
+int64_t CubismModel2D::get_deterministic_seed() const { return runtime->get_procedural_effects()->get_seed(); }
 
 PackedStringArray CubismModel2D::get_motion_ids() const { return runtime->get_animator()->get_motion_ids(); }
 

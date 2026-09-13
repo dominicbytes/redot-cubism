@@ -12,8 +12,7 @@ speed and pause controls, physics/pose switches, parameter/part IDs, parameter
 writes, part-opacity writes and canvas information. Native motion playback now
 provides IDs/groups, priorities, independent speed/loop state, fades and retained
 handles with deferred events and terminal signals. It does **not yet complete**
-deterministic effects,
-look/hit testing, advanced rendering policies or character/audio controller.
+look/hit testing, lip sync, advanced rendering policies or character/audio controller.
 Those remain required work in the canonical plan.
 
 ```gdscript
@@ -187,3 +186,37 @@ replace the idle default with a normal-priority cue. Invalid defaults emit one
 
 These properties are serialized on the public node. The `--motion` suite saves
 and reopens an autoplay scene, then exercises it again from a source-free export.
+
+## Procedural blink and breath
+
+`enable_eye_blink` and `enable_breath` are off by default. Enable either explicitly
+when the character should receive procedural animation. They run after expressions
+and before custom effects, physics, pose and queued `POST_EFFECT` writes. Turning
+an effect off releases its influence and freezes its clock until reenabled.
+Model pause and speed controls apply to both effects. Reload/reentry resets their
+state while retaining the selected settings.
+
+Blink uses the manifest's existing eye parameter IDs. As in the pinned SDK's
+`CubismEyeBlinkUpdater`, any primary-motion update suppresses procedural blink
+for that frame, including an outgoing fade and the final motion frame. Its clock
+also pauses during suppression. This preserves authored eye curves and native
+motion effect-ID ownership. Expressions retain the SDK update order, where a
+procedural blink can follow an expression if no primary motion is updating.
+
+`deterministic_seed` selects an instance-owned xorshift64* stream for blink timing;
+it never calls process-global `srand()` or `rand()`. Setting the seed resets blink
+timing, including setting the same value again; it does not reset breath. The
+documented profile uses the R5 default close/hold/open durations (0.1/0.05/0.15
+seconds), a uniform wait in `[0,7)` seconds, and no carry of step overshoot across
+phase transitions. The random sequence deliberately differs from platform libc
+`rand()`. Repeatability requires the same model, seed, engine/SDK/platform, fixed
+steps and effect settings; this is not a cross-architecture float identity claim.
+
+Breath delegates to `CubismBreath` with the five standard SDK sample profiles for
+head angles, body angle and breath. Only real model parameters are registered.
+Its trajectory is compared against the existing legacy breath effect. Procedural
+tests also verify seed independence under reversed construction/update order,
+phase durations, reload, pause, disable/resume, authored eye motion/fades, and final
+user overrides. Graphics checks compare closed eyes to an explicit parameter pose
+and breathing to the legacy SDK effect. Procedural settings are checked in saved
+and source-free exported scenes.

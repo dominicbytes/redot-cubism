@@ -33,6 +33,12 @@ func _run() -> void:
 			"UserData": events})
 		entries.append({"File": filename, "FadeInTime": 0.0, "FadeOutTime": 0.2})
 	manifest.FileReferences.Motions = {"Cue": entries}
+	_write(source.get_base_dir().path_join("test-eyes.motion3.json"), {
+		"Version": 3, "Meta": {"Duration": 1.0, "Fps": 20.0, "Loop": true, "AreBeziersRestricted": true,
+			"CurveCount": 2, "TotalSegmentCount": 2, "TotalPointCount": 4, "UserDataCount": 0, "TotalUserDataSize": 0},
+		"Curves": [{"Target": "Parameter", "Id": "ParamEyeLOpen", "Segments": [0.0, 0.25, 0, 1.0, 0.25]},
+			{"Target": "Parameter", "Id": "ParamEyeROpen", "Segments": [0.0, 0.25, 0, 1.0, 0.25]}], "UserData": []})
+	manifest.FileReferences.Motions["Eyes"] = [{"File": "test-eyes.motion3.json", "FadeInTime": 0.0, "FadeOutTime": 0.2}]
 	var expressions: Array = []
 	for blend: String in ["Add", "Multiply", "Overwrite"]:
 		var filename := "test-" + blend + ".exp3.json"

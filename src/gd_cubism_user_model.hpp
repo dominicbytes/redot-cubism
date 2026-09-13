@@ -23,6 +23,7 @@
 #include <vector>
 #include <memory>
 class CubismAnimator;
+class CubismProceduralEffects;
 
 
 // ------------------------------------------------------------------ define(s)
@@ -151,6 +152,7 @@ protected:
 
 private:
     std::unique_ptr<CubismAnimator> preferred_animator;
+    std::unique_ptr<CubismProceduralEffects> preferred_effects;
     struct PostEffectWrite { int index; double value; double weight; int operation; };
     std::vector<PostEffectWrite> post_effect_writes;
     void apply_post_effect_writes();
@@ -188,6 +190,7 @@ public:
     void set_model(const Ref<CubismModelResource> &resource);
     void enable_preferred_animation();
     CubismAnimator *get_animator() const { return preferred_animator.get(); }
+    CubismProceduralEffects *get_procedural_effects() const { return preferred_effects.get(); }
     // Internal preferred-API bridge; legacy parameter setters remain unchanged.
     Error queue_post_effect_write(int index, double value, double weight, int operation);
     double evaluated_parameter(int index) const;

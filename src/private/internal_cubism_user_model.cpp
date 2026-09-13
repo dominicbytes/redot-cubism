@@ -21,6 +21,7 @@
 #endif // GD_CUBISM_USE_RENDERER_2D
 #include <private/internal_cubism_user_model.hpp>
 #include <cubism_animator.hpp>
+#include <cubism_procedural_effects.hpp>
 
 
 // ------------------------------------------------------------------ define(s)
@@ -318,9 +319,11 @@ void InternalCubismUserModel::pro_update(const double delta) {
 
     this->effect_batch(delta, EFFECT_CALL_PROLOGUE);
 
+    primary_motion_updated = false;
+
     if(this->_owner_viewport->parameter_mode == GDCubismUserModel::ParameterMode::FULL_PARAMETER) {
         this->_model->LoadParameters();
-        if (_owner_viewport->get_animator()) _owner_viewport->get_animator()->update(this->_model, delta);
+        if (_owner_viewport->get_animator()) primary_motion_updated = _owner_viewport->get_animator()->update(this->_model, delta);
         else this->_motionManager->UpdateMotion(this->_model, delta);
         this->_model->SaveParameters();
     }
@@ -363,6 +366,7 @@ void InternalCubismUserModel::efx_update(const double delta) {
         this->_owner_viewport->cubism_effect_dirty_reset();
     }
 
+    if (_owner_viewport->get_procedural_effects()) _owner_viewport->get_procedural_effects()->update(_model, float(delta), primary_motion_updated);
     this->effect_batch(delta, EFFECT_CALL_PROCESS);
 }
 

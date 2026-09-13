@@ -76,6 +76,7 @@ private:
     void reset_expression_manager();
     Dictionary load_error;
     bool resource_mode = false;
+    bool primary_motion_updated = false;
     uint64_t processed_bytes = 0;
     Dictionary source_fingerprints;
     TypedArray<Texture2D> imported_textures;

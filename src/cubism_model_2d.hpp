@@ -74,6 +74,12 @@ public:
     bool get_enable_physics() const { return runtime->get_physics_evaluate(); }
     void set_enable_pose(bool value) { runtime->set_pose_update(value); }
     bool get_enable_pose() const { return runtime->get_pose_update(); }
+    void set_enable_eye_blink(bool value);
+    bool get_enable_eye_blink() const;
+    void set_enable_breath(bool value);
+    bool get_enable_breath() const;
+    void set_deterministic_seed(int64_t value);
+    int64_t get_deterministic_seed() const;
     void advance(double delta);
     Ref<CubismMotionHandle> play_motion(const StringName &id, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
     Ref<CubismMotionHandle> play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
