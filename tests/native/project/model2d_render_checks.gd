@@ -9,7 +9,7 @@ func _run() -> void:
 	var capture_dir: String = OS.get_cmdline_user_args()[0]
 	var ok := true
 	var poses := ["normal", "transformed"]
-	if OS.get_cmdline_user_args().has("--motion"): poses.append_array(["motion", "expression", "expression-clear"])
+	if OS.get_cmdline_user_args().has("--motion"): poses.append_array(["motion", "expression", "expression-clear", "blink-closed", "breath"])
 	for pose: String in poses:
 		var transformed := pose == "transformed"
 		var reference: Image
@@ -24,14 +24,14 @@ func _run() -> void:
 				var model := CubismModel2D.new()
 				model.playback_process_mode = CubismModel2D.MANUAL
 				model.enable_physics = false
-				if pose in ["motion", "expression", "expression-clear"]: model.enable_pose = false
+				if pose in ["motion", "expression", "expression-clear", "blink-closed", "breath"]: model.enable_pose = false
 				model.model = resource
 				node = model
 			else:
 				var model := GDCubismUserModel.new()
 				model.playback_process_mode = GDCubismUserModel.MANUAL
 				model.physics_evaluate = false
-				if pose in ["motion", "expression", "expression-clear"]: model.pose_update = false
+				if pose in ["motion", "expression", "expression-clear", "blink-closed", "breath"]: model.pose_update = false
 				model.model = resource
 				node = model
 			viewport.add_child(node)
@@ -42,6 +42,22 @@ func _run() -> void:
 				node.scale.x *= -1.0
 				node.rotation = 0.2
 			for frame in 60: node.call("advance", 1.0 / 60.0)
+			if pose == "blink-closed":
+				if preferred:
+					(node as CubismModel2D).deterministic_seed = 17
+					(node as CubismModel2D).enable_eye_blink = true
+					for frame in 200:
+						node.call("advance", 0.05)
+						if is_zero_approx((node as CubismModel2D).get_parameter_value(&"ParamEyeLOpen")): break
+					ok = ok and is_zero_approx((node as CubismModel2D).get_parameter_value(&"ParamEyeLOpen"))
+				else:
+					for parameter: GDCubismParameter in (node as GDCubismUserModel).get_parameters():
+						if parameter.get_id() in ["ParamEyeLOpen", "ParamEyeROpen"]: parameter.value = 0.0
+					node.call("advance", 0.05)
+			if pose == "breath":
+				if preferred: (node as CubismModel2D).enable_breath = true
+				else: node.add_child(GDCubismEffectBreath.new())
+				for frame in 20: node.call("advance", 0.05)
 			if pose == "motion":
 				if preferred:
 					var handle := (node as CubismModel2D).play_motion(&"Cue/0")

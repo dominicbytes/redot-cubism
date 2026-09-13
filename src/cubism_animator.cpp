@@ -99,7 +99,8 @@ void CubismAnimator::stop(double seconds) {
     for (const auto &playback : playbacks) fade(*playback, seconds, CubismMotionHandle::STOPPED);
 }
 
-void CubismAnimator::update(Csm::CubismModel *model, double delta) {
+bool CubismAnimator::update(Csm::CubismModel *model, double delta) {
+    bool updated = false;
     for (auto it = playbacks.begin(); it != playbacks.end();) {
         Playback &p = **it;
         const double previous = p.time;
@@ -115,7 +116,10 @@ void CubismAnimator::update(Csm::CubismModel *model, double delta) {
         }
         const int64_t first_cycle = int64_t(first);
         const int64_t last_cycle = int64_t(last);
-        if (!p.entry.IsFinished()) p.motion->UpdateParameters(model, &p.entry, float(p.time));
+        if (!p.entry.IsFinished()) {
+            p.motion->UpdateParameters(model, &p.entry, float(p.time));
+            updated = true;
+        }
         if (p.fade_end >= 0.0) {
             // R5 may reset the loop end on its first evaluation. Retain a stop
             // requested before that evaluation without mutating shared motions.
@@ -142,4 +146,5 @@ void CubismAnimator::update(Csm::CubismModel *model, double delta) {
             it = playbacks.erase(it);
         } else ++it;
     }
+    return updated;
 }

@@ -40,6 +40,6 @@ public:
     StringName find_motion(const StringName &group, int index) const;
     Ref<CubismMotionHandle> play(InternalCubismUserModel &model, const StringName &id, int priority, bool loop, double speed);
     void stop(double fade_seconds);
-    void update(Csm::CubismModel *model, double delta);
+    bool update(Csm::CubismModel *model, double delta);
 };
 #endif
