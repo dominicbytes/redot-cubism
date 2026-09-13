@@ -9,7 +9,7 @@ func _run() -> void:
 	var capture_dir: String = OS.get_cmdline_user_args()[0]
 	var ok := true
 	var poses := ["normal", "transformed"]
-	if OS.get_cmdline_user_args().has("--motion"): poses.append("motion")
+	if OS.get_cmdline_user_args().has("--motion"): poses.append_array(["motion", "expression", "expression-clear"])
 	for pose: String in poses:
 		var transformed := pose == "transformed"
 		var reference: Image
@@ -24,14 +24,14 @@ func _run() -> void:
 				var model := CubismModel2D.new()
 				model.playback_process_mode = CubismModel2D.MANUAL
 				model.enable_physics = false
-				if pose == "motion": model.enable_pose = false
+				if pose in ["motion", "expression", "expression-clear"]: model.enable_pose = false
 				model.model = resource
 				node = model
 			else:
 				var model := GDCubismUserModel.new()
 				model.playback_process_mode = GDCubismUserModel.MANUAL
 				model.physics_evaluate = false
-				if pose == "motion": model.pose_update = false
+				if pose in ["motion", "expression", "expression-clear"]: model.pose_update = false
 				model.model = resource
 				node = model
 			viewport.add_child(node)
@@ -50,6 +50,17 @@ func _run() -> void:
 				else:
 					for parameter: GDCubismParameter in (node as GDCubismUserModel).get_parameters():
 						if parameter.get_id() == "ParamAngleX": parameter.value = 5.0
+					node.call("advance", 0.05)
+			if pose in ["expression", "expression-clear"]:
+				if preferred:
+					ok = ok and (node as CubismModel2D).set_expression(&"Add" if pose == "expression" else &"Overwrite", 0.0) == OK
+					node.call("advance", 0.05)
+					if pose == "expression-clear":
+						(node as CubismModel2D).clear_expression(0.2)
+						for frame in 3: node.call("advance", 0.05)
+				else:
+					for parameter: GDCubismParameter in (node as GDCubismUserModel).get_parameters():
+						if parameter.get_id() == "ParamAngleX": parameter.value = 10.0 if pose == "expression" else -5.0
 					node.call("advance", 0.05)
 			if transformed:
 				if preferred:

@@ -12,7 +12,7 @@ speed and pause controls, physics/pose switches, parameter/part IDs, parameter
 writes, part-opacity writes and canvas information. Native motion playback now
 provides IDs/groups, priorities, independent speed/loop state, fades and retained
 handles with deferred events and terminal signals. It does **not yet complete**
-expression control, autoplay/default cues, deterministic effects,
+autoplay/default cues, deterministic effects,
 look/hit testing, advanced rendering policies or character/audio controller.
 Those remain required work in the canonical plan.
 
@@ -129,3 +129,39 @@ Add `--motion` to `tools/run_model2d_tests.py` to import private synthetic curve
 on Haru and exercise timing, priorities, replay, events, fades and handle lifetime
 in both the editor and source-free export. With `--graphics`, an animated pose
 is also compared pixel-for-pixel with a separately assigned legacy parameter pose.
+
+## Expressions
+
+`get_expression_ids()` returns the loaded expression names. Use
+`set_expression(id, fade_seconds)` and `clear_expression(fade_seconds)` to control
+the expression layer independently of body motion. A successful change queues
+`expression_changed(id)`; clearing queues an empty ID. Unload/reload suppress
+stale expression notifications. Unknown IDs and invalid fades return errors
+without changing the active expression. Clear without a loaded model is a no-op;
+invalid clear arguments report `runtime_warning`.
+
+The default fade argument `-1` preserves the expression file's native fade values.
+A nonnegative override sets that playback's fade-in and fade-out durations; zero
+is immediate on the next evaluation. Fade time follows the model clock, including
+speed and pause. R5 expression fades start at the first evaluated frame, unlike
+the preferred body's motion-time-zero convention. Every set creates a new SDK
+expression owned by the existing expression queue. It uses cached validated bytes
+and never changes a shared expression resource or a previous play's fade settings.
+At most 256 pending expressions may overlap before an update; further sets return
+`ERR_BUSY` until the native manager can retire old entries or the layer is cleared.
+
+Normal expression transitions preserve R5's add/multiply/overwrite blending.
+Expressions apply after primary motion and before physics/pose and queued user
+parameter writes. An explicit clear interpolates the evaluated expression result
+back to the current primary pose using sine easing. This adapter is necessary
+because an empty R5 expression drops overwrite values without fading them. It
+does not freeze body motion while clearing. When a new expression interrupts a
+clear, partial layer influence recovers over the incoming expression's fade;
+a zero-duration set restores full layer influence immediately. Repeated clear
+requests begin at the current layer influence. Once clearing finishes, the SDK
+expression manager is reset, including its private fade-weight bookkeeping.
+
+The `--motion` test fixture includes simple add/multiply/overwrite expressions.
+Tests compare default fade trajectories with the legacy SDK manager, check
+motion composition, clear/replay and lifecycle behavior in editor and exported
+builds, and compare expression/half-cleared render states to known parameter poses.

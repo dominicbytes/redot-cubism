@@ -28,6 +28,8 @@ private:
     void motion_looped(int64_t count, int64_t id);
     void motion_finished(int reason, int64_t id);
     void deferred_stop_motion(double fade_seconds, uint64_t expected_generation);
+    void deferred_clear_expression(double fade_seconds, uint64_t expected_generation);
+    void expression_changed(const StringName &id, uint64_t expected_generation);
     void emit_load_started(uint64_t expected_generation);
     void on_model_ready();
     void on_model_failed(const Dictionary &error);
@@ -64,6 +66,9 @@ public:
     Ref<CubismMotionHandle> play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
     void stop_motion(double fade_seconds = -1.0);
     PackedStringArray get_motion_ids() const;
+    Error set_expression(const StringName &id, double fade_seconds = -1.0);
+    void clear_expression(double fade_seconds = -1.0);
+    PackedStringArray get_expression_ids() const;
     bool has_parameter(const StringName &id) const { return parameter_index(id) >= 0; }
     double get_parameter_value(const StringName &id) const;
     Error set_parameter_value(const StringName &id, double value, double weight = 1.0) { return queue_parameter(id, value, weight, 0); }

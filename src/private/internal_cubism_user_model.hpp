@@ -64,6 +64,16 @@ private:
     Csm::csmMap<Csm::csmString,Csm::CubismMotion*> _map_motion;
     Csm::csmMap<Csm::csmString,PackedByteArray> motion_buffers;
     Csm::csmMap<Csm::csmString,double> motion_fps;
+    Csm::csmMap<Csm::csmString,PackedByteArray> expression_buffers;
+    PackedStringArray expression_ids;
+    bool clearing_expression = false;
+    bool blending_expression = false;
+    double expression_blend_weight = 1.0;
+    double expression_blend_start = 1.0;
+    double expression_blend_duration = 0.0;
+    double expression_blend_elapsed = 0.0;
+    bool expression_blend_first_step = false;
+    void reset_expression_manager();
     Dictionary load_error;
     bool resource_mode = false;
     uint64_t processed_bytes = 0;
@@ -87,6 +97,9 @@ public:
 
     void expression_set(const char* expression_id);
     void expression_stop();
+    Error preferred_expression_set(const StringName &id, double fade_seconds);
+    void preferred_expression_clear(double fade_seconds);
+    PackedStringArray get_expression_ids() const { return expression_ids; }
 
     Csm::CubismMotionQueueEntryHandle motion_start(const char* group, const int32_t no, const int32_t priority, const bool loop, const bool loop_fade_in);
     void motion_stop();
