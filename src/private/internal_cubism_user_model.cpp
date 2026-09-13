@@ -474,6 +474,17 @@ void InternalCubismUserModel::expression_stop() {
     this->_expressionManager->StopAllMotions();
 }
 
+Vector2 InternalCubismUserModel::look_direction(const Vector2 &local_point) const {
+    // Renderer layout is axis-aligned and validated with nonzero finite scales.
+    // Divide axes separately in double precision, avoiding determinant underflow
+    // for small but valid imported layout scales.
+    const Transform2D &layout = _renderer_resource.layout_transform;
+    const double x = (double(local_point.x) - layout[2].x) / layout[0].x;
+    const double y = (double(local_point.y) - layout[2].y) / layout[1].y;
+    return Vector2(CLAMP(2.0 * x / _model->GetCanvasWidthPixel(), -1.0, 1.0),
+        CLAMP(-2.0 * y / _model->GetCanvasHeightPixel(), -1.0, 1.0));
+}
+
 void InternalCubismUserModel::reset_expression_manager() {
     // R5 keeps a private fade-weight array across StopAllMotions. Recreate only
     // this manager when clearing, so a later play cannot inherit stale weights.

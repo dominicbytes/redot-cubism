@@ -3,6 +3,8 @@
 #define CUBISM_PROCEDURAL_EFFECTS_HPP
 #include <Effect/CubismBreath.hpp>
 #include <ICubismModelSetting.hpp>
+#include <Math/CubismTargetPoint.hpp>
+#include <array>
 #include <cstdint>
 #include <vector>
 
@@ -17,17 +19,24 @@ class CubismProceduralEffects {
     int64_t seed = 0;
     std::vector<int> eye_indices;
     Csm::CubismBreath *breath = nullptr;
+    Csm::CubismTargetPoint look;
+    std::array<int, 6> look_indices;
+    bool look_active = false;
+    float look_weight = 1.0f;
     void reset_blink();
     float next_interval();
     float advance_blink(float delta);
 public:
     bool enable_eye_blink = false;
     bool enable_breath = false;
+    bool enable_look_target = true;
     ~CubismProceduralEffects() { clear(); }
     void clear();
     void configure(Csm::ICubismModelSetting *setting, Csm::CubismModel *model);
     void set_seed(int64_t value) { seed = value; reset_blink(); }
     int64_t get_seed() const { return seed; }
+    void set_look_target(float x, float y, float weight) { look.Set(x, y); look_weight = weight; look_active = true; }
+    void clear_look_target() { look = Csm::CubismTargetPoint(); look_active = false; }
     void update(Csm::CubismModel *model, float delta, bool motion_updated);
 };
 #endif

@@ -9,9 +9,9 @@ func _run() -> void:
 	var capture_dir: String = OS.get_cmdline_user_args()[0]
 	var ok := true
 	var poses := ["normal", "transformed"]
-	if OS.get_cmdline_user_args().has("--motion"): poses.append_array(["motion", "expression", "expression-clear", "blink-closed", "breath"])
+	if OS.get_cmdline_user_args().has("--motion"): poses.append_array(["motion", "expression", "expression-clear", "blink-closed", "breath", "look", "look-transformed"])
 	for pose: String in poses:
-		var transformed := pose == "transformed"
+		var transformed := pose in ["transformed", "look-transformed"]
 		var reference: Image
 		for preferred: bool in [false, true]:
 			var viewport := SubViewport.new()
@@ -24,14 +24,14 @@ func _run() -> void:
 				var model := CubismModel2D.new()
 				model.playback_process_mode = CubismModel2D.MANUAL
 				model.enable_physics = false
-				if pose in ["motion", "expression", "expression-clear", "blink-closed", "breath"]: model.enable_pose = false
+				if pose in ["motion", "expression", "expression-clear", "blink-closed", "breath", "look", "look-transformed"]: model.enable_pose = false
 				model.model = resource
 				node = model
 			else:
 				var model := GDCubismUserModel.new()
 				model.playback_process_mode = GDCubismUserModel.MANUAL
 				model.physics_evaluate = false
-				if pose in ["motion", "expression", "expression-clear", "blink-closed", "breath"]: model.pose_update = false
+				if pose in ["motion", "expression", "expression-clear", "blink-closed", "breath", "look", "look-transformed"]: model.pose_update = false
 				model.model = resource
 				node = model
 			viewport.add_child(node)
@@ -54,6 +54,18 @@ func _run() -> void:
 					for parameter: GDCubismParameter in (node as GDCubismUserModel).get_parameters():
 						if parameter.get_id() in ["ParamEyeLOpen", "ParamEyeROpen"]: parameter.value = 0.0
 					node.call("advance", 0.05)
+			if pose in ["look", "look-transformed"]:
+				var target: GDCubismEffectTargetPoint
+				if preferred: (node as CubismModel2D).set_look_target(Vector2.ZERO)
+				else:
+					target = GDCubismEffectTargetPoint.new()
+					node.add_child(target)
+				node.call("advance", 0.05)
+				if preferred:
+					var local := Vector2(canvas.size_in_pixels.x * 0.4, -canvas.size_in_pixels.y * 0.25)
+					(node as CubismModel2D).set_look_target(local)
+				else: target.set_target(Vector2(0.8, 0.5))
+				for frame in 20: node.call("advance", 0.05)
 			if pose == "breath":
 				if preferred: (node as CubismModel2D).enable_breath = true
 				else: node.add_child(GDCubismEffectBreath.new())

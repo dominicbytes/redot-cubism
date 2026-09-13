@@ -12,7 +12,7 @@ speed and pause controls, physics/pose switches, parameter/part IDs, parameter
 writes, part-opacity writes and canvas information. Native motion playback now
 provides IDs/groups, priorities, independent speed/loop state, fades and retained
 handles with deferred events and terminal signals. It does **not yet complete**
-look/hit testing, lip sync, advanced rendering policies or character/audio controller.
+hit testing, lip sync, advanced rendering policies or character/audio controller.
 Those remain required work in the canonical plan.
 
 ```gdscript
@@ -220,3 +220,33 @@ phase durations, reload, pause, disable/resume, authored eye motion/fades, and f
 user overrides. Graphics checks compare closed eyes to an explicit parameter pose
 and breathing to the legacy SDK effect. Procedural settings are checked in saved
 and source-free exported scenes.
+
+
+## Look targeting
+
+`set_look_target(local_target, weight)` accepts node-local pixels, the same space
+as the rendered model. For a world-space point, pass `to_local(global_point)`.
+Imported layout translation and scale are undone before normalization; half of
+each canvas dimension corresponds to full look deflection on that axis. Y is
+converted to the SDK's upward direction, and each direction is clamped to [-1,1].
+The model origin is neutral. The target stays local when the node moves; call the
+method again to follow a stationary world point or the mouse.
+
+`enable_look_target` defaults to true but has no effect until a target is assigned.
+The SDK's `CubismTargetPoint` provides smoothing, including its initial neutral
+evaluation. Standard head angles use range 30, body angle 10, and eye direction 1;
+only existing parameters are affected. A finite weight in [0,1] scales the
+additive contribution. The effect runs after breath, before custom effects,
+physics, pose and queued manual overrides. Model speed and pause govern its clock.
+Disabling releases influence on the next evaluation and freezes smoothing;
+reenabling resumes it. Weight zero releases influence while smoothing continues.
+
+`clear_look_target()` removes influence on the next evaluation and resets the
+SDK smoothing state. Reload, unload and tree exit discard targets; the enable
+flag is retained and serialized. Targets are transient. Invalid coordinates or
+weights emit `runtime_warning(ERR_INVALID_PARAMETER, ...)` without changing the
+active target; setting a target before model readiness emits `ERR_UNCONFIGURED`.
+
+The look suite compares parameter trajectories against the legacy SDK target
+point effect, including imported layout, mirrored/rotated node transforms,
+clamping, weights, pause, disable/resume, speed, invalid input and reload.

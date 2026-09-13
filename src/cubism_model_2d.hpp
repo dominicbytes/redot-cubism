@@ -80,6 +80,10 @@ public:
     bool get_enable_breath() const;
     void set_deterministic_seed(int64_t value);
     int64_t get_deterministic_seed() const;
+    void set_enable_look_target(bool value);
+    bool get_enable_look_target() const;
+    void set_look_target(const Vector2 &local_target, double weight = 1.0);
+    void clear_look_target();
     void advance(double delta);
     Ref<CubismMotionHandle> play_motion(const StringName &id, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);
     Ref<CubismMotionHandle> play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority = CubismMotionPriority::NORMAL, bool loop = false, double speed = 1.0);

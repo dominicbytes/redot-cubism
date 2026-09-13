@@ -7,6 +7,8 @@ void CubismProceduralEffects::clear() {
     if (breath) Csm::CubismBreath::Delete(breath);
     breath = nullptr;
     eye_indices.clear();
+    look_indices.fill(-1);
+    clear_look_target();
     reset_blink();
 }
 
@@ -76,6 +78,11 @@ void CubismProceduralEffects::configure(Csm::ICubismModelSetting *setting, Csm::
     }
     breath = Csm::CubismBreath::Create();
     breath->SetParameters(parameters);
+    const char *look_names[] = {"ParamAngleX", "ParamAngleY", "ParamAngleZ", "ParamBodyAngleX", "ParamEyeBallX", "ParamEyeBallY"};
+    for (size_t i = 0; i < look_indices.size(); ++i) {
+        const auto id = Csm::CubismFramework::GetIdManager()->GetId(look_names[i]);
+        for (int j = 0; j < model->GetParameterCount(); ++j) if (model->GetParameterId(j) == id) look_indices[i] = j;
+    }
 }
 
 void CubismProceduralEffects::update(Csm::CubismModel *model, float delta, bool motion_updated) {
@@ -84,4 +91,13 @@ void CubismProceduralEffects::update(Csm::CubismModel *model, float delta, bool 
         for (int index : eye_indices) model->SetParameterValue(index, value);
     }
     if (enable_breath && breath) breath->UpdateParameters(model, delta);
+    if (enable_look_target && look_active) {
+        look.Update(delta);
+        const float x = look.GetX();
+        const float y = look.GetY();
+        const float values[] = {30.0f * x, 30.0f * y, -30.0f * x * y, 10.0f * x, x, y};
+        for (size_t i = 0; i < look_indices.size(); ++i) {
+            if (look_indices[i] >= 0) model->AddParameterValue(look_indices[i], values[i], look_weight);
+        }
+    }
 }
