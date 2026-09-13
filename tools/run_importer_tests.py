@@ -208,12 +208,25 @@ def main():
         editor_script.unlink()
         (driver / "plugin.cfg").unlink()
     if ok:
+        editor_script.write_bytes((ROOT / "tests/editor/alpha_import_checks.gd").read_bytes())
+        (driver / "plugin.cfg").write_text('[plugin]\nname="Alpha Import Test"\ndescription="Test driver"\nauthor="Tests"\nversion="1"\nscript="checks.gd"\n')
+        (project / "project.godot").write_text(project_config + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/import_test/plugin.cfg")\n')
+        ok = execute("alpha-import", ["--editor", "--quit-after", "10000"], "CUBISM_ALPHA_IMPORT_PASS")
+        (project / "project.godot").write_text(project_config)
+        editor_script.unlink()
+        (driver / "plugin.cfg").unlink()
+    if ok:
         ok = execute("editor-restart", ["--editor", "--import", "--quit-after", "1000"])
     if ok:
         (project / "imported_resource_checks.gd").write_bytes((ROOT / "tests/native/project/imported_resource_checks.gd").read_bytes())
         ok = execute("runtime-resource", ["--script", "res://imported_resource_checks.gd", "--quit-after", "2"], "CUBISM_IMPORTED_RESOURCE_PASS")
     if ok and args.template:
         ok = execute("template-resource", ["--script", "res://imported_resource_checks.gd", "--quit-after", "2"], "CUBISM_IMPORTED_RESOURCE_PASS", args.template.resolve())
+    if ok:
+        (project / "alpha_checks.gd").write_bytes((ROOT / "tests/native/project/alpha_checks.gd").read_bytes())
+        ok = execute("runtime-alpha", ["--script", "res://alpha_checks.gd", "--quit-after", "10000"], "CUBISM_ALPHA_RUNTIME_PASS")
+    if ok and args.template:
+        ok = execute("template-alpha", ["--script", "res://alpha_checks.gd", "--quit-after", "10000"], "CUBISM_ALPHA_RUNTIME_PASS", args.template.resolve())
     if ok and args.template:
         (project / "texture_export_checks.gd").write_bytes((ROOT / "tests/native/project/texture_export_checks.gd").read_bytes())
         ok = execute("texture-export-prepare", ["--script", "res://texture_export_checks.gd", "--quit-after", "2", "--", "--prepare"], "CUBISM_TEXTURE_EXPORT_PREPARED")
@@ -224,7 +237,7 @@ def main():
             template = json.dumps(str(args.template.resolve()))
             (project / "export_presets.cfg").write_text(
                 f'[preset.0]\nname="Textures"\nplatform="{platform}"\nrunnable=true\nexport_filter="resources"\n'
-                'export_files=PackedStringArray("res://imported-model.res", "res://mask-quality-model.res", "res://texture_export_checks.gd", "res://imported_resource_checks.gd", "res://texture_export_scene.tscn")\n'
+                'export_files=PackedStringArray("res://imported-model.res", "res://mask-quality-model.res", "res://alpha-model.res", "res://alpha_checks.gd", "res://texture_export_checks.gd", "res://imported_resource_checks.gd", "res://texture_export_scene.tscn")\n'
                 'include_filter="texture-expected.json"\nexclude_filter="addons/import_test/*"\nexport_path=""\nscript_export_mode=2\n'
                 f'[preset.0.options]\ncustom_template/debug={template}\ncustom_template/release={template}\n'
                 'binary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
@@ -237,6 +250,8 @@ def main():
                 ok = execute("exported-textures", ["--script", "res://texture_export_checks.gd", "--quit-after", "2"], "CUBISM_TEXTURE_EXPORT_PASS", game, exported=True)
     if ok and args.template:
         ok = execute("exported-model", ["--script", "res://imported_resource_checks.gd", "--quit-after", "2"], "CUBISM_IMPORTED_RESOURCE_PASS", game, exported=True)
+    if ok and args.template:
+        ok = execute("exported-alpha", ["--script", "res://alpha_checks.gd", "--quit-after", "10000"], "CUBISM_ALPHA_RUNTIME_PASS", game, exported=True)
     report = {"status": "PASS" if ok else "FAIL", "automatic_discovery": automatic, "engine_version": version,
               "library_sha256": library_hash, "run": str(run), "checks": checks}
     (args.output / "importer-report.json").write_text(json.dumps(report, indent=2) + "\n")

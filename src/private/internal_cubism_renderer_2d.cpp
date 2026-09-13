@@ -54,6 +54,7 @@ void InternalCubismRenderer2D::update_material(const Csm::CubismModel *model, co
     const CubismTextureColor color_base = this->GetModelColorWithOpacity(model->GetDrawableOpacity(index));
 
     mat->set_shader_parameter("color_base", Vector4(color_base.R, color_base.G, color_base.B, color_base.A));
+    mat->set_shader_parameter("premultiplied_alpha", IsPremultipliedAlpha());
     mat->set_shader_parameter("color_screen", make_vector4(model->GetDrawableScreenColor(index)));
     mat->set_shader_parameter("color_multiply", make_vector4(model->GetDrawableMultiplyColor(index)));
 }

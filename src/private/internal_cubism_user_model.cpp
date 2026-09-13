@@ -127,6 +127,7 @@ bool InternalCubismUserModel::model_load(
         String error;
         this->_model_setting = CSM_NEW RedotCubismModelSetting(resource, error);
         if (!error.is_empty()) return fail_load(model_pathname, error);
+        resource_premultiplied_alpha = resource->get_premultiplied_alpha();
         const Dictionary fingerprints = resource->get_dependency_fingerprints().duplicate();
         source_fingerprints = fingerprints;
         imported_textures = resource->get_textures().duplicate();
@@ -257,7 +258,7 @@ bool InternalCubismUserModel::model_load(
         #else
         #endif // GD_CUBISM_USE_RENDERER_2D
 
-        renderer->IsPremultipliedAlpha(false);
+        renderer->IsPremultipliedAlpha(resource_premultiplied_alpha);
         renderer->DrawModel();
         renderer->build_model(this->_renderer_resource, this->_owner_viewport);
     }
@@ -415,13 +416,14 @@ void InternalCubismUserModel::update_node() {
     #else
     #endif // GD_CUBISM_USE_RENDERER_2D
 
-    renderer->IsPremultipliedAlpha(false);
+    renderer->IsPremultipliedAlpha(resource_premultiplied_alpha);
     renderer->DrawModel();
     renderer->update(this->_renderer_resource, this->_owner_viewport->mask_viewport_size);
 }
 
 
 void InternalCubismUserModel::clear() {
+    resource_premultiplied_alpha = false;
 
     this->_initialized = false;
     this->_updating = false;

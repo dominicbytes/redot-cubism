@@ -10,6 +10,7 @@ int CubismModelResource::get_mask_quality() const {
 }
 
 void CubismModelResource::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("get_premultiplied_alpha"), &CubismModelResource::get_premultiplied_alpha);
     ClassDB::bind_method(D_METHOD("get_mask_quality"), &CubismModelResource::get_mask_quality);
     ClassDB::bind_method(D_METHOD("set_runtime_extension", "value"), &CubismModelResource::set_runtime_extension);
     ClassDB::bind_method(D_METHOD("get_runtime_extension"), &CubismModelResource::get_runtime_extension);
@@ -97,4 +98,9 @@ void CubismModelResource::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_metadata", "value"), &CubismModelResource::set_metadata);
     ClassDB::bind_method(D_METHOD("get_metadata"), &CubismModelResource::get_metadata);
     ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "metadata"), "set_metadata", "get_metadata");
+}
+
+bool CubismModelResource::get_premultiplied_alpha() const {
+    const Variant value = import_options.get("rendering/premultiplied_alpha", false);
+    return value.get_type() == Variant::BOOL && bool(value);
 }

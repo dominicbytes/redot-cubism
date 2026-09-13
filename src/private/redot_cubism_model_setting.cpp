@@ -30,6 +30,10 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
         error = "Invalid rendering/mask_quality in imported Cubism resource. Reimport the source model.";
         return;
     }
+    if (resource->get_import_options().get("rendering/premultiplied_alpha", false).get_type() != Variant::BOOL) {
+        error = "Invalid rendering/premultiplied_alpha in imported Cubism resource. Reimport the source model.";
+        return;
+    }
     if (!path_valid(resource->get_moc_path(), ".moc3")
         || !path_valid(resource->get_physics_path(), ".physics3.json", true)
         || !path_valid(resource->get_pose_path(), ".pose3.json", true)
@@ -46,6 +50,11 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
     for (int i = 0; i < texture_paths.size(); ++i) {
         const Ref<Texture2D> texture = texture_resources[i];
         if (!path_valid(texture_paths[i], ".png") || texture.is_null()) return;
+        const Variant encoding = texture->get_meta("cubism_premultiplied_alpha", false);
+        if (encoding.get_type() != Variant::BOOL || bool(encoding) != resource->get_premultiplied_alpha()) {
+            error = "Cubism texture alpha encoding differs from the model import option. Import the source model before rendering.";
+            return;
+        }
         textures.push_back(utf8(texture_paths[i]));
     }
     if (!texture_paths.is_empty()) texture_directory = utf8(texture_paths[0].get_base_dir());

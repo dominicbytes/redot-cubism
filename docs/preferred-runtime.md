@@ -17,6 +17,13 @@ coordinates cues, recorded voice, lip sync and stable checkpoints; see the
 Advanced rendering policies and full platform qualification remain required
 work in the canonical plan.
 
+`premultiplied_alpha` is read-only and reports the texture format of the loaded
+model (false when unloaded). Set `rendering/premultiplied_alpha` during import;
+then reimport and reload the node. This couples texture preprocessing and shader
+selection, preventing a node override from interpreting the same texture bytes
+in the wrong format. The resource stores the choice; the node does not serialize
+a duplicate. Existing straight-alpha resources remain supported.
+
 `mask_quality` defaults to `MASK_MODEL`: inherit the imported resource's
 `rendering/mask_quality` setting (Medium unless changed during import).
 Explicit `MASK_LOW` (512), `MASK_MEDIUM` (1024), `MASK_HIGH` (2048), or

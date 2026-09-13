@@ -32,6 +32,7 @@ Error texture_error(const String &path, const String &message, Error error) {
 }
 
 Error provision_cubism_textures(const Ref<CubismModelResource> &model) {
+    const bool premultiplied = model->get_premultiplied_alpha();
     TypedArray<Texture2D> textures;
     std::map<String, Ref<Texture2D>> shared;
     const PackedStringArray sources = model->get_texture_paths();
@@ -57,7 +58,8 @@ Error provision_cubism_textures(const Ref<CubismModelResource> &model) {
         auto *settings = ProjectSettings::get_singleton();
         const String encoding = String(fingerprints[source]) + String(":") +
             String::num_int64(bool(settings->get_setting("rendering/textures/lossless_compression/force_png", false))) + String(":") +
-            String::num(double(settings->get_setting("rendering/textures/webp_compression/lossless_compression_factor", 25.0)));
+            String::num(double(settings->get_setting("rendering/textures/webp_compression/lossless_compression_factor", 25.0))) +
+            String(premultiplied ? ":premultiplied" : ":straight");
         const std::string cache_key(encoding.utf8().get_data());
         const auto cached = generated_hashes.find(cache_key);
         if (cached != generated_hashes.end()) {
@@ -80,7 +82,14 @@ Error provision_cubism_textures(const Ref<CubismModelResource> &model) {
         }
         Ref<Image> image;
         image.instantiate();
-        if (image->load_png_from_buffer(bytes) != OK || image->generate_mipmaps() != OK) {
+        if (image->load_png_from_buffer(bytes) != OK) {
+            return texture_error(source, "Cannot decode PNG.", ERR_FILE_CORRUPT);
+        }
+        if (premultiplied) {
+            image->convert(Image::FORMAT_RGBA8);
+            image->premultiply_alpha();
+        }
+        if (image->generate_mipmaps() != OK) {
             return texture_error(source, "Cannot decode PNG and generate mipmaps.", ERR_FILE_CORRUPT);
         }
         Ref<PortableCompressedTexture2D> texture;
@@ -88,6 +97,7 @@ Error provision_cubism_textures(const Ref<CubismModelResource> &model) {
         // ResourceSaver otherwise generates a random internal ID, making identical
         // texture payloads serialize differently on every import.
         texture->set_scene_unique_id("CubismTexture");
+        if (premultiplied) texture->set_meta("cubism_premultiplied_alpha", true);
         texture->set_keep_compressed_buffer(true);
         texture->create_from_image(image, PortableCompressedTexture2D::COMPRESSION_MODE_LOSSLESS);
         if (texture->get_width() != image->get_width() || texture->get_height() != image->get_height()) {

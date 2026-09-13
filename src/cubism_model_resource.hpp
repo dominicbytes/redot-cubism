@@ -99,6 +99,7 @@ public:
     void set_import_options(const Dictionary &value) { import_options = value; emit_changed(); }
     Dictionary get_import_options() const { return import_options; }
     int get_mask_quality() const;
+    bool get_premultiplied_alpha() const;
     void set_metadata(const Dictionary &value) { metadata = value; emit_changed(); }
     Dictionary get_metadata() const { return metadata; }
 };

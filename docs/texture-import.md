@@ -1,11 +1,25 @@
 # Cubism texture imports
 
-Importer format 3 provisions separate `PortableCompressedTexture2D` resources
+Importer format 8 provisions separate `PortableCompressedTexture2D` resources
 from the validated source PNGs. It generates the full mipmap chain and uses
 lossless compression. Decoded source colors, including RGB in transparent pixels,
-are retained; alpha-border fixing and premultiplication are not applied. Existing
+are retained by default; alpha-border fixing is not applied. Existing
 PNG files and their engine-owned import settings are unchanged, so another sprite
 can continue using the same PNG with different processing settings.
+
+With `rendering/premultiplied_alpha=true`, the importer converts to RGBA8 and
+calls `Image.premultiply_alpha()` **before** generating mipmaps. Generated textures
+carry the serialized `cubism_premultiplied_alpha=true` metadata marker. Runtime
+and export validation reject a mismatch between this marker and the model option.
+Unmarked textures remain compatible with older straight-alpha resources. The
+node's read-only `premultiplied_alpha` property reports its loaded encoding;
+change the import option and reload the node to change that encoding.
+
+The renderer uses the SDK's premultiplied base-color calculation and matching
+screen-color equation. Model/drawable opacity and inherited CanvasItem alpha
+are each applied once. Normal, additive, multiply, masked and inverted-mask
+shaders support both formats. Redot's integer RGBA8 premultiplication rounds
+at most one byte differently from the pinned SDK sample's texture loader.
 
 The original PNG paths remain in model metadata and dependency fingerprints.
 The model's `textures` array contains real external Resource references to
@@ -36,7 +50,7 @@ An editor-session cache holds at most 128 source/encoding-to-output hash mapping
 It retains no image buffers or texture objects. Reused files are still checked
 against the recorded hash before loading; unchanged textures need not be compressed
 again for every model that references them. Changing PNG bytes or lossless encoder
-settings selects another cache entry. A new editor session verifies serialization
+settings or alpha format selects another cache entry. A new editor session verifies serialization
 again on its first import.
 
 The implementation uses an automatically removed temporary file only to obtain
@@ -45,7 +59,8 @@ persistent work folder.
 
 The low-level `CubismModelFactory.build` retains ordinary imported PNG references
 for compatibility; this policy is applied by `CubismModelImporter.import_model`
-and its editor action. Existing runtime instances keep their settings/texture
+and its editor action. A factory result requesting premultiplied alpha is not
+render-ready until imported textures have been provisioned. Existing runtime instances keep their settings/texture
 snapshot until reloaded, as described in [resource runtime](resource-runtime.md).
 
 Validation is in `tests/editor/texture_policy_checks.gd`, invoked by
@@ -53,8 +68,23 @@ Validation is in `tests/editor/texture_policy_checks.gd`, invoked by
 external dependency edges, sharing, deterministic reuse, source/sidecar
 preservation, unexpected-file rejection and explicit missing-file regeneration.
 The dependency suite additionally checks changed texture pixels after reimport.
-Linux debug and release each pass all 13 importer integration checks on pinned
-Redot 26.2, including a selective texture export launched with the source project
-moved away and original PNGs absent from the package. Exported texture pixels and
-mipmap levels match independently decoded source data. Full model raw-dependency
-export, renderer parity and Windows qualification remain separate gates.
+The runner includes a selective texture export launched with the source project
+moved away and original PNGs absent from the package, comparing exported texture
+pixels and mipmap levels against independently decoded source data. Full model
+raw-dependency export, renderer parity and Windows qualification are separate checks.
+
+`tests/editor/alpha_import_checks.gd` extends importer coverage to both alpha
+encodings, all pixel/mipmap bytes, resource sharing, cache isolation and switching
+back to identical straight-alpha payloads. `tests/native/project/alpha_checks.gd`
+checks loaded shader settings, instance isolation, save/reopen, invalid-resource
+rejection and exported operation; graphics runs also capture both modes.
+
+Run `tools/run_sdk_shader_tests.py --sdk-root <local-sdk> --output <persistent-dir>`
+with `REDOT_BIN` set to the pinned engine to compare 2,016 fragment/blend cases
+against six unchanged SDK OpenGL shaders. It requires Linux X11/EGL, GL headers
+and a C++17 compiler; the output directory must permit execution. The report
+records SDK and addon shader hashes. Cases cover both alpha formats, three blend
+modes, mask inversion, coverage, texture alpha, colors, opacity, CanvasItem
+modulation and transparent/translucent/opaque backgrounds. The allowed error is
+two RGBA8 bytes per channel. This does not establish full SDK model/geometry
+parity or Windows support.

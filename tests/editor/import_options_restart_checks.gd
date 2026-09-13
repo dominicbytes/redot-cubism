@@ -23,6 +23,9 @@ func _run() -> void:
 	assert(model.import_options["motions/import_manifest_motions"] == false)
 	assert(model.import_options["expressions/import"] == false)
 	assert(model.get_mask_quality() == 0)
+	assert(model.get_premultiplied_alpha())
+	for texture: Texture2D in model.textures:
+		assert(texture.get_meta("cubism_premultiplied_alpha", false) == true)
 	if "--cleanup-options" in OS.get_cmdline_user_args():
 		# These extra models share source assets with the independent destructive
 		# dependency tests. Finish option/cache coverage, then remove our fixtures.

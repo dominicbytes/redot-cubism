@@ -67,6 +67,8 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_enable_pose"), &CubismModel2D::get_enable_pose);
     ADD_PROPERTY(PropertyInfo(Variant::BOOL, "enable_pose"), "set_enable_pose", "get_enable_pose");
     ADD_GROUP("Rendering", "");
+    ClassDB::bind_method(D_METHOD("get_premultiplied_alpha"), &CubismModel2D::get_premultiplied_alpha);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "premultiplied_alpha", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY), "", "get_premultiplied_alpha");
     ClassDB::bind_method(D_METHOD("set_mask_quality", "value"), &CubismModel2D::set_mask_quality);
     ClassDB::bind_method(D_METHOD("get_mask_quality"), &CubismModel2D::get_mask_quality);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "mask_quality", PROPERTY_HINT_ENUM, "Low,Medium,High,Custom,Model Default"), "set_mask_quality", "get_mask_quality");
@@ -149,6 +151,10 @@ void CubismModel2D::update_mask_limit() {
     const int imported = model.is_valid() ? model->get_mask_quality() : MASK_MEDIUM;
     const int quality = mask_quality == MASK_MODEL ? (imported >= 0 ? imported : MASK_MEDIUM) : mask_quality;
     runtime->set_mask_viewport_size(limits[quality]);
+}
+
+bool CubismModel2D::get_premultiplied_alpha() const {
+    return is_ready() && runtime->internal_model->get_premultiplied_alpha();
 }
 
 void CubismModel2D::set_mask_quality(MaskQuality value) {
