@@ -190,7 +190,7 @@
 			If set to [code]false[/code], it will not load [i]Motions[/i] when loading the Live2D Model.
 		</member>
 		<member name="mask_viewport_size" type="int" setter="set_mask_viewport_size" getter="get_mask_viewport_size" default="0">
-			Maximum texture dimension for each mask composition. Zero or negative values request local model pixel resolution, subject to a 4096-pixel safety cap. Positive values have an effective range of 2–4096. Getters retain the requested value. Masks are uniformly downscaled as needed and integer dimensions round outward; small masks are not upscaled to fill the limit. Screen-scale adaptation is not currently implemented.
+			Maximum texture dimension for each mask composition. Zero or negative values use a 4096-pixel safety cap. Positive values have an effective range of 2–4096. Getters retain the requested value. Masks adapt to viewport pixel density using the largest stretch of the model/camera/canvas/viewport transform. Geometry scales uniformly and dimensions round outward; small projected masks are not enlarged to fill the limit.
 			Reducing the resolution conserves GPU memory but can reduce edge quality. Changes take effect on the next model evaluation.
 		</member>
 		<member name="parameter_mode" type="int" setter="set_parameter_mode" getter="get_parameter_mode" enum="GDCubismUserModel.ParameterMode" default="0">

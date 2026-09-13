@@ -20,6 +20,7 @@ public:
     enum PlaybackProcessMode { IDLE, PHYSICS, MANUAL };
     enum ModelState { UNLOADED, LOADING, READY, ERROR, DISPOSING, DISPOSED };
     enum MaskQuality { MASK_LOW, MASK_MEDIUM, MASK_HIGH, MASK_CUSTOM };
+    enum OffscreenUpdateMode { OFFSCREEN_ALWAYS, OFFSCREEN_REDUCED, OFFSCREEN_PAUSED };
     enum ParameterLayer {
         LAYER_BASE = GDCubismUserModel::WRITE_BASE,
         LAYER_MOTION = GDCubismUserModel::WRITE_MOTION,
@@ -98,6 +99,8 @@ public:
     MaskQuality get_mask_quality() const { return mask_quality; }
     void set_custom_mask_limit(int64_t value);
     int64_t get_custom_mask_limit() const { return custom_mask_limit; }
+    void set_offscreen_update_mode(OffscreenUpdateMode value);
+    OffscreenUpdateMode get_offscreen_update_mode() const { return OffscreenUpdateMode(runtime->mask_offscreen_policy); }
     void set_model(const Ref<CubismModelResource> &resource) { load_model(resource); }
     Ref<CubismModelResource> get_model() const { return model; }
     void set_autoplay(bool value) { autoplay = value; }
@@ -167,4 +170,5 @@ VARIANT_ENUM_CAST(CubismModel2D::PlaybackProcessMode);
 VARIANT_ENUM_CAST(CubismModel2D::ModelState);
 VARIANT_ENUM_CAST(CubismModel2D::ParameterLayer);
 VARIANT_ENUM_CAST(CubismModel2D::MaskQuality);
+VARIANT_ENUM_CAST(CubismModel2D::OffscreenUpdateMode);
 #endif

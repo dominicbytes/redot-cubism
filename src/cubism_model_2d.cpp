@@ -73,6 +73,9 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_custom_mask_limit", "value"), &CubismModel2D::set_custom_mask_limit);
     ClassDB::bind_method(D_METHOD("get_custom_mask_limit"), &CubismModel2D::get_custom_mask_limit);
     ADD_PROPERTY(PropertyInfo(Variant::INT, "custom_mask_limit", PROPERTY_HINT_RANGE, "2,4096"), "set_custom_mask_limit", "get_custom_mask_limit");
+    ClassDB::bind_method(D_METHOD("set_offscreen_update_mode", "value"), &CubismModel2D::set_offscreen_update_mode);
+    ClassDB::bind_method(D_METHOD("get_offscreen_update_mode"), &CubismModel2D::get_offscreen_update_mode);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "offscreen_update_mode", PROPERTY_HINT_ENUM, "Always,Reduced,Paused"), "set_offscreen_update_mode", "get_offscreen_update_mode");
     ClassDB::bind_method(D_METHOD("advance", "delta"), &CubismModel2D::advance);
     ClassDB::bind_method(D_METHOD("play_motion", "motion_id", "priority", "loop", "speed"), &CubismModel2D::play_motion, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
     ClassDB::bind_method(D_METHOD("play_motion_from_group", "group", "index", "priority", "loop", "speed"), &CubismModel2D::play_motion_from_group, DEFVAL(CubismMotionPriority::NORMAL), DEFVAL(false), DEFVAL(1.0));
@@ -119,6 +122,7 @@ void CubismModel2D::_bind_methods() {
     BIND_ENUM_CONSTANT(LAYER_POST_EFFECT);
     BIND_ENUM_CONSTANT(MASK_LOW); BIND_ENUM_CONSTANT(MASK_MEDIUM);
     BIND_ENUM_CONSTANT(MASK_HIGH); BIND_ENUM_CONSTANT(MASK_CUSTOM);
+    BIND_ENUM_CONSTANT(OFFSCREEN_ALWAYS); BIND_ENUM_CONSTANT(OFFSCREEN_REDUCED); BIND_ENUM_CONSTANT(OFFSCREEN_PAUSED);
 }
 
 CubismModel2D::CubismModel2D() {
@@ -150,6 +154,14 @@ void CubismModel2D::set_mask_quality(MaskQuality value) {
 void CubismModel2D::set_custom_mask_limit(int64_t value) {
     custom_mask_limit = int(CLAMP(value, int64_t(2), int64_t(4096)));
     update_mask_limit();
+}
+
+void CubismModel2D::set_offscreen_update_mode(OffscreenUpdateMode value) {
+    if (value < OFFSCREEN_ALWAYS || value > OFFSCREEN_PAUSED) {
+        emit_signal("runtime_warning", ERR_INVALID_PARAMETER, "Invalid Cubism offscreen update mode.");
+        return;
+    }
+    runtime->mask_offscreen_policy = CubismMaskOffscreenPolicy(value);
 }
 
 void CubismModel2D::_notification(int what) {
