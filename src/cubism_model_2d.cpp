@@ -5,6 +5,7 @@
 #include "cubism_animator.hpp"
 #include "cubism_procedural_effects.hpp"
 #include "cubism_lip_sync.hpp"
+#include "cubism_character_controller.hpp"
 #include "private/internal_cubism_user_model.hpp"
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <cmath>
@@ -127,6 +128,7 @@ void CubismModel2D::_notification(int what) {
             set_playback_process_mode(playback_process_mode);
             break;
         case NOTIFICATION_EXIT_TREE:
+            notify_controller(CubismSpeechHandle::UNLOADED);
             reset_hit_tracking();
             ++generation;
             autoplay_started = false;
@@ -142,6 +144,9 @@ void CubismModel2D::_notification(int what) {
             if (playback_process_mode == PHYSICS) step(get_physics_process_delta_time());
             break;
         case NOTIFICATION_VISIBILITY_CHANGED:
+            if (!is_visible_in_tree()) notify_controller(CubismSpeechHandle::HIDDEN);
+            if (hit_target_active || !hovered_hit_areas.is_empty()) queue_hit_refresh();
+            break;
         case NOTIFICATION_PAUSED:
         case NOTIFICATION_UNPAUSED:
         case NOTIFICATION_DISABLED:
@@ -151,6 +156,7 @@ void CubismModel2D::_notification(int what) {
         case NOTIFICATION_PREDELETE:
             if (runtime->is_native_busy()) { cancel_free(); queue_free(); }
             else {
+                notify_controller(CubismSpeechHandle::MODEL_DISPOSED);
                 if (auto *lip = Object::cast_to<CubismLipSync>(ObjectDB::get_instance(runtime->get_procedural_effects()->lip_sync_id))) lip->set_target_model(nullptr);
                 runtime->get_animator()->clear(CubismMotionHandle::MODEL_DISPOSED);
             }
@@ -159,6 +165,7 @@ void CubismModel2D::_notification(int what) {
 }
 
 Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
+    notify_controller(CubismSpeechHandle::UNLOADED);
     reset_hit_tracking();
     model = resource;
     load_requested = model.is_valid();
@@ -175,6 +182,7 @@ Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
 }
 
 void CubismModel2D::unload_model() {
+    notify_controller(CubismSpeechHandle::UNLOADED);
     reset_hit_tracking();
     load_requested = false;
     ++generation;
@@ -225,6 +233,10 @@ void CubismModel2D::step(double delta, bool controller) {
 }
 
 void CubismModel2D::advance(double delta) { if (playback_process_mode == MANUAL) step(delta); }
+
+void CubismModel2D::notify_controller(CubismSpeechHandle::FinishReason reason) {
+    if (auto *controller = Object::cast_to<CubismCharacterController>(ObjectDB::get_instance(controller_clock_id))) controller->model_unavailable(this, reason);
+}
 
 Error CubismModel2D::claim_controller_clock(uint64_t controller) {
     if (runtime->is_native_busy() || is_queued_for_deletion()) return ERR_BUSY;

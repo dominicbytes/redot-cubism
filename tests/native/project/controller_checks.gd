@@ -153,7 +153,42 @@ func _run() -> void:
 		if is_instance_valid(current.controller): current.controller.free()
 		if is_instance_valid(current.model): current.model.free()
 	dispose(p)
+	# Teardown cannot depend on a controller tick that pause/disable prevents.
+	for suspension: String in ["controller", "scene", "disabled"]:
+		for action: String in ["hide", "unload", "reload", "remove", "free"]:
+			var current := pair()
+			var handle: CubismSpeechHandle = current.controller.speak(voice, &"Cue/0")
+			var ended: Array[int] = []
+			handle.finished.connect(func(reason: int): ended.append(reason))
+			if suspension == "controller": current.controller.paused = true
+			elif suspension == "scene": paused = true
+			else: current.controller.process_mode = Node.PROCESS_MODE_DISABLED
+			if action == "hide": current.model.hide()
+			elif action == "unload": current.model.unload_model()
+			elif action == "reload": current.model.reload_model()
+			elif action == "remove": root.remove_child(current.model)
+			else: current.model.free()
+			await process_frame
+			var reason := CubismSpeechHandle.HIDDEN if action == "hide" else (CubismSpeechHandle.MODEL_DISPOSED if action == "free" else CubismSpeechHandle.UNLOADED)
+			expect(handle.is_finished() and handle.get_reason() == reason and ended == [reason], "suspended teardown: " + suspension + "/" + action)
+			paused = false
+			current.controller.free()
+			if is_instance_valid(current.model): current.model.free()
 	# Long-line fake audio authority exercises the real controller/model integration.
+	for action: String in ["hide", "unload", "reload"]:
+		var current := pair()
+		var effect := GDCubismEffectCustom.new()
+		current.model.get_node("CubismRuntime").add_child(effect)
+		effect.cubism_process.connect(func(_runtime: GDCubismUserModel, _delta: float):
+			if action == "hide": current.model.hide()
+			elif action == "unload": current.model.unload_model()
+			else: current.model.reload_model(), CONNECT_ONE_SHOT)
+		var handle: CubismSpeechHandle = current.controller.speak(voice, &"Cue/0")
+		current.controller.submit_audio_clock(0.5)
+		current.controller.advance(0.5)
+		var reason := CubismSpeechHandle.HIDDEN if action == "hide" else CubismSpeechHandle.UNLOADED
+		expect(handle.is_finished() and handle.get_reason() == reason, "native callback teardown: " + action)
+		dispose(current)
 	var long_voice := wave(30)
 	for fps: int in [15, 30, 60]:
 		p = pair()
