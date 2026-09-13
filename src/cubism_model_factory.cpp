@@ -124,8 +124,8 @@ Dictionary CubismModelFactory::build_with_options(const String &source_path, con
             resource->set_import_options(options);
             const String extension_path = "res://addons/gd_cubism/gd_cubism.gdextension";
             if (exists(extension_path, "runtime_extension", false)) {
-                const Ref<Resource> extension = ResourceLoader::get_singleton()->load(extension_path, "GDExtension");
-                if (extension.is_null() || extension->get_class() != StringName("GDExtension")) error("runtime_extension", "Cannot load the addon extension descriptor.");
+                Variant extension = ResourceLoader::get_singleton()->call("load", extension_path, "GDExtension");
+                if (extension.get_type() != Variant::OBJECT || !extension.booleanize() || extension.call("get_class") != Variant("GDExtension")) error("runtime_extension", "Cannot load the addon extension descriptor.");
                 else resource->set_runtime_extension(extension);
             }
             // Validate every physical reference before ResourceLoader sees any asset.

@@ -35,7 +35,7 @@ func tone(bus: StringName, amplitude: float) -> AudioStreamPlayer:
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = 44100
 	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	stream.loop_end = 4410
+	stream.loop_end = 4409 # Redot's loop limit is the last valid sample frame.
 	var data := PackedByteArray()
 	data.resize(8820)
 	for frame in 4410: data.encode_s16(frame * 2, int(amplitude * 32767.0))

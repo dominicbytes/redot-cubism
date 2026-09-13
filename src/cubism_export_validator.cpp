@@ -43,9 +43,10 @@ Dictionary CubismExportValidator::validate_model(const Ref<CubismModelResource> 
     };
     if (model.is_null()) { error("model", "Expected an imported CubismModelResource."); return finish(); }
     if (!model->get_source_model_path().ends_with(".model3.json")) { error("source_model_path", "Expected a model3.json import source."); return finish(); }
-    const Ref<Resource> extension = model->get_runtime_extension();
-    if (extension.is_null() || extension->get_class() != StringName("GDExtension")
-            || extension->get_path() != "res://addons/gd_cubism/gd_cubism.gdextension") {
+    Variant extension = model->get_runtime_extension();
+    if (extension.get_type() != Variant::OBJECT || !extension.booleanize()
+            || extension.call("get_class") != Variant("GDExtension")
+            || extension.call("get_path") != Variant("res://addons/gd_cubism/gd_cubism.gdextension")) {
         error("runtime_extension", "Missing native extension resource edge. Reimport before export.");
         return finish();
     }
@@ -183,6 +184,10 @@ Dictionary CubismExportValidator::validate_file(const String &path) {
         if (!diagnostics.is_empty()) return;
         if (--remaining < 0 || depth > 64) { error("Resource graph exceeds export validation limits."); return; }
         if (value.get_type() == Variant::OBJECT) {
+            Variant object = value;
+            // Descriptor edges are external engine resources. Do not create a
+            // binding whose free callback outlives this extension's library.
+            if (object.booleanize() && object.call("get_class") == Variant("GDExtension")) return;
             const Ref<Resource> resource = value;
             if (resource.is_null()) return;
             // External resources receive their own engine export callback. Do not
@@ -250,8 +255,8 @@ Dictionary CubismExportValidator::validate_file(const String &path) {
     };
     if (CubismManifestParser::validate_project_file(path)["status"] != String("file")) error("Expected a contained resource file.");
     if (diagnostics.is_empty()) {
-        const Ref<Resource> resource = ResourceLoader::get_singleton()->load(path, "", ResourceLoader::CACHE_MODE_IGNORE);
-        if (resource.is_null()) error("Cannot load the selected resource for export validation.");
+        Variant resource = ResourceLoader::get_singleton()->call("load", path, "", ResourceLoader::CACHE_MODE_IGNORE);
+        if (resource.get_type() != Variant::OBJECT || !resource.booleanize()) error("Cannot load the selected resource for export validation.");
         else visit(resource, 0);
     }
     Dictionary result;

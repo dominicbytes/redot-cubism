@@ -285,3 +285,39 @@ captures and exact executable identity are retained in each affected model's
 `sdk-mask-control` evidence directory; the sample patch is
 `.local-build/evidence/reference-mask-size-hook.patch`. Residual edge errors,
 animated comparisons and the final parity gate remain open.
+
+
+### Current importer and preferred-runtime comparison
+
+The four-model neutral comparison was rerun on the fallback implementation
+checkpoint with Cubism-owned straight-alpha textures produced by the native
+importer. No engine-owned import metadata was edited. The private import driver
+uses the editor plugin lifecycle; the capture driver advances one fixed 1/60 s
+step with effects disabled and rejects empty images. Every parameter and part
+opacity matches the SDK within 0.00001, with the same recorded MVP matrix.
+
+At 512 by 512, on the same Linux virtualized GL backend, the SDK's 256-pixel
+mask atlas gives these RGB-on-black results against the current preferred node:
+
+| Model | Foreground mean error | Maximum error | Pixels above 3/255 |
+| --- | ---: | ---: | ---: |
+| Haru | 0.3702 | 33 | 27 |
+| Mao | 0.4319 | 30 | 102 |
+| Mark | 0.1804 | 40 | 123 |
+| Rice | 0.2006 | 50 | 83 |
+
+The preferred node follows projected screen density, unlike the older comparison
+above. A private control multiplied only its mask resolution and sampling scale
+by four. Against the same SDK references, maximum errors became 3, 25, 13 and 11;
+counts above 3 became 0, 52, 30 and 15 respectively. This identifies mask sampling
+as a contributor; it does not establish that every residual has that cause.
+No production sampling policy or acceptance threshold was changed. Separate
+2048-pixel SDK mask references and all state checks are retained as controls.
+
+The measured addon SHA-256 is
+`0510d010dcdacc7d508eed6d5210c3d14e38f75c137f8fa2e5a08034aae49a3f`;
+the reference executable is
+`b6a3fce7873636a06fc6fc1f92f5daa7047b437529a33658590accdcbd98c4fc`.
+Private evidence and its checksum manifest are saved in
+`.local-build/sdk-current-checkpoint`. These static RGB measurements do not
+qualify animated, alpha, Windows or final whole-model visual acceptance.

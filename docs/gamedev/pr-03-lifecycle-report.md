@@ -103,3 +103,53 @@ historical evidence, not the final published binary identities.
 Renderer ordering/masks, the importer, checked export, full animation/controller
 and audio contracts, editor tooling and release qualification remain subsequent
 plan stages. The fixture-specific export harness does not replace checked export.
+
+
+## Imported extension descriptor shutdown
+
+A current ASan run found a shutdown crash after otherwise successful model
+checks. The minimal reproduction creates a `CubismModelResource`, assigns its
+`runtime_extension` to the already loaded addon descriptor, releases both
+script references, and exits. Loading the descriptor alone exits normally.
+The failing instruction resolves to `Resource::_gde_binding_free_callback`
+inside the already unloaded addon library. Redot 26.2 closes that library in
+`GDExtension` destruction before freeing its native instance bindings.
+
+The resource now retains the descriptor as an engine-owned Variant rather than
+a C++ `Ref<Resource>` wrapper. Factory loading and export validation query it
+through Variant calls, and resource graph traversal avoids wrapping descriptor
+edges. The serialized property remains an Object with the GDExtension resource
+hint; the actual resource edge and export selection remain intact. The new
+`extension_lifetime_checks.gd` runs before the public native ASan lifecycle tests.
+A PASS marker must be accompanied by exit code zero: the original fault happened
+after the test printed its marker.
+
+The fixed instrumented addon, SHA-256
+`57566d177dba7eb8b2cf6e4b2a702a57855a7ceb2e936c9d35e525342f1ebd56`,
+passes all 23 stages of the current native harness, including the new regression,
+250 ASan/LSan lifecycle cycles, handles and loading/removal. Fourteen preferred
+runtime suites also pass under the same sanitizer binary across two runs:
+node lifecycle, motion/expression, procedural parameter layers and effects,
+look/hit handling, lip sync, controllers and state, plus the descriptor probe.
+The lip-sync fixture's looping tone used an endpoint one sample beyond Redot's
+inclusive limit; correcting that fixture removed the audio mixer bounds failure.
+The example UI sanitizer attempt remains unqualified because this headless
+engine was built without FreeType. Its diagnostics are retained, not suppressed.
+
+Evidence is private under `.local-build/extension-edge-checkpoint` and the
+`extension-edge-native-asan` results. Engine, addon and public Framework are
+instrumented; the binding archive and proprietary Core are not. These runs do
+not establish GPU, Windows, final-revision or UI sanitizer qualification.
+
+
+The ordinary Linux debug and release builds each pass 23 import/export stages,
+41 preferred runtime stages with graphics and examples, and 13 export-selection
+stages across resources, scenes, embedded models and all resources. Debug SHA-256:
+`a6b307c3d41cfb2eb172aac136137d91d1629128b7c5b5951a7eb2c87392e36e`;
+release:
+`b7a950f070cfe1627ae14308406e65a938b73148d5c6610fc53c6fd4cc31c83f`.
+Both are working-tree builds based on `ffefd68`; clean final-revision release
+qualification remains open. The public suite passes 39 tests and the source
+audit covers 415 tracked files. Two older exported checkers now use explicit
+failure tracking instead of release-stripped GDScript assertions, preserving
+texture verification and actual motion startup in release mode.

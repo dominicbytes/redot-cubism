@@ -191,8 +191,17 @@ drivers disabled and `disable_3d=no`. No engine source patch is required.
 Add `--sanitizer-runtime /private/redot-asan` and
 `--sanitizer-library /private/native-asan/bin/libgd_cubism.linux.debug.x86_64.so`
 to the native harness. It imports with the normal editor/library, swaps in the
-instrumented library for 250 lifecycle cycles, handle and loading-removal tests,
+instrumented library for extension-descriptor shutdown, 250 lifecycle cycles,
+handle and loading-removal tests,
 then restores the normal library for graphics/export. The sanitizer processes
 use the dummy renderer, leak detection, a 300-second wall-clock bound and explicit
 quit bounds. Reports fingerprint both sanitizer binaries. A sanitizer pass does
 not establish GPU safety, Core-internal coverage or Windows behavior.
+
+
+Exported GDScript checks must use explicit failure tracking and nonzero exits;
+release templates remove `assert()` expressions, including their side effects.
+The texture-export check can be challenged by a private script extending
+`res://texture_export_checks.gd` and overriding `image_hash()` to return a wrong
+hash: the exported process must exit 1 without a PASS marker. The selection
+checker must likewise reject `--all` when run against a resources-only export.
