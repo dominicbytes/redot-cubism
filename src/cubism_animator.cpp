@@ -17,6 +17,7 @@ void CubismAnimator::configure(const Ref<CubismModelResource> &resource) {
         for (int j = 0; j < descriptors.size(); ++j) {
             const Ref<CubismMotionDescriptor> descriptor = descriptors[j];
             Motion motion{descriptor->get_id(), descriptor->get_group(), descriptor->get_index(), {}};
+            motion.default_loop = descriptor->get_loop();
             if (motion.id == StringName()) motion.valid = false;
             for (auto &existing : catalog) {
                 if (existing.id == motion.id) { existing.valid = false; motion.valid = false; }
@@ -46,6 +47,11 @@ PackedStringArray CubismAnimator::get_motion_ids() const {
 StringName CubismAnimator::find_motion(const StringName &group, int index) const {
     for (const auto &motion : catalog) if (motion.group == group && motion.index == index) return motion.id;
     return StringName();
+}
+
+bool CubismAnimator::get_default_loop(const StringName &id) const {
+    for (const auto &motion : catalog) if (motion.id == id) return motion.default_loop;
+    return false;
 }
 
 void CubismAnimator::fade(Playback &playback, double seconds, CubismMotionHandle::FinishReason reason) {

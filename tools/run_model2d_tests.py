@@ -49,6 +49,7 @@ def main():
     if args.motion:
         (project / 'motion_api_checks.gd').write_bytes((ROOT / 'tests/native/project/motion_api_checks.gd').read_bytes())
         (project / 'expression_api_checks.gd').write_bytes((ROOT / 'tests/native/project/expression_api_checks.gd').read_bytes())
+        (project / 'autoplay_checks.gd').write_bytes((ROOT / 'tests/native/project/autoplay_checks.gd').read_bytes())
         driver = project / 'addons/motion_test'
         driver.mkdir(exist_ok=True)
         (driver / 'checks.gd').write_bytes((ROOT / 'tests/editor/preferred_motion_prepare.gd').read_bytes())
@@ -80,13 +81,14 @@ def main():
             (project / 'project.godot').write_text(re.sub(r'\[editor_plugins\][\s\S]*?(?=\n\[|\Z)', '', config))
             execute('native-motion', [engine, '--headless', '--path', str(project), '--script', 'res://motion_api_checks.gd', '--quit-after', '10000'], 'CUBISM_MOTION_API_PASS')
             execute('native-expression', [engine, '--headless', '--path', str(project), '--script', 'res://expression_api_checks.gd', '--quit-after', '10000'], 'CUBISM_EXPRESSION_API_PASS')
+            execute('native-autoplay', [engine, '--headless', '--path', str(project), '--script', 'res://autoplay_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_AUTOPLAY_PASS')
         execute('native-node', [engine, '--headless', '--path', str(project), '--script', 'res://model2d_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_MODEL2D_PASS')
         template = json.dumps(str(args.template.resolve()))
         (project / 'export_presets.cfg').write_text('[preset.0]\nname="Model2D"\nplatform="' + ('Windows Desktop' if os.name == 'nt' else 'Linux') + '"\nrunnable=true\nexport_path=""\nexport_filter="resources"\nexport_files=PackedStringArray("res://model2d.tscn", "res://model2d_checks.gd", "res://model2d_render_checks.gd")\ninclude_filter=""\nexclude_filter=""\nscript_export_mode=2\n[preset.0.options]\ncustom_template/debug=' + template + '\ncustom_template/release=' + template + '\nbinary_format/architecture="x86_64"\nbinary_format/embed_pck=false\n')
         output = run / 'export'
         if args.motion:
             presets = (project / 'export_presets.cfg').read_text()
-            (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://expression_api_checks.gd", "res://motion_api_checks.gd", "res://model2d.tscn",'))
+            (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://autoplay.tscn", "res://autoplay_checks.gd", "res://expression_api_checks.gd", "res://motion_api_checks.gd", "res://model2d.tscn",'))
         execute('checked-export', [sys.executable, str(ROOT / 'tools/checked_export.py'), '--project', str(project), '--preset', 'Model2D', '--output', str(output), '--redot-bin', engine, '--mode', args.mode, '--report', str(run / 'checked.json')])
         project.rename(run / 'source-not-available')
         try:
@@ -94,6 +96,7 @@ def main():
             if args.motion:
                 execute('exported-motion', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://motion_api_checks.gd', '--quit-after', '10000'], 'CUBISM_MOTION_API_PASS', output)
                 execute('exported-expression', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://expression_api_checks.gd', '--quit-after', '10000'], 'CUBISM_EXPRESSION_API_PASS', output)
+                execute('exported-autoplay', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://autoplay_checks.gd', '--quit-after', '10000'], 'CUBISM_AUTOPLAY_PASS', output)
             if args.graphics:
                 captures = run / 'captures'; captures.mkdir()
                 command = [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--rendering-method', 'gl_compatibility', '--audio-driver', 'Dummy', '--script', 'res://model2d_render_checks.gd', '--quit-after', '1000']

@@ -26,7 +26,7 @@ func _run() -> void:
 			size += str(event.Value).to_utf8_buffer().size()
 		_write(source.get_base_dir().path_join(filename), {
 			"Version": 3,
-			"Meta": {"Duration": 1.0, "Fps": 20.0, "Loop": false, "AreBeziersRestricted": true,
+			"Meta": {"Duration": 1.0, "Fps": 20.0, "Loop": index == 1, "AreBeziersRestricted": true,
 				"CurveCount": 1, "TotalSegmentCount": 1, "TotalPointCount": 2,
 				"UserDataCount": events.size(), "TotalUserDataSize": size},
 			"Curves": [{"Target": "Parameter", "Id": "ParamAngleX", "Segments": [0.0, 0.0, 0, 1.0, 20.0 if index == 0 else -20.0]}],

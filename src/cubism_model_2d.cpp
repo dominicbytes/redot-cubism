@@ -19,6 +19,16 @@ void CubismModel2D::_bind_methods() {
     ClassDB::bind_method(D_METHOD("get_last_error"), &CubismModel2D::get_last_error);
     ClassDB::bind_method(D_METHOD("_emit_load_started", "generation"), &CubismModel2D::emit_load_started);
     ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "model", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource"), "set_model", "get_model");
+    ClassDB::bind_method(D_METHOD("set_autoplay", "value"), &CubismModel2D::set_autoplay);
+    ClassDB::bind_method(D_METHOD("get_autoplay"), &CubismModel2D::get_autoplay);
+    ADD_PROPERTY(PropertyInfo(Variant::BOOL, "autoplay"), "set_autoplay", "get_autoplay");
+    ClassDB::bind_method(D_METHOD("set_default_motion", "motion_id"), &CubismModel2D::set_default_motion);
+    ClassDB::bind_method(D_METHOD("get_default_motion"), &CubismModel2D::get_default_motion);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "default_motion"), "set_default_motion", "get_default_motion");
+    ClassDB::bind_method(D_METHOD("set_default_expression", "expression_id"), &CubismModel2D::set_default_expression);
+    ClassDB::bind_method(D_METHOD("get_default_expression"), &CubismModel2D::get_default_expression);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "default_expression"), "set_default_expression", "get_default_expression");
+    ClassDB::bind_method(D_METHOD("_start_autoplay", "generation"), &CubismModel2D::start_autoplay);
     ADD_GROUP("Playback", "");
     ClassDB::bind_method(D_METHOD("set_playback_process_mode", "mode"), &CubismModel2D::set_playback_process_mode);
     ClassDB::bind_method(D_METHOD("get_playback_process_mode"), &CubismModel2D::get_playback_process_mode);
@@ -87,10 +97,14 @@ void CubismModel2D::_notification(int what) {
     switch (what) {
         case NOTIFICATION_ENTER_TREE:
             if (load_requested && !is_ready()) call_deferred("_emit_load_started", ++generation);
+            call_deferred("_start_autoplay", generation);
             set_playback_process_mode(playback_process_mode);
             break;
         case NOTIFICATION_EXIT_TREE:
             ++generation;
+            autoplay_started = false;
+            motion_requested = false;
+            expression_requested = false;
             set_process_internal(false);
             set_physics_process_internal(false);
             break;
@@ -111,6 +125,9 @@ Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
     model = resource;
     load_requested = model.is_valid();
     ++generation;
+    autoplay_started = false;
+    motion_requested = false;
+    expression_requested = false;
     if (!load_requested) { runtime->unload_selected_model(); return OK; }
     call_deferred("_emit_load_started", generation);
     runtime->set_model(model);
@@ -132,7 +149,23 @@ void CubismModel2D::emit_load_started(uint64_t expected_generation) {
 }
 
 void CubismModel2D::on_model_ready() {
+    start_autoplay(generation);
     if (load_requested && is_ready() && !is_queued_for_deletion()) emit_signal("model_ready", model);
+}
+
+void CubismModel2D::start_autoplay(uint64_t expected_generation) {
+    if (expected_generation != generation || autoplay_started || !autoplay || !load_requested
+        || !is_ready() || !is_inside_tree() || is_queued_for_deletion()) return;
+    autoplay_started = true;
+    if (!motion_requested && default_motion != StringName()) {
+        const Ref<CubismMotionHandle> handle = play_motion(default_motion, CubismMotionPriority::IDLE,
+            runtime->get_animator()->get_default_loop(default_motion));
+        if (handle->get_error() != OK) call_deferred("emit_signal", "runtime_warning", handle->get_error(), "Cannot autoplay motion: " + String(default_motion));
+    }
+    if (!expression_requested && default_expression != StringName()) {
+        const Error error = set_expression(default_expression);
+        if (error != OK) call_deferred("emit_signal", "runtime_warning", error, "Cannot autoplay expression: " + String(default_expression));
+    }
 }
 
 void CubismModel2D::on_model_failed(const Dictionary &error) {
@@ -164,7 +197,10 @@ Error CubismModel2D::set_expression(const StringName &id, double fade_seconds) {
     if (!is_ready()) return ERR_UNCONFIGURED;
     if (runtime->is_native_busy()) return ERR_BUSY;
     const Error result = runtime->internal_model->preferred_expression_set(id, fade_seconds);
-    if (result == OK) call_deferred("_expression_changed", id, generation);
+    if (result == OK) {
+        expression_requested = true;
+        call_deferred("_expression_changed", id, generation);
+    }
     return result;
 }
 
@@ -175,6 +211,7 @@ void CubismModel2D::clear_expression(double fade_seconds) {
         return;
     }
     if (!is_ready()) return;
+    expression_requested = true;
     if (runtime->is_native_busy()) { call_deferred("_deferred_clear_expression", fade_seconds, generation); return; }
     runtime->internal_model->preferred_expression_clear(fade_seconds);
     call_deferred("_expression_changed", StringName(), generation);
@@ -193,6 +230,7 @@ Ref<CubismMotionHandle> CubismModel2D::play_motion(const StringName &id, CubismM
     if (runtime->is_native_busy()) return CubismMotionHandle::rejected(id, ERR_BUSY);
     const Ref<CubismMotionHandle> handle = runtime->get_animator()->play(*runtime->internal_model, id, priority, loop, speed);
     if (handle->get_error() != OK) return handle;
+    motion_requested = true;
     motions[handle->get_id()] = handle;
     handle->connect("event", callable_mp(this, &CubismModel2D::motion_event).bind(handle->get_id()));
     handle->connect("looped", callable_mp(this, &CubismModel2D::motion_looped).bind(handle->get_id()));
@@ -210,6 +248,7 @@ void CubismModel2D::stop_motion(double fade_seconds) {
         call_deferred("emit_signal", "runtime_warning", ERR_INVALID_PARAMETER, "Invalid motion fade duration.");
         return;
     }
+    motion_requested = true;
     if (runtime->is_native_busy()) { call_deferred("_deferred_stop_motion", fade_seconds, generation); return; }
     runtime->get_animator()->stop(fade_seconds);
 }

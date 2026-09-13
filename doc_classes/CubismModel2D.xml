@@ -3,7 +3,7 @@
 	<brief_description>Preferred resource-based Cubism runtime node, under development.</brief_description>
 	<description>
 		Owns one internal model runtime and its renderer. Assign an imported [CubismModelResource] to [member model]. The internal runtime is not saved as a scene child.
-		The current API provides lifecycle, processing, queued parameter control, native motion playback and expression control. Autoplay, the character/audio controller and advanced rendering API are still being implemented.
+		The current API provides lifecycle, processing, queued parameter control, native motion playback, expression control and opt-in autoplay. The character/audio controller, procedural effects and advanced rendering API are still being implemented.
 		Parameter writes apply once on the next update, after physics and pose. Getters return evaluated values. Unload, reload, and tree exit discard pending writes. Use [method Node.queue_free] for deletion from signal callbacks.
 	</description>
 	<methods>
@@ -20,6 +20,9 @@
 		<method name="advance"><return type="void" /><param index="0" name="delta" type="float" /><description>Advance only in manual playback mode while the node can process and is not paused.</description></method>
 	</methods>
 	<members>
+		<member name="autoplay" type="bool" setter="set_autoplay" getter="get_autoplay" default="false">Start configured defaults once after a loaded model enters the tree, and again on reload/reentry. Explicit commands issued before startup take precedence. Changes after startup configure the next load/entry.</member>
+		<member name="default_motion" type="StringName" setter="set_default_motion" getter="get_default_motion">Autoplay motion ID. Uses idle priority and the loaded descriptor's loop flag. Empty skips motion playback; audio is not started.</member>
+		<member name="default_expression" type="StringName" setter="set_default_expression" getter="get_default_expression">Autoplay expression ID, using its source fades. Empty skips expression playback.</member>
 		<member name="model" type="CubismModelResource" setter="set_model" getter="get_model">Imported model selection.</member>
 		<member name="playback_process_mode" type="int" setter="set_playback_process_mode" getter="get_playback_process_mode" enum="CubismModel2D.PlaybackProcessMode" default="0">Select native idle, physics, or manual playback. Does not replace inherited scene-tree process mode.</member>
 		<member name="paused" type="bool" setter="set_paused" getter="get_paused" default="false">Suspend evaluation without consuming queued writes.</member>
