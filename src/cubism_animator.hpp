@@ -14,7 +14,7 @@ class InternalCubismUserModel;
 // has its own queue entry and clock, including while fading after interruption.
 class CubismAnimator {
     struct Event { double time; String value; };
-    struct Motion { StringName id; StringName group; int index; std::vector<Event> events; bool valid = true; };
+    struct Motion { StringName id; StringName group; int index; std::vector<Event> events; bool valid = true; bool default_loop = false; };
     struct Playback {
         Csm::CubismMotion *motion = nullptr;
         Csm::CubismMotionQueueEntry entry;
@@ -36,6 +36,7 @@ public:
     void configure(const Ref<CubismModelResource> &resource);
     void clear(CubismMotionHandle::FinishReason reason);
     PackedStringArray get_motion_ids() const;
+    bool get_default_loop(const StringName &id) const;
     StringName find_motion(const StringName &group, int index) const;
     Ref<CubismMotionHandle> play(InternalCubismUserModel &model, const StringName &id, int priority, bool loop, double speed);
     void stop(double fade_seconds);

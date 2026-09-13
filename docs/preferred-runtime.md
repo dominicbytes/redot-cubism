@@ -12,7 +12,7 @@ speed and pause controls, physics/pose switches, parameter/part IDs, parameter
 writes, part-opacity writes and canvas information. Native motion playback now
 provides IDs/groups, priorities, independent speed/loop state, fades and retained
 handles with deferred events and terminal signals. It does **not yet complete**
-autoplay/default cues, deterministic effects,
+deterministic effects,
 look/hit testing, advanced rendering policies or character/audio controller.
 Those remain required work in the canonical plan.
 
@@ -165,3 +165,25 @@ The `--motion` test fixture includes simple add/multiply/overwrite expressions.
 Tests compare default fade trajectories with the legacy SDK manager, check
 motion composition, clear/replay and lifecycle behavior in editor and exported
 builds, and compare expression/half-cleared render states to known parameter poses.
+
+## Autoplay defaults
+
+Set `autoplay = true`, `default_motion` and/or `default_expression` before loading
+or entering the scene tree. Autoplay is off by default. Startup runs once when a
+loaded node is inside the tree. For loads inside the tree, defaults start before
+the `model_ready` callback. A model loaded outside the tree waits for entry;
+its ready signal may already have been delivered. Reloading or leaving and reentering the tree
+starts the configured defaults again; explicit unload and null assignment do not.
+Changing these properties after startup configures the next load/entry; it does
+not start or interrupt a live cue. Empty default IDs skip that layer.
+
+The default motion uses `IDLE` priority and its loaded descriptor's loop setting.
+One-shot defaults finish normally and are not restarted every frame. Autoplay
+does not play descriptor audio. The default expression uses source fade values.
+Successful explicit play/set calls before deferred startup suppress the default
+for that layer; explicit stop/clear calls do so too. A `model_ready` handler can
+replace the idle default with a normal-priority cue. Invalid defaults emit one
+`runtime_warning` per requested layer and leave the model usable.
+
+These properties are serialized on the public node. The `--motion` suite saves
+and reopens an autoplay scene, then exercises it again from a source-free export.

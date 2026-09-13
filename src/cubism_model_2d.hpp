@@ -21,6 +21,13 @@ private:
     PlaybackProcessMode playback_process_mode = IDLE;
     bool paused = false;
     bool load_requested = false;
+    bool autoplay = false;
+    StringName default_motion;
+    StringName default_expression;
+    bool autoplay_started = false;
+    bool motion_requested = false;
+    bool expression_requested = false;
+    void start_autoplay(uint64_t expected_generation);
     uint64_t generation = 0;
     std::map<int64_t, Ref<CubismMotionHandle>> motions;
     void motion_started(const Ref<CubismMotionHandle> &handle);
@@ -45,6 +52,12 @@ public:
     CubismModel2D();
     void set_model(const Ref<CubismModelResource> &resource) { load_model(resource); }
     Ref<CubismModelResource> get_model() const { return model; }
+    void set_autoplay(bool value) { autoplay = value; }
+    bool get_autoplay() const { return autoplay; }
+    void set_default_motion(const StringName &id) { default_motion = id; }
+    StringName get_default_motion() const { return default_motion; }
+    void set_default_expression(const StringName &id) { default_expression = id; }
+    StringName get_default_expression() const { return default_expression; }
     Error load_model(const Ref<CubismModelResource> &resource);
     void unload_model();
     Error reload_model() { return load_model(model); }
