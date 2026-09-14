@@ -166,6 +166,8 @@ def main():
     if success:
         success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
     if success:
+        success = run("sdk-json", ["--script", "res://sdk_json_checks.gd", "--quit-after", "600"], "CUBISM_SDK_JSON_PASS variants=5")
+    if success:
         success = run("runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS")
     if success:
         success = run("native-processing", ["--fixed-fps", "60", "--quit-after", "600", "--", "--process-checks"], "CUBISM_PROCESS_PASS")
@@ -280,6 +282,8 @@ def main():
             success = run("exported-runtime", ["--quit-after", "120"], "CUBISM_NATIVE_PASS", game)
         if success:
             success = run("exported-resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS", game)
+            if success:
+                success = run("exported-sdk-json", ["--script", "res://sdk_json_checks.gd", "--quit-after", "600"], "CUBISM_SDK_JSON_PASS variants=5", game)
             if success and args.mask_compositions:
                 success = run("exported-renderer-masks", ["--quit-after", "120", "--", "--mask-checks"], "CUBISM_MASK_PASS", game)
             for label, flag, marker in [("native-processing", "--process-checks", "CUBISM_PROCESS_PASS"), ("lifecycle", "--lifecycle-checks", "CUBISM_LIFECYCLE_PASS"), ("loading-removal", "--loading-checks", "CUBISM_LOADING_PASS"), ("handles", "--handle-checks", "CUBISM_HANDLE_PASS"), ("deltas", "--delta-checks", "CUBISM_DELTA_PASS")]:

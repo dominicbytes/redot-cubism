@@ -63,14 +63,19 @@ for manual dispatch and environment settings.
 Provision one isolated runner per target with the `cubism-licensed` label and
 the standard `Linux` or `Windows` label. Each must provide these environment
 variables: `REDOT_BIN`, `REDOT_CPP_ROOT`, `CUBISM_SDK_ROOT`, `CUBISM_WORK_ROOT`,
-`CUBISM_MODEL`, `CUBISM_EXPRESSION`, `CUBISM_TEMPLATE_DEBUG`, and
-`CUBISM_TEMPLATE_RELEASE`. Paths refer to that runner's private filesystem.
+`CUBISM_MODEL`, `CUBISM_EXPRESSION`, `CUBISM_TEMPLATE_DEBUG`,
+`CUBISM_TEMPLATE_RELEASE`, `CUBISM_MOTION_PROJECT`, and `CUBISM_MOTION_FIXTURES`.
+The last two identify the prepared project and explicit fixture list described
+in [SDK motion testing](sdk-motion-testing.md). Paths refer to that runner's
+private filesystem.
 Install the pinned Python/SCons toolchain and compiler first. Windows currently
 requires VS 2022/MSVC 14.3; other toolsets fail the Core-library selection check.
 The runner needs an interactive graphics session for real editor/render tests.
 
 The workflow verifies the editor/API, builds both native variants sequentially,
-then runs each functional sequence. Builds and reports remain under
+then runs each functional sequence and the independent SDK motion comparison
+for both variants. A failed comparison fails the job. Builds and reports remain
+under
 `CUBISM_WORK_ROOT/<run-id>/<attempt>`. Retain that directory privately or use a
 private artifact store. Provisioning, environment approval, actual Windows runs,
 and required status propagation to the public release branch must still be
