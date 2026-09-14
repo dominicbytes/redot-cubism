@@ -56,6 +56,7 @@ class SDKMotionReportTests(unittest.TestCase):
                 with self.subTest(value=value), self.assertRaises(ValueError): load_fixtures(path)
             path.write_text(json.dumps([fixture]))
             self.assertEqual(load_fixtures(path)[0]['motions'][0]['look'], [])
+            self.assertFalse(load_fixtures(path)[0]['motions'][0]['loop'])
 
     def test_effect_selection_is_typed_and_defaults_off(self):
         fixture = {'model': 'character.model3.json', 'resource': 'res://character.res',
@@ -65,12 +66,12 @@ class SDKMotionReportTests(unittest.TestCase):
             path.write_text(json.dumps([fixture]))
             motion = load_fixtures(path)[0]['motions'][0]
             self.assertEqual((motion['expression'], motion['physics'], motion['pose'], motion['breath']), ('', False, False, False))
-            for key, value in [('expression', None), ('expression', True), ('physics', 1), ('physics', 'false'), ('pose', None), ('breath', 1), ('breath', 'false'), ('breath', None)]:
+            for key, value in [('expression', None), ('expression', True), ('physics', 1), ('physics', 'false'), ('pose', None), ('breath', 1), ('breath', 'false'), ('breath', None), ('loop', 1), ('loop', 'false'), ('loop', None)]:
                 bad = copy.deepcopy(fixture)
                 bad['motions'][0][key] = value
                 path.write_text(json.dumps([bad]))
                 with self.assertRaises(ValueError): load_fixtures(path)
-            fixture['motions'][0].update(expression='笑顔', physics=True, pose=True, breath=True, look=[125.5, -300.0])
+            fixture['motions'][0].update(expression='笑顔', physics=True, pose=True, breath=True, look=[125.5, -300.0], loop=True)
             path.write_text(json.dumps([fixture]))
             self.assertEqual(load_fixtures(path)[0]['motions'][0], fixture['motions'][0])
 
