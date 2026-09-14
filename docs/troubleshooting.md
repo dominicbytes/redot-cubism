@@ -22,3 +22,24 @@ See [build dependencies](../DEPENDENCIES.md), [import recovery](editor-import.md
 [statistics](debug-statistics.md) and [export diagnostics](export-validation.md).
 Headless success establishes load/state behavior; graphics and target-platform
 checks are still needed for rendering and exported-game failures.
+
+## Very short first editor run crashes on exit
+
+On the pinned Linux Redot 26.2 build, a fresh extension project can crash during
+shutdown with `--headless --editor --quit-after 2`. The same failure reproduces
+with a minimal extension that contains no Cubism code or SDK. Debugger evidence
+points to deferred engine documentation generation accessing cleared data during
+shutdown. This is distinct from a model-loading or renderer failure.
+
+For automated project setup, let the editor finish importing resources. The
+following bounded import run passed on a fresh Cubism project; a fresh 60-frame
+editor run and a cached restart also passed:
+
+```sh
+timeout 120 "$REDOT_BIN" --headless --editor --path /path/to/project \
+  --import --quit-after 60
+```
+
+These checks establish a working setup path on the tested Linux build, not an
+engine fix or Windows qualification. Keep the complete log if a normal editor
+session or import-and-quit run fails.
