@@ -29,6 +29,10 @@ def main():
     parser.add_argument("--library", type=Path, help="Built addon library for native smoke")
     parser.add_argument("--sanitizer-runtime", type=Path)
     parser.add_argument("--sanitizer-library", type=Path)
+    parser.add_argument("--benchmark-project", type=Path, help="Prepared private project for all eight benchmarks")
+    parser.add_argument("--mask-resource", help="Project-local imported resource with at least eight mask compositions")
+    parser.add_argument("--motion", default="Cue/0")
+    parser.add_argument("--resource", default="res://imported-model.res")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     if args.suite == "public":
@@ -59,6 +63,13 @@ def main():
             commands[0] += ["--sanitizer-runtime", str(args.sanitizer_runtime.resolve()), "--sanitizer-library", str(args.sanitizer_library.resolve())]
         elif args.sanitizer_runtime or args.sanitizer_library:
             parser.error("Supply both sanitizer runtime and library")
+    elif args.suite == "benchmark":
+        if not args.benchmark_project or not args.library or not args.mask_resource or not args.expression:
+            parser.error("benchmark requires --benchmark-project, --library, --mask-resource and --expression")
+        commands = [[sys.executable, "tools/run_benchmarks.py", "--project", str(args.benchmark_project),
+                     "--library", str(args.library), "--mask-resource", args.mask_resource,
+                     "--resource", args.resource, "--motion", args.motion, "--expression", args.expression,
+                     "--output", str(args.output)]]
     else:
         print(f"BLOCKED: {args.suite} is not qualified at this stage. It requires the matched SDK, fixture and target runner.", file=sys.stderr)
         return 2
@@ -66,7 +77,7 @@ def main():
     for index, command in enumerate(commands):
         start = time.monotonic()
         try:
-            result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=900 if args.sanitizer_runtime else 300)
+            result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=2500 if args.suite == "benchmark" else (900 if args.sanitizer_runtime else 300))
             code, log = result.returncode, result.stdout
         except subprocess.TimeoutExpired:
             code, log = 124, "Test command exceeded the wall-clock limit."
@@ -77,7 +88,7 @@ def main():
         if code:
             break
     status = "FAIL" if any(r["exit_code"] for r in results) else "PASS"
-    (args.output / f"{args.suite}.json").write_text(json.dumps({"suite": args.suite, "status": status, "checks": results, "cubism_model_tests_selected": args.suite == "native-smoke"}, indent=2) + "\n")
+    (args.output / f"{args.suite}.json").write_text(json.dumps({"suite": args.suite, "status": status, "checks": results, "cubism_model_tests_selected": args.suite in ("native-smoke", "benchmark")}, indent=2) + "\n")
     return int(status != "PASS")
 
 

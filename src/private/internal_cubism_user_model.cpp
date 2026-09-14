@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2023 MizunagiKB <mizukb@live.jp>
 // ----------------------------------------------------------------- include(s)
+#include "cubism_debug_statistics.hpp"
 #include <gd_cubism.hpp>
 
 #include <godot_cpp/classes/file_access.hpp>
@@ -410,6 +411,9 @@ void InternalCubismUserModel::epi_update(const double delta) {
 
 void InternalCubismUserModel::update_node() {
     if(this->IsInitialized() == false) return;
+    #ifdef DEBUG_ENABLED
+    CubismDebugTimer renderer_timer(CubismDebugPhase::RENDERER);
+    #endif
 
     #ifdef GD_CUBISM_USE_RENDERER_2D
     InternalCubismRenderer2D* renderer = this->GetRenderer<InternalCubismRenderer2D>();

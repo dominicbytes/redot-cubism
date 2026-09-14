@@ -84,6 +84,7 @@ public:
     GDCubismUserModel();
     ~GDCubismUserModel();
     static void shutdown_models();
+    static Dictionary get_debug_statistics();
 
 public:
     enum moc3FileFormatVersion {

@@ -38,6 +38,7 @@ public:
     void configure(const Ref<CubismModelResource> &resource);
     void clear(CubismMotionHandle::FinishReason reason);
     PackedStringArray get_motion_ids() const;
+    size_t get_owned_handle_count() const { return playbacks.size(); }
     bool get_default_loop(const StringName &id) const;
     StringName find_motion(const StringName &group, int index) const;
     Ref<CubismMotionHandle> play(InternalCubismUserModel &model, const StringName &id, int priority, bool loop, double speed);

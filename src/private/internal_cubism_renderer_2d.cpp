@@ -20,6 +20,7 @@
 #include <private/internal_cubism_renderer_resource.hpp>
 #include <private/internal_cubism_user_model.hpp>
 #include "cubism_mask_size.hpp"
+#include "cubism_debug_statistics.hpp"
 #include <algorithm>
 #include <vector>
 
@@ -111,6 +112,9 @@ void InternalCubismRenderer2D::update_mesh(
         }
 
         ary_mesh->surface_update_vertex_region(0, 0, ary);
+        #ifdef DEBUG_ENABLED
+        cubism_debug_vertex_upload(ary.size());
+        #endif
 
         // aabb does not get automatically updated when directly updating the vertex region
         AABB aabb(vct_min, vct_max - vct_min);
@@ -137,6 +141,11 @@ void InternalCubismRenderer2D::update_mesh(
         model->GetDrawableVertexIndexCount(index));
 
     ary_mesh->add_surface_from_arrays(Mesh::PRIMITIVE_TRIANGLES, ary);
+    #ifdef DEBUG_ENABLED
+    const int vertex_count = model->GetDrawableVertexCount(index);
+    const uint64_t vertex_format = ary_mesh->surface_get_format(0);
+    cubism_debug_vertex_upload(vertex_count * RenderingServer::get_singleton()->mesh_surface_get_format_vertex_stride(vertex_format, vertex_count));
+    #endif
     ary_mesh->set_custom_aabb(ary_mesh->get_aabb());
 }
 
@@ -304,13 +313,21 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
             continue;
         }
         if (is_culled && offscreen_policy == CubismMaskOffscreenPolicy::REDUCED) {
-            if (reduced_due) mask->set_update_mode(SubViewport::UPDATE_ONCE);
+            if (reduced_due) {
+                mask->set_update_mode(SubViewport::UPDATE_ONCE);
+                #ifdef DEBUG_ENABLED
+                cubism_debug_mask_redraw(mask->get_instance_id());
+                #endif
+            }
             else if (mask->get_update_mode() != SubViewport::UPDATE_ONCE) mask->set_update_mode(SubViewport::UPDATE_DISABLED);
             // Do not re-submit UPDATE_ONCE before the next pulse. The node's
             // getter retains ONCE after the server has consumed it. Leaving it
             // alone also preserves pending draws across repeated manual steps.
         } else {
             mask->set_update_mode(SubViewport::UPDATE_ALWAYS);
+            #ifdef DEBUG_ENABLED
+            cubism_debug_mask_redraw(mask->get_instance_id());
+            #endif
         }
 
         const double scalar = mask_size.scale;

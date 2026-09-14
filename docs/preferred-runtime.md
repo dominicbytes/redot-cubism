@@ -15,7 +15,9 @@ handles with deferred events and terminal signals. The character/audio controlle
 coordinates cues, recorded voice, lip sync and stable checkpoints; see the
 [VN/RPG examples and dialogue integration](dialogue-integration.md).
 Advanced rendering policies and full platform qualification remain required
-work in the canonical plan.
+work in the canonical plan. Debug addon builds also expose
+[runtime diagnostic statistics](debug-statistics.md) for resource ownership and
+CPU/upload work.
 
 `rendering_mode` defaults to `DIRECT`. Select `SUBVIEWPORT_FALLBACK` explicitly
 to composite ordered drawable atlas cells into one output item. The mode is

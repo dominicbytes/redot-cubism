@@ -34,6 +34,9 @@ public:
     void clear();
     void set_visible(bool visible);
     const godot::String &get_error() const { return error; }
+#ifdef DEBUG_ENABLED
+    void append_debug_nodes(godot::TypedArray<godot::Node> &nodes) const;
+#endif
     void update(godot::Node2D *owner, const std::vector<CubismCompositionDrawable> &drawables);
 };
 
