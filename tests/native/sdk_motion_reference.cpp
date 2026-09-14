@@ -85,6 +85,14 @@ static void evaluate(const std::vector<std::string>& raw_args) {
     auto args = raw_args;
     const bool with_loop = !args.empty() && args.back() == "--loop";
     if (with_loop) args.pop_back();
+    std::string switch_expression;
+    int switch_step = 0;
+    if (args.size() >= 3 && args[args.size() - 3] == "--expression-at") {
+        switch_expression = args[args.size() - 2];
+        switch_step = std::stoi(args.back());
+        if (switch_expression.empty() || switch_step < 1 || switch_step > 36000) throw std::runtime_error("Invalid expression switch");
+        args.resize(args.size() - 3);
+    }
     if (args.size() != 7 && args.size() != 10 && args.size() != 11 && args.size() != 13) throw std::runtime_error("Pass model3.json, group, index, steps, fps, output.json, optional expression/physics/pose/breath and local look x/y");
     std::ofstream json(std::filesystem::u8path(args[6]));
     if (!json) throw std::runtime_error("Cannot write reference JSON");
@@ -129,15 +137,20 @@ static void evaluate(const std::vector<std::string>& raw_args) {
     Csm::CubismMotionQueueEntry entry;
     motion->SetupMotionQueueEntry(&entry, 0.0f);
     std::unique_ptr<Csm::CubismExpressionMotion, decltype(&Csm::ACubismMotion::Delete)> expression_motion(nullptr, Csm::ACubismMotion::Delete);
+    std::unique_ptr<Csm::CubismExpressionMotion, decltype(&Csm::ACubismMotion::Delete)> switched_motion(nullptr, Csm::ACubismMotion::Delete);
     Csm::CubismExpressionMotionManager expressions;
-    if (!expression.empty()) {
+    const auto create_expression = [&](const std::string& name) {
         for (int i = 0; i < settings.GetExpressionCount(); ++i) {
-            if (expression != settings.GetExpressionName(i)) continue;
+            if (name != settings.GetExpressionName(i)) continue;
             const auto bytes = read(manifest_path.parent_path() / std::filesystem::u8path(settings.GetExpressionFileName(i)));
-            expression_motion.reset(Csm::CubismExpressionMotion::Create(bytes.data(), bytes.size()));
-            break;
+            auto* result = Csm::CubismExpressionMotion::Create(bytes.data(), bytes.size());
+            if (!result) throw std::runtime_error("SDK rejected expression");
+            return result;
         }
-        if (!expression_motion) throw std::runtime_error("Expression is absent or rejected by SDK");
+        throw std::runtime_error("Expression is absent from manifest");
+    };
+    if (!expression.empty()) {
+        expression_motion.reset(create_expression(expression));
         expressions.StartMotion(expression_motion.get(), false);
     }
     std::unique_ptr<Csm::CubismPhysics, decltype(&Csm::CubismPhysics::Delete)> physics(nullptr, Csm::CubismPhysics::Delete);
@@ -193,10 +206,14 @@ static void evaluate(const std::vector<std::string>& raw_args) {
     }
     model->SaveParameters();
     for (int step = 1; step <= steps; ++step) {
+        if (step == switch_step) {
+            switched_motion.reset(create_expression(switch_expression));
+            expressions.StartMotion(switched_motion.get(), false);
+        }
         model->LoadParameters();
         motion->UpdateParameters(model.get(), &entry, float(double(step) / fps));
         model->SaveParameters();
-        if (expression_motion) expressions.UpdateMotion(model.get(), float(1.0 / fps));
+        expressions.UpdateMotion(model.get(), float(1.0 / fps));
         if (breath) breath->UpdateParameters(model.get(), float(1.0 / fps));
         if (look) {
             target.Update(float(1.0 / fps));
@@ -212,7 +229,12 @@ static void evaluate(const std::vector<std::string>& raw_args) {
     json << ",\"physics\":" << (with_physics ? "true" : "false") << ",\"pose\":" << (with_pose ? "true" : "false")
          << ",\"breath\":" << (with_breath ? "true" : "false") << ",\"look\":[";
     if (with_look) json << std::setprecision(17) << local_x << ',' << local_y;
-    json << std::setprecision(9) << "],\"parameters\":{";
+    json << std::setprecision(9) << "],\"expression_switch\":{";
+    if (switch_step) {
+        json << "\"step\":" << switch_step << ",\"id\":";
+        quoted(json, switch_expression.c_str());
+    }
+    json << "},\"parameters\":{";
     for (int i = 0; i < model->GetParameterCount(); ++i) {
         if (i) json << ',';
         quoted(json, model->GetParameterId(i)->GetString().GetRawString());

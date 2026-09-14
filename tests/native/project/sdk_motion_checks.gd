@@ -4,15 +4,17 @@ extends SceneTree
 func _initialize() -> void:
 	_run.call_deferred()
 
+func expression_matches(resource: CubismModelResource, id: String, hash: String) -> bool:
+	var matches := 0
+	for expression: CubismExpressionDescriptor in resource.expressions:
+		if String(expression.id) == id and FileAccess.get_sha256(expression.source_path) == hash: matches += 1
+	return matches == 1
+
 func effects_match(resource: CubismModelResource, fixture: Dictionary) -> bool:
 	if fixture.physics and (resource.physics_path.is_empty() or FileAccess.get_sha256(resource.physics_path) != fixture.physics_sha256): return false
 	if fixture.pose and (resource.pose_path.is_empty() or FileAccess.get_sha256(resource.pose_path) != fixture.pose_sha256): return false
-	if not fixture.expression.is_empty():
-		var matches := 0
-		for expression: CubismExpressionDescriptor in resource.expressions:
-			if String(expression.id) == fixture.expression and FileAccess.get_sha256(expression.source_path) == fixture.expression_sha256:
-				matches += 1
-		if matches != 1: return false
+	if not fixture.expression.is_empty() and not expression_matches(resource, fixture.expression, fixture.expression_sha256): return false
+	if not fixture.expression_switch.is_empty() and not expression_matches(resource, fixture.expression_switch.id, fixture.expression_switch_sha256): return false
 	return true
 
 func _run() -> void:
@@ -24,7 +26,7 @@ func _run() -> void:
 		var result := {"resource": fixture.resource, "group": fixture.group, "index": fixture.index,
 			"steps": fixture.steps, "fps": fixture.fps, "loop": fixture.loop, "expression": fixture.expression,
 			"physics": fixture.physics, "pose": fixture.pose, "breath": fixture.breath, "look": fixture.look,
-			"status": "FAIL", "parameters": {}, "parts": {}}
+			"expression_switch": fixture.expression_switch, "status": "FAIL", "parameters": {}, "parts": {}}
 		var resource := load(fixture.resource) as CubismModelResource
 		if resource == null or resource.source_hash != fixture.manifest_sha256 or FileAccess.get_sha256(resource.moc_path) != fixture.moc_sha256:
 			result.error = "Imported resource does not match the reference manifest/MOC"
@@ -52,12 +54,17 @@ func _run() -> void:
 						result.error = "Expression playback rejected"
 					else:
 						if not fixture.look.is_empty(): model.set_look_target(Vector2(fixture.look[0], fixture.look[1]))
-						for step in int(fixture.steps): model.advance(1.0 / float(fixture.fps))
+						for step in int(fixture.steps):
+							if not fixture.expression_switch.is_empty() and step + 1 == int(fixture.expression_switch.step):
+								if model.set_expression(fixture.expression_switch.id) != OK:
+									result.error = "Expression switch rejected"
+									break
+							model.advance(1.0 / float(fixture.fps))
 						for id: String in model.get_parameter_ids(): result.parameters[id] = model.get_parameter_value(id)
 						# There is no public part-opacity getter; inspect the native model for this oracle.
 						var runtime := model.get_child(0, true) as GDCubismUserModel
 						for part: GDCubismPartOpacity in runtime.get_part_opacities(): result.parts[part.id] = part.value
-						result.status = "PASS"
+						result.status = "FAIL" if result.has("error") else "PASS"
 				model.free()
 		if result.status != "PASS": failed = true
 		results.append(result)

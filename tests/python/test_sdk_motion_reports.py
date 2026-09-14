@@ -58,6 +58,24 @@ class SDKMotionReportTests(unittest.TestCase):
             self.assertEqual(load_fixtures(path)[0]['motions'][0]['look'], [])
             self.assertFalse(load_fixtures(path)[0]['motions'][0]['loop'])
 
+    def test_expression_switch_identity_and_time_are_validated(self):
+        fixture = {'model': 'character.model3.json', 'resource': 'res://character.res',
+                   'motions': [{'group': 'Idle', 'index': 0}]}
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'fixtures.json'
+            for switch in (None, [], {'id': 'Smile'}, {'id': 'Smile', 'step': 0},
+                           {'id': 'Smile', 'step': True}, {'id': 'Smile', 'step': 1.5},
+                           {'id': '', 'step': 1}, {'id': 7, 'step': 1},
+                           {'id': 'Smile', 'step': 36001}, {'id': 'Smile', 'step': 1, 'typo': True}):
+                bad = copy.deepcopy(fixture)
+                bad['motions'][0]['expression_switch'] = switch
+                path.write_text(json.dumps([bad]))
+                with self.subTest(switch=switch), self.assertRaises(ValueError): load_fixtures(path)
+            for switch in ({}, {'id': '笑顔', 'step': 30}):
+                fixture['motions'][0]['expression_switch'] = switch
+                path.write_text(json.dumps([fixture]))
+                self.assertEqual(load_fixtures(path)[0]['motions'][0]['expression_switch'], switch)
+
     def test_effect_selection_is_typed_and_defaults_off(self):
         fixture = {'model': 'character.model3.json', 'resource': 'res://character.res',
                    'motions': [{'group': 'Idle', 'index': 0}]}
@@ -71,7 +89,7 @@ class SDKMotionReportTests(unittest.TestCase):
                 bad['motions'][0][key] = value
                 path.write_text(json.dumps([bad]))
                 with self.assertRaises(ValueError): load_fixtures(path)
-            fixture['motions'][0].update(expression='笑顔', physics=True, pose=True, breath=True, look=[125.5, -300.0], loop=True)
+            fixture['motions'][0].update(expression='笑顔', physics=True, pose=True, breath=True, look=[125.5, -300.0], loop=True, expression_switch={})
             path.write_text(json.dumps([fixture]))
             self.assertEqual(load_fixtures(path)[0]['motions'][0], fixture['motions'][0])
 

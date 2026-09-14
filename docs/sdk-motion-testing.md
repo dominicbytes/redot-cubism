@@ -43,6 +43,15 @@ and subsequent cycles, to exercise the endpoint correction and repeated fade.
 At 60 Hz, a source duration of 10 seconds with 30 FPS has a 602-step cycle;
 fractional durations may put the boundary between two evaluation steps.
 
+Use `"expression_switch": {"id": "Smile", "step": 30}` to start another
+native expression immediately before a one-based evaluation step (1–36000).
+The default empty object schedules no change. The initial `expression` may be
+empty, and the scheduled ID may repeat the initial ID. Each play gets a fresh
+expression instance and retains its file's fade settings. Both expression files
+are checked against the imported resources' hashes. Include samples before the
+switch, at its first update and during the overlap. This checks native SDK
+switching; the addon's explicit clear-to-primary adapter has separate tests.
+
 `look` is either an empty array (the default, disabled) or two finite node-local
 pixel coordinates, each within +/-10,000,000. The reference uses the manifest's
 SDK model-layout inverse to convert these coordinates, then normalizes and clamps
@@ -104,7 +113,8 @@ test-source identities, commands, logs and per-case differences.
 
 `sdk-motion-report.json` refers only to the listed motions, sample times,
 platform and addon variant. This numeric headless test does not qualify visual
-rendering, event dispatch or interruption policy, other procedural effects, expression transitions,
+rendering, event dispatch or interruption policy, other procedural effects,
+explicit expression clearing or fade overrides,
 audio, export or the whole desktop release. Keep its generated JSON, logs and copied project
 private. Windows qualification requires an actual Windows run.
 
@@ -154,3 +164,11 @@ debug/release states are identical. Initial loop/one-shot controls agree; later
 looped states differ from the completed one-shot controls. This checks repeated
 native curve/effect evaluation; event counts, terminal reasons and explicit
 stop/interruption behavior remain separate motion API tests.
+
+The native expression-switch matrix uses Haru F03/F01 and Mao exp_02/exp_01
+with Idle/0. It covers same-ID replay, different-ID transitions and a delayed
+first expression, with and without the other effects. At steps 1, 29, 30, 31,
+45, 60 and 90 at 60 Hz, all 98 cases per Linux variant match the SDK at `1e-5`;
+debug/release states are identical. Controls agree before the scheduled change,
+and late different-ID states differ from uninterrupted expressions. A mismatched
+scheduled-expression hash is rejected even in a sample before the switch.
