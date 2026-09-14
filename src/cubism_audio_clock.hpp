@@ -11,7 +11,10 @@ inline bool cubism_audio_clock_estimate(double position, double age_before, doub
             !std::isfinite(next_mix) || !std::isfinite(latency) || position < 0 ||
             age_before < 0 || age_after < 0 || latency < 0) return false;
     if (age_after < age_before) {
-        estimate = previous;
+        // The mix ages cannot safely interpolate this playback sample, but its
+        // position still supplies a conservative clock. Holding only previous
+        // would lose several buffers of progress after a main-thread stall.
+        estimate = std::max(previous, std::clamp(position - latency, 0.0, length));
         return true;
     }
     const double interval = age_after + next_mix;

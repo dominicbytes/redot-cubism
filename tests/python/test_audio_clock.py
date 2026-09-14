@@ -21,7 +21,7 @@ class AudioClockTest(unittest.TestCase):
                            check=True, capture_output=True, text=True, timeout=60)
             result = subprocess.run([str(binary)], check=True, capture_output=True,
                                     text=True, timeout=10)
-            self.assertIn('CUBISM_AUDIO_CLOCK checks=16 failures=0', result.stdout)
+            self.assertIn('CUBISM_AUDIO_CLOCK checks=19 failures=0', result.stdout)
 
 
 if __name__ == '__main__':
