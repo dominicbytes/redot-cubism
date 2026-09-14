@@ -94,6 +94,23 @@ func _run() -> void:
 	expect(first.set_part_opacity(StringName(first.get_part_ids()[0]), 0.5) == OK, "queue valid part opacity")
 	expect(first.set_part_opacity(&"missing", 0.5) == ERR_DOES_NOT_EXIST, "unknown part rejected")
 	expect(first.set_part_opacity(StringName(first.get_part_ids()[0]), NAN) == ERR_INVALID_PARAMETER, "nonfinite part opacity rejected")
+	var runtime := first.get_child(0, true) as GDCubismUserModel
+	var part: GDCubismPartOpacity = runtime.get_part_opacities()[0]
+	first.advance(1.0 / 60.0)
+	expect(is_equal_approx(part.value, 0.5), "part accessor reports final opacity in the same update")
+	var legacy_effect := GDCubismEffectCustom.new()
+	var wrote_part := [false]
+	runtime.add_child(legacy_effect)
+	legacy_effect.cubism_epilogue.connect(func(_model: GDCubismUserModel, _delta: float):
+		if not wrote_part[0]:
+			part.value = 0.75
+			wrote_part[0] = true)
+	first.advance(1.0 / 60.0)
+	expect(wrote_part[0] and is_equal_approx(part.value, 0.75), "epilogue part write survives final opacity refresh")
+	first.enable_pose = false
+	first.advance(1.0 / 60.0)
+	expect(is_equal_approx(part.value, 0.75), "epilogue part write is consumed on the next update")
+	legacy_effect.free()
 	first.set_parameter_value(&"ParamAngleX", 23.0)
 	first.unload_model()
 	first.unload_model()

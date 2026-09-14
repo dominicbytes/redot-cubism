@@ -4,6 +4,17 @@ extends SceneTree
 func _initialize() -> void:
 	_run.call_deferred()
 
+func effects_match(resource: CubismModelResource, fixture: Dictionary) -> bool:
+	if fixture.physics and (resource.physics_path.is_empty() or FileAccess.get_sha256(resource.physics_path) != fixture.physics_sha256): return false
+	if fixture.pose and (resource.pose_path.is_empty() or FileAccess.get_sha256(resource.pose_path) != fixture.pose_sha256): return false
+	if not fixture.expression.is_empty():
+		var matches := 0
+		for expression: CubismExpressionDescriptor in resource.expressions:
+			if String(expression.id) == fixture.expression and FileAccess.get_sha256(expression.source_path) == fixture.expression_sha256:
+				matches += 1
+		if matches != 1: return false
+	return true
+
 func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	var reference: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(args[0]))
@@ -11,7 +22,8 @@ func _run() -> void:
 	var failed := false
 	for fixture: Dictionary in reference.cases:
 		var result := {"resource": fixture.resource, "group": fixture.group, "index": fixture.index,
-			"steps": fixture.steps, "fps": fixture.fps, "status": "FAIL", "parameters": {}, "parts": {}}
+			"steps": fixture.steps, "fps": fixture.fps, "expression": fixture.expression,
+			"physics": fixture.physics, "pose": fixture.pose, "status": "FAIL", "parameters": {}, "parts": {}}
 		var resource := load(fixture.resource) as CubismModelResource
 		if resource == null or resource.source_hash != fixture.manifest_sha256 or FileAccess.get_sha256(resource.moc_path) != fixture.moc_sha256:
 			result.error = "Imported resource does not match the reference manifest/MOC"
@@ -19,11 +31,13 @@ func _run() -> void:
 			var motions: Array = resource.motion_groups.get(fixture.group, [])
 			if int(fixture.index) >= motions.size() or FileAccess.get_sha256(motions[int(fixture.index)].source_path) != fixture.motion_sha256:
 				result.error = "Imported motion does not match the reference motion"
+			elif not effects_match(resource, fixture):
+				result.error = "Imported effect does not match the reference file"
 			else:
 				var model := CubismModel2D.new()
 				model.playback_process_mode = CubismModel2D.MANUAL
-				model.enable_physics = false
-				model.enable_pose = false
+				model.enable_physics = fixture.physics
+				model.enable_pose = fixture.pose
 				model.enable_eye_blink = false
 				model.enable_breath = false
 				root.add_child(model)
@@ -33,6 +47,8 @@ func _run() -> void:
 					var handle := model.play_motion_from_group(fixture.group, int(fixture.index), CubismMotionPriority.NORMAL, false)
 					if handle.get_error() != OK:
 						result.error = "Motion playback rejected"
+					elif not fixture.expression.is_empty() and model.set_expression(fixture.expression) != OK:
+						result.error = "Expression playback rejected"
 					else:
 						for step in int(fixture.steps): model.advance(1.0 / float(fixture.fps))
 						for id: String in model.get_parameter_ids(): result.parameters[id] = model.get_parameter_value(id)
