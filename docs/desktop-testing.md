@@ -111,10 +111,28 @@ Provision one isolated runner per target with the `cubism-licensed` label and
 the standard `Linux` or `Windows` label. Each must provide these environment
 variables: `REDOT_BIN`, `REDOT_CPP_ROOT`, `CUBISM_SDK_ROOT`, `CUBISM_WORK_ROOT`,
 `CUBISM_MODEL`, `CUBISM_EXPRESSION`, `CUBISM_TEMPLATE_DEBUG`,
-`CUBISM_TEMPLATE_RELEASE`, `CUBISM_MOTION_PROJECT`, `CUBISM_MOTION_FIXTURES`,
-`CUBISM_VISUAL_PROJECT`, `CUBISM_VISUAL_FIXTURES`, and `CUBISM_VISUAL_LIMITS`.
-Prepare the private SDK captures and reviewed adapter-specific limits using
-[visual testing](visual-testing.md). Install `tools/requirements-visual.txt`
+`CUBISM_TEMPLATE_RELEASE`, `CUBISM_MOTION_PROJECT`, `CUBISM_MOTION_FIXTURES`, and
+`CUBISM_VISUAL_MATRIX`. Prepare the private SDK captures and reviewed
+adapter-specific limits using [visual testing](visual-testing.md). The visual
+matrix is a versioned JSON file containing exactly these IDs, each with its own
+`project`, `fixtures`, and `limits` path:
+
+```text
+transforms-straight        transforms-premultiplied
+effects-straight           effects-premultiplied
+pair-straight              pair-premultiplied
+additive-straight          additive-premultiplied
+```
+
+The aggregate validates the actual fixture case IDs, per-case model counts,
+texture encoding, fixture/limits hashes and paths before building. Each child
+report must return the exact selected case IDs without duplicates, the selected
+fixture hash and the complete reviewed limits snapshot; changed inputs or
+relabelled/truncated results fail the aggregate. Fixture or limits content cannot
+be reused under another family ID. Paths may be absolute or relative to the
+matrix file; each project must contain `project.godot`.
+Linux and Windows require separate native captures and platform/adapter-specific
+limits files. Install `tools/requirements-visual.txt`
 in the runner's project-local Python environment before running the workflow.
 `CUBISM_MOTION_PROJECT` and `CUBISM_MOTION_FIXTURES` identify the prepared project
 and explicit fixture list described in [SDK motion testing](sdk-motion-testing.md).
@@ -147,8 +165,9 @@ script requires a newly reviewed baseline. Missing inputs or a missing baseline
 file fail before any build; mismatched identities or regressions fail the job.
 
 The workflow verifies the editor/API, builds both native variants sequentially,
-then runs each functional sequence and the independent SDK motion comparison
-and visual tests for both variants. It then runs all eight benchmark scenarios
+then runs each functional sequence and the independent SDK motion comparison.
+It runs every required visual family for both variants (16 visual stages per
+platform). It then runs all eight benchmark scenarios
 with the debug library and requires the baseline comparison to pass. A failed
 comparison fails the job. The benchmark report and raw measurements are retained
 in `benchmark-debug` alongside the other private build/test artifacts under

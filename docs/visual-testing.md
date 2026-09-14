@@ -127,8 +127,17 @@ report applies only to its listed cases, hardware, library and shaders. It
 always leaves `release_qualified` false: full release qualification also needs
 the complete planned fixture matrix, other desktop suites and remaining gates.
 
-The private desktop workflow requires `CUBISM_VISUAL_PROJECT`,
-`CUBISM_VISUAL_FIXTURES` and `CUBISM_VISUAL_LIMITS` on each native runner and runs
-this tool with both debug and release libraries. Provision the full neutral,
-motion, expression, fixed-step physics, blend/mask, model-order and transform
-matrix in both texture encodings before claiming that matrix is qualified.
+The standalone command above continues to accept one project, fixture manifest
+and limits file. The private desktop workflow instead requires
+`CUBISM_VISUAL_MATRIX`, a versioned JSON index with `project`, `fixtures` and
+`limits` paths for exactly eight required family/encoding IDs: transforms,
+effects, pair ordering and visible additive coverage, each in straight and
+premultiplied texture form. The licensed aggregate validates the manifests'
+exact case sets, per-case model counts and actual `premultiplied_alpha` values,
+then runs all eight entries with both debug and release libraries. It rejects
+duplicate fixture or limits content, so relabeling one passing family cannot
+satisfy another. Each result must also match its preflighted fixture hash,
+complete reviewed limits object and exact case-ID set; duplicate, truncated,
+relabelled or mid-run changed coverage fails. Provision platform-specific native
+references and reviewed limits separately on each Windows/Linux runner. Forward+
+remains a separate renderer gate with its own reviewed policies.

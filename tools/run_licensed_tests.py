@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 """Build and qualify both variants on one provisioned native desktop runner."""
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -15,18 +16,101 @@ import time
 
 from run_benchmarks import SCENARIOS
 from run_desktop_tests import check_report, sha256
+from run_visual_tests import load_fixtures, validate_limits
 
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = (
     'REDOT_BIN', 'REDOT_CPP_ROOT', 'CUBISM_SDK_ROOT', 'CUBISM_MODEL', 'CUBISM_EXPRESSION',
     'CUBISM_TEMPLATE_DEBUG', 'CUBISM_TEMPLATE_RELEASE', 'CUBISM_MOTION_PROJECT',
-    'CUBISM_MOTION_FIXTURES', 'CUBISM_VISUAL_PROJECT', 'CUBISM_VISUAL_FIXTURES',
-    'CUBISM_VISUAL_LIMITS', 'CUBISM_BENCHMARK_PROJECT', 'CUBISM_BENCHMARK_RESOURCE',
+    'CUBISM_MOTION_FIXTURES', 'CUBISM_VISUAL_MATRIX', 'CUBISM_BENCHMARK_PROJECT', 'CUBISM_BENCHMARK_RESOURCE',
     'CUBISM_BENCHMARK_MASK_RESOURCE', 'CUBISM_BENCHMARK_MOTION', 'CUBISM_BENCHMARK_EXPRESSION',
     'CUBISM_BENCHMARK_RUNNER_ID', 'CUBISM_BENCHMARK_BASELINE', 'CUBISM_BENCHMARK_RELATIVE_THRESHOLD',
 )
 DESKTOP_STAGES = {'paths', 'native', 'editor', 'importer', 'model2d', 'selection',
                   'checked-export', 'legacy-export', 'legacy-bridge', 'export-identity'}
+VISUAL_CASES = {
+    'transforms': {'Haru-nonuniform', 'Haru-mirrored', 'Haru-minified', 'Haru-clipped',
+                   'Mao-nonuniform', 'Mao-mirrored', 'Mao-minified', 'Mao-clipped'},
+    'effects': {'Haru-neutral', 'Haru-motion', 'Haru-expression', 'Haru-physics', 'Haru-transform',
+                'Mao-neutral', 'Mao-motion', 'Mao-expression', 'Mao-physics', 'Mao-transform'},
+    'pair': {'neutral-forward', 'neutral-reverse', 'motion-forward', 'motion-reverse'},
+    'additive': {'additive-forward'},
+}
+VISUAL_MODEL_COUNTS = {'transforms': 1, 'effects': 1, 'pair': 2, 'additive': 1}
+VISUAL_FAMILIES = tuple(f'{family}-{encoding}' for family in VISUAL_CASES
+                        for encoding in ('straight', 'premultiplied'))
+
+
+def load_visual_matrix(path, pins):
+    path = Path(path).resolve()
+    try:
+        matrix_bytes = path.read_bytes()
+        data = json.loads(matrix_bytes.decode('utf-8'))
+    except (OSError, UnicodeError, ValueError) as error:
+        raise ValueError('Cannot read the private visual matrix: ' + str(error)) from error
+    if not isinstance(data, dict) or set(data) != {'schema_version', 'families'} or data['schema_version'] != 1:
+        raise ValueError('Visual matrix must use schema_version 1 with only a families list')
+    if not isinstance(data['families'], list):
+        raise ValueError('Visual matrix families must be a list')
+    entries = {}
+    fixture_hashes = set()
+    limits_hashes = set()
+    for raw in data['families']:
+        if not isinstance(raw, dict) or set(raw) != {'id', 'project', 'fixtures', 'limits'}:
+            raise ValueError('Each visual family needs exactly id, project, fixtures and limits')
+        family_id = raw['id']
+        if not isinstance(family_id, str) or family_id not in VISUAL_FAMILIES or family_id in entries:
+            raise ValueError('Visual family IDs must be unique members of the required eight-family set')
+        family, encoding = family_id.rsplit('-', 1)
+
+        def resolve(name):
+            value = raw[name]
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError('Visual matrix paths must be nonempty strings: ' + family_id + '/' + name)
+            candidate = Path(value).expanduser()
+            return (candidate if candidate.is_absolute() else path.parent / candidate).resolve()
+
+        project, fixtures, limits = resolve('project'), resolve('fixtures'), resolve('limits')
+        if not project.is_dir() or not (project / 'project.godot').is_file():
+            raise ValueError('Visual family needs a prepared project.godot: ' + family_id)
+        if not fixtures.is_file() or not limits.is_file():
+            raise ValueError('Visual family fixture and limits files must exist: ' + family_id)
+        fixture_hash, limits_hash = sha256(fixtures), sha256(limits)
+        if fixture_hash in fixture_hashes or limits_hash in limits_hashes:
+            raise ValueError('Visual families may not reuse fixture or limits content: ' + family_id)
+        try:
+            fixture_data = load_fixtures(fixtures, pins)
+            case_ids = [case['id'] for case in fixture_data['cases']]
+            limits_data = json.loads(limits.read_text(encoding='utf-8'))
+            validate_limits(limits_data, fixture_hash, case_ids)
+        except (KeyError, OSError, TypeError, ValueError) as error:
+            raise ValueError('Invalid visual family ' + family_id + ': ' + str(error)) from error
+        if len(case_ids) != len(VISUAL_CASES[family]) or set(case_ids) != VISUAL_CASES[family]:
+            raise ValueError('Visual family has missing, extra or relabelled cases: ' + family_id)
+        expected_encoding = encoding == 'premultiplied'
+        expected_models = VISUAL_MODEL_COUNTS[family]
+        if any(len(case['models']) != expected_models for case in fixture_data['cases']):
+            raise ValueError('Visual family has the wrong model count per case: ' + family_id)
+        if any(model['premultiplied_alpha'] is not expected_encoding
+               for case in fixture_data['cases'] for model in case['models']):
+            raise ValueError('Visual family texture encoding does not match its required ID: ' + family_id)
+        if sha256(fixtures) != fixture_hash or sha256(limits) != limits_hash:
+            raise ValueError('Visual family inputs changed while the matrix was being validated: ' + family_id)
+        fixture_hashes.add(fixture_hash)
+        limits_hashes.add(limits_hash)
+        entries[family_id] = {
+            'id': family_id,
+            'project': project,
+            'fixtures': fixtures,
+            'limits': limits,
+            'fixtures_sha256': fixture_hash,
+            'limits_sha256': limits_hash,
+            'case_ids': tuple(case_ids),
+            'limits_snapshot': limits_data,
+        }
+    if set(entries) != set(VISUAL_FAMILIES):
+        raise ValueError('Visual matrix must contain exactly all eight required family/encoding IDs')
+    return hashlib.sha256(matrix_bytes).hexdigest(), [entries[family_id] for family_id in VISUAL_FAMILIES]
 
 
 def configuration(env, target):
@@ -38,12 +122,12 @@ def configuration(env, target):
     if not math.isfinite(threshold) or threshold < 0:
         raise ValueError('Supply a finite, nonnegative reviewed benchmark threshold')
     for key in ('REDOT_BIN', 'CUBISM_MODEL', 'CUBISM_TEMPLATE_DEBUG', 'CUBISM_TEMPLATE_RELEASE',
-                'CUBISM_MOTION_FIXTURES', 'CUBISM_VISUAL_FIXTURES', 'CUBISM_VISUAL_LIMITS',
+                'CUBISM_MOTION_FIXTURES', 'CUBISM_VISUAL_MATRIX',
                 'CUBISM_BENCHMARK_BASELINE') + (('CUBISM_SANITIZER_RUNTIME',) if target == 'linux' else ()):
         if not Path(env[key]).is_file():
             raise ValueError('Missing private input file: ' + key)
     for key in ('REDOT_CPP_ROOT', 'CUBISM_SDK_ROOT', 'CUBISM_MOTION_PROJECT',
-                'CUBISM_VISUAL_PROJECT', 'CUBISM_BENCHMARK_PROJECT'):
+                'CUBISM_BENCHMARK_PROJECT'):
         if not Path(env[key]).is_dir():
             raise ValueError('Missing private input directory: ' + key)
     import SCons
@@ -53,10 +137,11 @@ def configuration(env, target):
         raise ValueError('Install the pinned SCons version on the private runner')
     if pillow_version != (ROOT / 'tools/requirements-visual.txt').read_text().strip().split('==')[1]:
         raise ValueError('Install tools/requirements-visual.txt on the private runner')
-    return threshold, pins
+    matrix_hash, visual_matrix = load_visual_matrix(env['CUBISM_VISUAL_MATRIX'], pins)
+    return threshold, pins, matrix_hash, visual_matrix
 
 
-def validate_result(path, kind, library_hash, version):
+def validate_result(path, kind, library_hash, version, visual=None):
     report = check_report(path, library_hash, version)
     if kind != 'identity' and report.get('library_sha256') != library_hash:
         raise ValueError('Required native library identity is missing or different')
@@ -68,12 +153,28 @@ def validate_result(path, kind, library_hash, version):
         if (len(stages) != len(DESKTOP_STAGES) or
             {s.get('name') for s in stages} != DESKTOP_STAGES or any(s.get('status') != 'PASS' for s in stages)):
             raise ValueError('Incomplete desktop functional stages')
-    if kind in ('motion', 'visual'):
+    if kind == 'motion':
         cases = report.get('cases')
         if not isinstance(cases, list) or not cases or any(c.get('status') != 'PASS' for c in cases):
             raise ValueError('Missing, failed or measurement-only comparison cases')
-    if kind == 'visual' and not report.get('limits'):
-        raise ValueError('Visual comparison requires reviewed limits')
+    if kind == 'visual':
+        if visual is None:
+            raise ValueError('Visual comparison requires its selected matrix family')
+        cases = report.get('cases')
+        if (not isinstance(cases, list) or len(cases) != len(visual['case_ids']) or
+            any(not isinstance(case, dict) or case.get('status') != 'PASS' or
+                not isinstance(case.get('id'), str) for case in cases)):
+            raise ValueError('Visual comparison requires every selected case to pass')
+        case_ids = [case['id'] for case in cases]
+        if len(set(case_ids)) != len(case_ids) or set(case_ids) != set(visual['case_ids']):
+            raise ValueError('Visual comparison case identities differ from the selected family')
+        if report.get('fixtures_sha256') != visual['fixtures_sha256']:
+            raise ValueError('Visual comparison used a different fixture manifest')
+        if report.get('limits') != visual['limits_snapshot']:
+            raise ValueError('Visual comparison used different reviewed limits')
+        if (sha256(visual['fixtures']) != visual['fixtures_sha256'] or
+            sha256(visual['limits']) != visual['limits_sha256']):
+            raise ValueError('Visual family inputs changed after matrix preflight')
     if kind == 'benchmark':
         if (report.get('qualification') != 'BASELINE_COMPARISON_PASS' or report.get('regressions') != [] or
             set(report.get('scenarios', {})) != set(SCENARIOS)):
@@ -109,8 +210,8 @@ def main(argv=None):
     print('Licensed desktop report: ' + str(destination), flush=True)
     env = dict(os.environ, PYTHONUTF8='1', PYTHONIOENCODING='utf-8', PYTHONUNBUFFERED='1', PYTHONDONTWRITEBYTECODE='1')
     try:
-        threshold, pins = configuration(env, target)
-    except (ImportError, OSError, ValueError) as error:
+        threshold, pins, visual_matrix_hash, visual_matrix = configuration(env, target)
+    except (ImportError, KeyError, OSError, TypeError, ValueError) as error:
         report.update(status='FAIL', error=str(error), configuration_error=True)
         save()
         print(str(error), file=sys.stderr)
@@ -118,9 +219,19 @@ def main(argv=None):
     version = pins['redot']['version']
     report.update(engine_version=version,
                   source_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-                  source_dirty=bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT)))
+                  source_dirty=bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT)),
+                  visual_matrix={
+                      'sha256': visual_matrix_hash,
+                      'families': [entry['id'] for entry in visual_matrix],
+                      'snapshots': [{'id': entry['id'],
+                                     'fixtures_sha256': entry['fixtures_sha256'],
+                                     'limits_sha256': entry['limits_sha256'],
+                                     'case_ids': list(entry['case_ids'])}
+                                    for entry in visual_matrix],
+                  })
 
-    def execute(name, command, *, timeout=1800, build_env=None, filename=None, kind=None, library=None):
+    def execute(name, command, *, timeout=1800, build_env=None, filename=None, kind=None, library=None,
+                visual=None):
         output = root / name
         output.mkdir()
         if filename:
@@ -153,7 +264,7 @@ def main(argv=None):
                 if len(candidates) != 1:
                     raise ValueError('Expected exactly one fresh child report: ' + filename)
                 stage['report'] = str(candidates[0])
-                validate_result(candidates[0], kind, sha256(library) if library else None, version)
+                validate_result(candidates[0], kind, sha256(library) if library else None, version, visual)
             stage['status'] = 'PASS'
         except (OSError, ValueError, TypeError, AttributeError, subprocess.TimeoutExpired) as error:
             stage.update(status='FAIL', error=str(error))
@@ -190,9 +301,11 @@ def main(argv=None):
                 execute(label + mode, tool('run_sdk_motion_tests') + ['--project', env['CUBISM_MOTION_PROJECT'],
                         '--library', str(library), '--fixtures', env['CUBISM_MOTION_FIXTURES'], *options],
                         filename='sdk-motion-report.json', kind='motion', library=library)
-            execute('visual-' + mode, tool('run_visual_tests') + ['--project', env['CUBISM_VISUAL_PROJECT'],
-                    '--library', str(library), '--fixtures', env['CUBISM_VISUAL_FIXTURES'], '--limits', env['CUBISM_VISUAL_LIMITS']],
-                    filename='visual-report.json', kind='visual', library=library)
+            for entry in visual_matrix:
+                execute('visual-' + mode + '-' + entry['id'], tool('run_visual_tests') +
+                        ['--project', str(entry['project']), '--library', str(library),
+                         '--fixtures', str(entry['fixtures']), '--limits', str(entry['limits'])],
+                        filename='visual-report.json', kind='visual', library=library, visual=entry)
         execute('benchmark-debug', tool('run_benchmarks') + ['--project', env['CUBISM_BENCHMARK_PROJECT'],
                 '--library', str(libraries['debug']), '--resource', env['CUBISM_BENCHMARK_RESOURCE'],
                 '--mask-resource', env['CUBISM_BENCHMARK_MASK_RESOURCE'], '--motion', env['CUBISM_BENCHMARK_MOTION'],
