@@ -38,48 +38,52 @@ static func run(host: Node) -> bool:
 			sprite.texture = texture
 			for mode: String in ["mix", "add", "mul"]:
 				for masking: String in ["norm", "mask", "mask_inv"]:
-					var name: String = "2d_cubism_" + ("norm_" if masking == "norm" else "mask_") + mode
-					if masking == "mask_inv":
-						name += "_inv"
-					var material := ShaderMaterial.new()
-					material.shader = load("res://addons/gd_cubism/res/shader/" + name + ".gdshader")
-					material.set_shader_parameter("tex_main", texture)
-					material.set_shader_parameter("color_base", Color.WHITE)
-					material.set_shader_parameter("color_multiply", Color.WHITE)
-					material.set_shader_parameter("color_screen", Color(0, 0, 0, 0))
-					var coverage: float = 1.0
-					if masking != "norm":
-						var mask: ImageTexture = _texture(Color(0, 0, 0, 0.25))
-						coverage = mask.get_image().get_pixel(0, 0).a
+					# Beyond any mask edge, regular coverage is zero and inverted coverage is one.
+					var offsets: Array[Vector2] = [Vector2.ZERO]
+					if masking != "norm": offsets.append_array([Vector2(-16, 0), Vector2(16, 0), Vector2(0, -16), Vector2(0, 16)])
+					for offset: Vector2 in offsets:
+						var name: String = "2d_cubism_" + ("norm_" if masking == "norm" else "mask_") + mode
 						if masking == "mask_inv":
-							coverage = 1.0 - coverage
-						material.set_shader_parameter("tex_mask", mask)
-						material.set_shader_parameter("channel", Color(0, 0, 0, 1))
-						material.set_shader_parameter("mask_scale", 1.0)
-						material.set_shader_parameter("mesh_offset", Vector2.ZERO)
-					sprite.material = material
-					for frame: int in 3:
-						await RenderingServer.frame_post_draw
-					var actual: Color = viewport.get_texture().get_image().get_pixel(16, 16)
-					# SDK compatible blend factors operate on premultiplied source RGB.
-					var alpha: float = source.a * coverage
-					var expected := Color(0, 0, 0, destination.a)
-					for channel: int in 3:
-						var premultiplied: float = source[channel] * alpha
+							name += "_inv"
+						var material := ShaderMaterial.new()
+						material.shader = load("res://addons/gd_cubism/res/shader/" + name + ".gdshader")
+						material.set_shader_parameter("tex_main", texture)
+						material.set_shader_parameter("color_base", Color.WHITE)
+						material.set_shader_parameter("color_multiply", Color.WHITE)
+						material.set_shader_parameter("color_screen", Color(0, 0, 0, 0))
+						var coverage: float = 1.0
+						if masking != "norm":
+							var mask: ImageTexture = _texture(Color(0, 0, 0, 0.25))
+							coverage = mask.get_image().get_pixel(0, 0).a if offset == Vector2.ZERO else 0.0
+							if masking == "mask_inv":
+								coverage = 1.0 - coverage
+							material.set_shader_parameter("tex_mask", mask)
+							material.set_shader_parameter("channel", Color(0, 0, 0, 1))
+							material.set_shader_parameter("mask_scale", 1.0)
+							material.set_shader_parameter("mesh_offset", offset)
+						sprite.material = material
+						for frame: int in 3:
+							await RenderingServer.frame_post_draw
+						var actual: Color = viewport.get_texture().get_image().get_pixel(16, 16)
+						# SDK compatible blend factors operate on premultiplied source RGB.
+						var alpha: float = source.a * coverage
+						var expected := Color(0, 0, 0, destination.a)
+						for channel: int in 3:
+							var premultiplied: float = source[channel] * alpha
+							if mode == "mix":
+								expected[channel] = premultiplied + destination[channel] * (1.0 - alpha)
+							elif mode == "add":
+								expected[channel] = minf(1.0, premultiplied + destination[channel])
+							else:
+								expected[channel] = destination[channel] * (premultiplied + 1.0 - alpha)
 						if mode == "mix":
-							expected[channel] = premultiplied + destination[channel] * (1.0 - alpha)
-						elif mode == "add":
-							expected[channel] = minf(1.0, premultiplied + destination[channel])
-						else:
-							expected[channel] = destination[channel] * (premultiplied + 1.0 - alpha)
-					if mode == "mix":
-						expected.a = alpha + destination.a * (1.0 - alpha)
-					for channel: int in 4:
-						if absf(actual[channel] - expected[channel]) > 3.0 / 255.0:
-							push_error("CUBISM_BLEND_FAIL: " + name + " source_alpha=" + str(source_alpha) + " destination_alpha=" + str(destination_alpha) + " actual=" + str(actual) + " expected=" + str(expected))
-							passed = false
-							break
-					checked += 1
+							expected.a = alpha + destination.a * (1.0 - alpha)
+						for channel: int in 4:
+							if absf(actual[channel] - expected[channel]) > 3.0 / 255.0:
+								push_error("CUBISM_BLEND_FAIL: " + name + " mask_offset=" + str(offset) + " source_alpha=" + str(source_alpha) + " destination_alpha=" + str(destination_alpha) + " actual=" + str(actual) + " expected=" + str(expected))
+								passed = false
+								break
+						checked += 1
 	viewport.free()
 	if passed:
 		print("CUBISM_NATIVE_GRAPHICS:" + JSON.stringify({"renderer": RenderingServer.get_current_rendering_method(), "adapter": RenderingServer.get_video_adapter_name(), "display": DisplayServer.get_name()}))
