@@ -84,8 +84,81 @@ static func run(host: Node) -> bool:
 								passed = false
 								break
 						checked += 1
+	sprite.hide()
+	var wrapping: Dictionary = await _wrap_checks(viewport, background_material)
+	checked += wrapping.checked
+	passed = passed and wrapping.passed
 	viewport.free()
 	if passed:
 		print("CUBISM_NATIVE_GRAPHICS:" + JSON.stringify({"renderer": RenderingServer.get_current_rendering_method(), "adapter": RenderingServer.get_video_adapter_name(), "display": DisplayServer.get_name()}))
 		print("CUBISM_BLEND_PASS cases=" + str(checked))
 	return passed
+
+static func _wrap_checks(viewport: SubViewport, background: ShaderMaterial) -> Dictionary:
+	# Sample outside each atlas edge. The SDK repeats the source texture even
+	# when the surrounding Redot canvas uses clamping.
+	var image := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	var colors: Array[Color] = [Color(1, 0, 0, 0.25), Color(0, 1, 0, 0.5), Color(0, 0, 1, 0.75), Color.WHITE]
+	for y in 8:
+		for x in 8: image.set_pixel(x, y, colors[int(x >= 4) + 2 * int(y >= 4)])
+	var texture := ImageTexture.create_from_image(image)
+	var node := MeshInstance2D.new()
+	node.scale = Vector2(4, 4)
+	viewport.add_child(node)
+	var destination := Color(0.2, 0.4, 0.6, 0.5)
+	background.set_shader_parameter("value", destination)
+	var result := {"checked": 0, "passed": true}
+	for repeat_mode in [CanvasItem.TEXTURE_REPEAT_DISABLED, CanvasItem.TEXTURE_REPEAT_ENABLED]:
+		node.texture_repeat = repeat_mode
+		for uv: Vector2 in [Vector2(-0.25, 0.25), Vector2(1.25, 0.25), Vector2(0.25, -0.25), Vector2(0.25, 1.25)]:
+			var source := image.get_pixel(int(fposmod(uv.x, 1.0) * 8), int(fposmod(uv.y, 1.0) * 8))
+			var arrays: Array = []
+			arrays.resize(Mesh.ARRAY_MAX)
+			arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([Vector3(0, 0, 0), Vector3(8, 0, 0), Vector3(8, 8, 0), Vector3(0, 8, 0)])
+			arrays[Mesh.ARRAY_TEX_UV] = PackedVector2Array([uv, uv, uv, uv])
+			arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2, 0, 2, 3])
+			var mesh := ArrayMesh.new()
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			node.mesh = mesh
+			for shader_name: String in ["mask", "norm_mix", "norm_add", "norm_mul", "mask_mix", "mask_add", "mask_mul", "mask_mix_inv", "mask_add_inv", "mask_mul_inv"]:
+				var material := ShaderMaterial.new()
+				material.shader = load("res://addons/gd_cubism/res/shader/2d_cubism_" + shader_name + ".gdshader")
+				material.set_shader_parameter("tex_main", texture)
+				var coverage := 1.0
+				var mode := "mix"
+				var sampled := source
+				if shader_name == "mask":
+					material.set_shader_parameter("channel", Color(0, 0, 0, 1))
+					sampled = Color(0, 0, 0, source.a)
+				else:
+					mode = shader_name.split("_")[1]
+					material.set_shader_parameter("color_base", Color.WHITE)
+					material.set_shader_parameter("color_multiply", Color.WHITE)
+					material.set_shader_parameter("color_screen", Color(0, 0, 0, 0))
+					if shader_name.begins_with("mask_"):
+						var mask := _texture(Color(0, 0, 0, 0.25))
+						coverage = mask.get_image().get_pixel(0, 0).a
+						if shader_name.ends_with("_inv"): coverage = 1.0 - coverage
+						material.set_shader_parameter("tex_mask", mask)
+						material.set_shader_parameter("channel", Color(0, 0, 0, 1))
+						material.set_shader_parameter("mask_scale", 1.0)
+						material.set_shader_parameter("mesh_offset", Vector2.ZERO)
+				node.material = material
+				for frame in 3: await RenderingServer.frame_post_draw
+				var actual := viewport.get_texture().get_image().get_pixel(16, 16)
+				var alpha := sampled.a * coverage
+				var expected := Color(0, 0, 0, destination.a)
+				for channel in 3:
+					var value: float = sampled[channel] * alpha
+					if mode == "mix": expected[channel] = value + destination[channel] * (1.0 - alpha)
+					elif mode == "add": expected[channel] = minf(1.0, value + destination[channel])
+					else: expected[channel] = destination[channel] * (value + 1.0 - alpha)
+				if mode == "mix": expected.a = alpha + destination.a * (1.0 - alpha)
+				for channel in 4:
+					if absf(actual[channel] - expected[channel]) > 3.0 / 255.0:
+						push_error("CUBISM_WRAP_FAIL: " + shader_name + " uv=" + str(uv) + " repeat=" + str(repeat_mode) + " actual=" + str(actual) + " expected=" + str(expected))
+						result.passed = false
+						break
+				result.checked += 1
+	node.free()
+	return result

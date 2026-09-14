@@ -232,7 +232,7 @@ def main():
         if success:
             success = run("renderer-bounds", ["--quit-after", "120", "--", "--bounds-checks"], "CUBISM_BOUNDS_PASS", graphics=True)
         if success:
-            success = run("renderer-blends", ["--quit-after", "1200", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=198", graphics=True)
+            success = run("renderer-blends", ["--quit-after", "1200", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=278", graphics=True)
         if success:
             success = run("renderer-offscreen", ["--quit-after", "600", "--", "--offscreen-checks"], "CUBISM_OFFSCREEN_PASS cycles=5 camera_transform=true", graphics=True)
         if success:
@@ -306,7 +306,7 @@ def main():
                 if success:
                     success = run("exported-renderer-bounds", ["--quit-after", "120", "--", "--bounds-checks"], "CUBISM_BOUNDS_PASS", game, graphics=True)
                 if success:
-                    success = run("exported-renderer-blends", ["--quit-after", "1200", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=198", game, graphics=True)
+                    success = run("exported-renderer-blends", ["--quit-after", "1200", "--", "--blend-checks"], "CUBISM_BLEND_PASS cases=278", game, graphics=True)
                 if success:
                     success = run("exported-renderer-offscreen", ["--quit-after", "600", "--", "--offscreen-checks"], "CUBISM_OFFSCREEN_PASS cycles=5 camera_transform=true", game, graphics=True)
                 if success:

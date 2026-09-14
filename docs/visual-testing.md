@@ -25,6 +25,21 @@ layout in the recorded MVP. Use the same texture encoding and explicit mask
 quality for the SDK and candidate. The candidate's mask buffers are adaptive,
 so an equal maximum size does not imply identical mask sampling.
 
+Source atlas samplers explicitly repeat in both UV directions, matching the
+pinned SDK's `CubismShader_OpenGLES2::SetupTexture`, and use trilinear mipmap
+filtering. Clamping changes atlas-edge samples, especially when a model is
+strongly minified. The shader choice is independent of the surrounding canvas's
+repeat setting and does not change the texture import data. Generated mask
+buffers keep their separate bounds and sampling contract.
+
+Transform fixtures should include unequal axis scales, a negative determinant,
+strong minification, and enlargement that clips visible geometry at the viewport
+edge. Apply these transforms after model layout, keeping the native animation
+state fixed. When extending the SDK capture hook, retain neutral and existing
+transform captures as unchanged controls. Compare both texture encodings and
+debug/release builds; matching candidate images establish build consistency,
+not agreement with the SDK or an approved visual tolerance.
+
 For multi-model order fixtures, reverse only the drawing order. Verify each
 model's recorded state and transform remain identical, and verify the SDK
 images actually differ in the overlap. For blend and mask coverage, record
