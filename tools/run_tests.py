@@ -33,6 +33,9 @@ def main():
     parser.add_argument("--mask-resource", help="Project-local imported resource with at least eight mask compositions")
     parser.add_argument("--motion", default="Cue/0")
     parser.add_argument("--resource", default="res://imported-model.res")
+    parser.add_argument("--visual-fixtures", type=Path, help="Private SDK visual reference manifest")
+    parser.add_argument("--visual-project", type=Path, help="Prepared project for visual reference models")
+    parser.add_argument("--visual-limits", type=Path, help="Reviewed limits for the exact visual fixtures and adapter")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     if args.suite == "public":
@@ -70,6 +73,14 @@ def main():
                      "--library", str(args.library), "--mask-resource", args.mask_resource,
                      "--resource", args.resource, "--motion", args.motion, "--expression", args.expression,
                      "--output", str(args.output)]]
+    elif args.suite == "visual":
+        if not args.visual_project or not args.library or not args.visual_fixtures or not args.visual_limits:
+            parser.error("visual requires --visual-project, --library, --visual-fixtures and --visual-limits")
+        commands = [[sys.executable, "tools/run_visual_tests.py", "--project", str(args.visual_project),
+                     "--library", str(args.library), "--fixtures", str(args.visual_fixtures),
+                     "--limits", str(args.visual_limits), "--output", str(args.output)]]
+        if args.graphics:
+            commands[0] += ["--graphics", args.graphics]
     else:
         print(f"BLOCKED: {args.suite} is not qualified at this stage. It requires the matched SDK, fixture and target runner.", file=sys.stderr)
         return 2
@@ -77,7 +88,7 @@ def main():
     for index, command in enumerate(commands):
         start = time.monotonic()
         try:
-            result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=2500 if args.suite == "benchmark" else (900 if args.sanitizer_runtime else 300))
+            result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=2500 if args.suite == "benchmark" else (900 if args.sanitizer_runtime or args.suite == "visual" else 300))
             code, log = result.returncode, result.stdout
         except subprocess.TimeoutExpired:
             code, log = 124, "Test command exceeded the wall-clock limit."
@@ -88,7 +99,7 @@ def main():
         if code:
             break
     status = "FAIL" if any(r["exit_code"] for r in results) else "PASS"
-    (args.output / f"{args.suite}.json").write_text(json.dumps({"suite": args.suite, "status": status, "checks": results, "cubism_model_tests_selected": args.suite in ("native-smoke", "benchmark")}, indent=2) + "\n")
+    (args.output / f"{args.suite}.json").write_text(json.dumps({"suite": args.suite, "status": status, "checks": results, "cubism_model_tests_selected": args.suite in ("native-smoke", "benchmark", "visual")}, indent=2) + "\n")
     return int(status != "PASS")
 
 
