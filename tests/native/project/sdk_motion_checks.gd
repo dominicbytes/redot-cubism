@@ -23,7 +23,7 @@ func _run() -> void:
 	for fixture: Dictionary in reference.cases:
 		var result := {"resource": fixture.resource, "group": fixture.group, "index": fixture.index,
 			"steps": fixture.steps, "fps": fixture.fps, "expression": fixture.expression,
-			"physics": fixture.physics, "pose": fixture.pose, "status": "FAIL", "parameters": {}, "parts": {}}
+			"physics": fixture.physics, "pose": fixture.pose, "breath": fixture.breath, "status": "FAIL", "parameters": {}, "parts": {}}
 		var resource := load(fixture.resource) as CubismModelResource
 		if resource == null or resource.source_hash != fixture.manifest_sha256 or FileAccess.get_sha256(resource.moc_path) != fixture.moc_sha256:
 			result.error = "Imported resource does not match the reference manifest/MOC"
@@ -39,7 +39,7 @@ func _run() -> void:
 				model.enable_physics = fixture.physics
 				model.enable_pose = fixture.pose
 				model.enable_eye_blink = false
-				model.enable_breath = false
+				model.enable_breath = fixture.breath
 				root.add_child(model)
 				if model.load_model(resource) != OK:
 					result.error = model.get_last_error()

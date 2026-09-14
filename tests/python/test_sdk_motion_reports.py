@@ -50,13 +50,13 @@ class SDKMotionReportTests(unittest.TestCase):
             path = Path(folder) / 'fixtures.json'
             path.write_text(json.dumps([fixture]))
             motion = load_fixtures(path)[0]['motions'][0]
-            self.assertEqual((motion['expression'], motion['physics'], motion['pose']), ('', False, False))
-            for key, value in [('expression', None), ('expression', True), ('physics', 1), ('physics', 'false'), ('pose', None)]:
+            self.assertEqual((motion['expression'], motion['physics'], motion['pose'], motion['breath']), ('', False, False, False))
+            for key, value in [('expression', None), ('expression', True), ('physics', 1), ('physics', 'false'), ('pose', None), ('breath', 1), ('breath', 'false'), ('breath', None)]:
                 bad = copy.deepcopy(fixture)
                 bad['motions'][0][key] = value
                 path.write_text(json.dumps([bad]))
                 with self.assertRaises(ValueError): load_fixtures(path)
-            fixture['motions'][0].update(expression='笑顔', physics=True, pose=True)
+            fixture['motions'][0].update(expression='笑顔', physics=True, pose=True, breath=True)
             path.write_text(json.dumps([fixture]))
             self.assertEqual(load_fixtures(path)[0]['motions'][0], fixture['motions'][0])
 
