@@ -64,7 +64,11 @@ Provision one isolated runner per target with the `cubism-licensed` label and
 the standard `Linux` or `Windows` label. Each must provide these environment
 variables: `REDOT_BIN`, `REDOT_CPP_ROOT`, `CUBISM_SDK_ROOT`, `CUBISM_WORK_ROOT`,
 `CUBISM_MODEL`, `CUBISM_EXPRESSION`, `CUBISM_TEMPLATE_DEBUG`,
-`CUBISM_TEMPLATE_RELEASE`, `CUBISM_MOTION_PROJECT`, and `CUBISM_MOTION_FIXTURES`.
+`CUBISM_TEMPLATE_RELEASE`, `CUBISM_MOTION_PROJECT`, `CUBISM_MOTION_FIXTURES`,
+`CUBISM_VISUAL_PROJECT`, `CUBISM_VISUAL_FIXTURES`, and `CUBISM_VISUAL_LIMITS`.
+Prepare the private SDK captures and reviewed adapter-specific limits using
+[visual testing](visual-testing.md). Install `tools/requirements-visual.txt`
+in the runner's project-local Python environment before running the workflow.
 The last two identify the prepared project and explicit fixture list described
 in [SDK motion testing](sdk-motion-testing.md). Paths refer to that runner's
 private filesystem.

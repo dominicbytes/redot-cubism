@@ -48,15 +48,19 @@ jobs:
         run: |
           import json, os, pathlib, subprocess, sys
           import SCons
+          from PIL import __version__ as pillow_version
           required = ['REDOT_BIN', 'REDOT_CPP_ROOT', 'CUBISM_SDK_ROOT', 'CUBISM_WORK_ROOT',
                       'CUBISM_MODEL', 'CUBISM_EXPRESSION', 'CUBISM_TEMPLATE_DEBUG', 'CUBISM_TEMPLATE_RELEASE',
-                      'CUBISM_MOTION_PROJECT', 'CUBISM_MOTION_FIXTURES']
+                      'CUBISM_MOTION_PROJECT', 'CUBISM_MOTION_FIXTURES',
+                      'CUBISM_VISUAL_PROJECT', 'CUBISM_VISUAL_FIXTURES', 'CUBISM_VISUAL_LIMITS']
           for key in required:
               if not os.environ.get(key):
                   raise SystemExit('Missing private runner environment variable: ' + key)
           pins = json.loads(pathlib.Path('DEPENDENCIES.json').read_text())
           if SCons.__version__ != pins['toolchain']['scons']:
               raise SystemExit('Install the pinned SCons version on the private runner.')
+          if pillow_version != pathlib.Path('tools/requirements-visual.txt').read_text().strip().split('==')[1]:
+              raise SystemExit('Install tools/requirements-visual.txt in the private runner Python environment.')
           target = 'windows' if sys.platform == 'win32' else 'linux'
           suffix = 'dll' if target == 'windows' else 'so'
           root = pathlib.Path(os.environ['CUBISM_WORK_ROOT']).resolve() / os.environ['GITHUB_RUN_ID'] / os.environ['GITHUB_RUN_ATTEMPT']
@@ -83,3 +87,8 @@ jobs:
                                   '--project', os.environ['CUBISM_MOTION_PROJECT'], '--library', libraries[mode],
                                   '--fixtures', os.environ['CUBISM_MOTION_FIXTURES'],
                                   '--output', str(root / (label + mode)), *options], check=True)
+              subprocess.run([sys.executable, 'tools/run_visual_tests.py',
+                              '--project', os.environ['CUBISM_VISUAL_PROJECT'], '--library', libraries[mode],
+                              '--fixtures', os.environ['CUBISM_VISUAL_FIXTURES'],
+                              '--limits', os.environ['CUBISM_VISUAL_LIMITS'],
+                              '--output', str(root / ('visual-' + mode))], check=True)
