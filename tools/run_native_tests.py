@@ -40,7 +40,7 @@ def main():
     parser.add_argument("--export-mode", choices=["debug", "release"], default="debug")
     parser.add_argument("--graphics", choices=["gl_compatibility", "forward_plus"], help="Also render and capture on the selected real graphics backend")
     parser.add_argument("--sanitizer-runtime", type=Path, help="Headless ASan Redot built from the pinned engine source")
-    parser.add_argument("--sanitizer-library", type=Path, help="Matching addon built with sanitize=address")
+    parser.add_argument("--sanitizer-library", type=Path, help="Matching addon built with sanitize=address or address,undefined")
     args = parser.parse_args()
     if args.normal_blend_overlap and not args.graphics:
         parser.error("Normal-blend overlap requires graphics")
@@ -126,7 +126,7 @@ def main():
         if "deltas" in name:
             # This deliberate negative input has one documented debug diagnostic.
             diagnostic_output = diagnostic_output.replace("WARNING: Negative Cubism delta ignored.", "EXPECTED_NEGATIVE_DELTA_WARNING", 1)
-        passed = code == 0 and not re.search(r"SCRIPT ERROR|ERROR:|WARNING:|Aborted|Segmentation fault|ERROR: AddressSanitizer|LeakSanitizer", diagnostic_output) and (marker is None or marker in output)
+        passed = code == 0 and not re.search(r"SCRIPT ERROR|ERROR:|WARNING:|Aborted|Segmentation fault|ERROR: AddressSanitizer|LeakSanitizer|UndefinedBehaviorSanitizer|runtime error:", diagnostic_output) and (marker is None or marker in output)
         if graphics and passed:
             actual = re.search(r"^CUBISM_NATIVE_GRAPHICS:(.+)$", output, re.M)
             passed = bool(actual) and json.loads(actual.group(1))["renderer"] == args.graphics
@@ -178,12 +178,22 @@ def main():
     if success:
         success = run("deltas", ["--quit-after", "600", "--", "--delta-checks"], "CUBISM_DELTA_PASS")
     sanitizer_tested = False
+    addon_sanitizers = []
     if success and args.sanitizer_runtime:
         library_path.write_bytes(args.sanitizer_library.read_bytes())
         previous_asan = env.get("ASAN_OPTIONS")
+        previous_ubsan = env.get("UBSAN_OPTIONS")
         env["ASAN_OPTIONS"] = "detect_leaks=1:abort_on_error=1"
+        env["UBSAN_OPTIONS"] = "halt_on_error=1:print_stacktrace=1"
         try:
-            success = run("extension-lifetime-asan", ["--rendering-driver", "dummy", "--path", str(project), "--script", "res://extension_lifetime_checks.gd", "--quit-after", "2"], "CUBISM_EXTENSION_LIFETIME_PASS", args.sanitizer_runtime)
+            success = run("identity-asan", ["--rendering-driver", "dummy", "--path", str(project), "--script", "res://sanitizer_identity_checks.gd", "--quit-after", "2"], "CUBISM_SANITIZER_IDENTITY_PASS", args.sanitizer_runtime)
+            if success:
+                identity_log = (run_root / "identity-asan.log").read_text()
+                identity = re.search(r"^CUBISM_SANITIZER_MODE:(.+)$", identity_log, re.M)
+                success = bool(identity) and identity.group(1) in ("address", "address,undefined")
+                if success: addon_sanitizers = identity.group(1).split(",")
+            if success:
+                success = run("extension-lifetime-asan", ["--rendering-driver", "dummy", "--path", str(project), "--script", "res://extension_lifetime_checks.gd", "--quit-after", "2"], "CUBISM_EXTENSION_LIFETIME_PASS", args.sanitizer_runtime)
             if success:
                 success = run("lifecycle-asan", ["--rendering-driver", "dummy", "--path", str(project), "--fixed-fps", "60", "--quit-after", "10000", "--", "--lifecycle-checks", "--cycles=250"], "CUBISM_LIFECYCLE_PASS cycles=250", args.sanitizer_runtime)
             if success:
@@ -197,6 +207,10 @@ def main():
                 del env["ASAN_OPTIONS"]
             else:
                 env["ASAN_OPTIONS"] = previous_asan
+            if previous_ubsan is None:
+                del env["UBSAN_OPTIONS"]
+            else:
+                env["UBSAN_OPTIONS"] = previous_ubsan
     graphics_tested = False
     if success and args.mask_compositions:
         success = run("renderer-masks", ["--quit-after", "120", "--", "--mask-checks"], "CUBISM_MASK_PASS")
@@ -305,7 +319,9 @@ def main():
     if args.sanitizer_runtime:
         report["sanitizer"] = {"tested": sanitizer_tested, "runtime_version": sanitizer_version,
             "runtime_sha256": sha256(args.sanitizer_runtime), "library_sha256": sha256(args.sanitizer_library),
-            "cycles": 250, "coverage": "instrumented engine, addon and public Framework; proprietary Core is not instrumented"}
+            "cycles": 250, "addon_sanitizers": addon_sanitizers, "framework_sanitizers": addon_sanitizers,
+            "engine_sanitizers": ["address"],
+            "coverage": "ASan engine; addon and public Framework use the reported modes; proprietary Core and prebuilt binding archive are not instrumented"}
     if graphics_tested:
         report["graphics_backend"] = args.graphics
         report["capture_sha256"] = sha256(run_root / "model.png")

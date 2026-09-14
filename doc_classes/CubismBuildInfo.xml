@@ -9,10 +9,16 @@
 	<tutorials>
 	</tutorials>
 	<methods>
+		<method name="get_debug_statistics" qualifiers="static">
+			<return type="Dictionary" />
+			<description>
+				Returns main-thread diagnostic counters across live Cubism runtimes. Debug addons report resource ownership, CPU update time, vertex-buffer uploads and mask redraw requests for the process-frame interval identified by [code]frame_id[/code]. Release addons return only [code]{"enabled": false}[/code]. Timings measure CPU submission work, not GPU execution; ownership excludes resources retained only by callers after unload.
+			</description>
+		</method>
 		<method name="get_versions" qualifiers="static">
 			<return type="Dictionary" />
 			<description>
-				Returns build metadata plus [code]runtime_redot[/code], [code]runtime_core_packed[/code], and [code]latest_moc_version[/code]. [code]addon_dirty[/code] indicates that the source checkout had local changes at build time. Dependency hashes identify the selected bytes; they do not certify platform or rendering compatibility.
+				Returns build metadata plus [code]runtime_redot[/code], [code]runtime_core_packed[/code], and [code]latest_moc_version[/code]. [code]addon_dirty[/code] indicates that the source checkout had local changes at build time. [code]sanitizer[/code] identifies the addon instrumentation mode. [code]framework_patches[/code] identifies reviewed build-copy patches and their source/helper hashes; the pinned SDK input remains unchanged. Dependency hashes identify the selected bytes; they do not certify platform or rendering compatibility.
 			</description>
 		</method>
 	</methods>

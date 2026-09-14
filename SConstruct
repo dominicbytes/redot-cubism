@@ -10,7 +10,8 @@ from pathlib import Path
 
 root = Path(Dir("#").abspath)
 sys.path.insert(0, str(root / "tools"))
-from build_inputs import binding_root, core_library, sdk_roots, windows_core_library
+from build_inputs import binding_root, core_library, sdk_roots, windows_core_library, sanitizer_flags, sha256
+from framework_patch import patch_csm_string, PATCH_ID
 
 pins = json.loads((root / "DEPENDENCIES.json").read_text())
 options = dict(os.environ)
@@ -33,20 +34,33 @@ env.Decider("content")
 # Addon-only flags must not change targets already declared by redot-cpp.
 env = env.Clone()
 sanitizer = ARGUMENTS.get("sanitize", "none")
-if sanitizer not in ("none", "address") or (sanitizer == "address" and env["platform"] != "linux"):
-    print("Redot Cubism build input error: sanitize supports none or address on Linux")
+try:
+    sanitizer_compile_flags, sanitizer_link_flags = sanitizer_flags(sanitizer, env["platform"])
+except ValueError as exc:
+    print(f"Redot Cubism build input error: {exc}")
     Exit(1)
-if sanitizer == "address":
-    # Keep diagnostic symbols and use the same shared C++ runtime as ASan.
+if sanitizer != "none":
+    # Keep diagnostic symbols and use the same shared C++ runtime as the sanitizers.
     env["LINKFLAGS"] = [flag for flag in env["LINKFLAGS"] if flag not in ("-s", "-static-libgcc", "-static-libstdc++")]
-    env.Append(CCFLAGS=["-fsanitize=address", "-fno-omit-frame-pointer", "-g1"])
-    env.Append(LINKFLAGS=["-fsanitize=address"])
+    env.Append(CCFLAGS=sanitizer_compile_flags)
+    env.Append(LINKFLAGS=sanitizer_link_flags)
 if ARGUMENTS.get("build_profile"):
     # The pinned binding generator omits the profile from its input dependencies.
     env.Depends(str(cpp / "gen/include/godot_cpp/core/ext_wrappers.gen.inc"),
         str(Path(ARGUMENTS["build_profile"]).resolve()))
 generated_dir = build_dir / "gen"
 generated_dir.mkdir(parents=True, exist_ok=True)
+# Patch only a generated build copy. The installed SDK and its input pin stay intact.
+original_string = framework / "src/Type/csmString.cpp"
+patched_string = generated_dir / "framework/csmString.cpp"
+try:
+    patched_bytes = patch_csm_string(original_string.read_bytes())
+except ValueError as exc:
+    print(f"Redot Cubism build input error: {exc}")
+    Exit(1)
+patched_string.parent.mkdir(parents=True, exist_ok=True)
+if not patched_string.exists() or patched_string.read_bytes() != patched_bytes:
+    patched_string.write_bytes(patched_bytes)
 build_info = {
     "addon_version": pins["addon_version"],
     "addon_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(),
@@ -64,6 +78,8 @@ build_info = {
     "precision": env["precision"],
     "compiler": env.subst("$CXX"),
     "sanitizer": sanitizer,
+    "framework_patches": {PATCH_ID: {"source_sha256": sha256(patched_string),
+        "helper_sha256": sha256(root / "src/private/cubism_string_hash.hpp")}},
 }
 build_info["addon_dirty"] = bool(subprocess.check_output(
     ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=normal"], text=True).strip())
@@ -231,7 +247,7 @@ for dirname in (
         os.path.join(CUBISM_NATIVE_FRAMEWORK_DIR, "src", dirname, "*.cpp")
     )
 
-sources += sources_cubism
+sources += [str(patched_string) if Path(source).resolve() == original_string else source for source in sources_cubism]
 
 
 #
