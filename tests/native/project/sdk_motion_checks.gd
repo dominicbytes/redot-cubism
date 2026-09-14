@@ -23,7 +23,8 @@ func _run() -> void:
 	for fixture: Dictionary in reference.cases:
 		var result := {"resource": fixture.resource, "group": fixture.group, "index": fixture.index,
 			"steps": fixture.steps, "fps": fixture.fps, "expression": fixture.expression,
-			"physics": fixture.physics, "pose": fixture.pose, "breath": fixture.breath, "status": "FAIL", "parameters": {}, "parts": {}}
+			"physics": fixture.physics, "pose": fixture.pose, "breath": fixture.breath, "look": fixture.look,
+			"status": "FAIL", "parameters": {}, "parts": {}}
 		var resource := load(fixture.resource) as CubismModelResource
 		if resource == null or resource.source_hash != fixture.manifest_sha256 or FileAccess.get_sha256(resource.moc_path) != fixture.moc_sha256:
 			result.error = "Imported resource does not match the reference manifest/MOC"
@@ -50,6 +51,7 @@ func _run() -> void:
 					elif not fixture.expression.is_empty() and model.set_expression(fixture.expression) != OK:
 						result.error = "Expression playback rejected"
 					else:
+						if not fixture.look.is_empty(): model.set_look_target(Vector2(fixture.look[0], fixture.look[1]))
 						for step in int(fixture.steps): model.advance(1.0 / float(fixture.fps))
 						for id: String in model.get_parameter_ids(): result.parameters[id] = model.get_parameter_value(id)
 						# There is no public part-opacity getter; inspect the native model for this oracle.

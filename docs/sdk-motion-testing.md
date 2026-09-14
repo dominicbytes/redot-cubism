@@ -25,7 +25,7 @@ To compare native effects, add optional fields to each motion entry. Omitted
 fields preserve the original motion-only test:
 
 ```json
-{"group": "Idle", "index": 0, "expression": "Smile", "physics": true, "pose": true, "breath": true}
+{"group": "Idle", "index": 0, "expression": "Smile", "physics": true, "pose": true, "breath": true, "look": [700, -500]}
 ```
 
 `expression` is an exact manifest expression name (empty string disables it).
@@ -36,9 +36,17 @@ manifest file. Include entries with each effect disabled/enabled separately and 
 combination to verify that selected effects actually change the reference state.
 The same motion may appear more than once with different effect selections.
 
+`look` is either an empty array (the default, disabled) or two finite node-local
+pixel coordinates, each within +/-10,000,000. The reference uses the manifest's
+SDK model-layout inverse to convert these coordinates, then normalizes and clamps
+each axis to [-1,1]. SDK `CubismTargetPoint` smooths the target, and `CubismLook`
+applies the standard six-parameter profile at full weight. Redot receives only
+the local target through `set_look_target()`. A fresh target's first SDK update
+is neutral; include subsequent early steps when checking its acceleration.
+
 The independent SDK reference loads fresh effect objects, applies the native
 expression fade settings, and evaluates each step in this order: load saved
-primary parameters, motion, save primary parameters, expression, breath, physics, pose,
+primary parameters, motion, save primary parameters, expression, breath, look, physics, pose,
 Core update. Physics begins at the SDK's fresh-load state without a separate
 stabilization call. Pose initializes through its first normal update. Redot uses
 its own native public playback/effect controls; no expected parameters or part
@@ -73,9 +81,9 @@ it in the report. Without that option the runner removes any inherited flag,
 preserving the normal 0.1-second delta cap. Both evaluators start motion time at zero
 when playback is accepted; the first evaluated step is `1 / fps`. This avoids
 the SDK sample manager's default first-update start offset. Each case starts
-with a fresh model and plays one motion without looping. Physics, pose, breath and
+with a fresh model and plays one motion without looping. Physics, pose, breath, look and
 expression are off unless explicitly selected in the fixture; blink,
-look, lip-envelope and custom effects remain off. The reference applies manifest fade settings and authored blink/lip
+lip-envelope and custom effects remain off. The reference applies manifest fade settings and authored blink/lip
 targets using SDK APIs. It does not reproduce the addon's motion implementation.
 
 Before comparing values, the native test checks the imported manifest, MOC
@@ -120,3 +128,12 @@ every breathing-on reference differs from its corresponding off control at
 these sample times. The debug and release parameter/part results are identical.
 This verifies the standard breathing profile in the listed effect order; it
 does not qualify procedural blink timing, look targets or effect transitions.
+
+The independent look matrix adds a local target to each of those combinations,
+plus neutral, opposite-direction and clamped targets with the full effect stack.
+At steps 1, 2, 8, 30, 90 and 180 at 60 Hz, all 420 cases per Linux variant match
+the SDK at `1e-5`. The 32 first-step look controls stay neutral; all 160 later
+paired controls change when look is enabled. Debug/release results are identical,
+and the previous 128 breathing controls are unchanged. This covers a fixed target
+from fresh smoothing state; moving targets, weights and pause/reload controls
+remain covered by the separate native look suite, not this independent oracle.
