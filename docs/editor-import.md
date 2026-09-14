@@ -102,7 +102,7 @@ interactive workflow, and other platform checks remain pending.
 This action is the plan's provisional fallback. Its saved resources now participate
 in [dependency tracking](dependency-tracking.md). The editor refreshes them after
 source changes; **Project → Tools → Validate Cubism Models** requests a scan.
-Assign the result to `GDCubismUserModel.model` for [runtime playback](resource-runtime.md).
-The preferred `CubismModel2D` API remains unfinished. The
+Assign the result to `CubismModel2D.model` for the [preferred runtime](preferred-runtime.md),
+or to `GDCubismUserModel.model` for [legacy-compatible playback](resource-runtime.md). The
 [checked export workflow](export-validation.md) has Linux integration coverage;
 Windows and the complete release gates remain pending.

@@ -25,6 +25,8 @@ link:README.adoc[Japanese] / link:README.en.adoc[English]
 endif::env-github,env-vscode[]
 
 
+NOTE: This is preserved upstream GDCubism documentation. For the Redot 26.2 port, use link:docs/README.md[the current guides].
+
 == About GDCubism
 
 This software (GDCubism) is an **unofficial** GDExtension that makes the link:https://www.live2d.com/download/cubism-sdk/[Live2D Cubism SDK] accessible from GDScript or C#.
