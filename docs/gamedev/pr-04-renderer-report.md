@@ -359,3 +359,43 @@ Linux native and exported debug/release suites each pass all 59 checks, includin
 198 blend/mask-edge cases in both source and exported execution. The 53 public
 tests and restricted-file audit pass. Shader changes do not require rebuilding
 the unchanged native libraries; final release revision qualification remains open.
+
+### Independent two-model order and visible additive effects
+
+The repository visual runner now has measured Linux GL coverage against an
+independent SDK reference drawing Haru and Mao into the same transparent
+framebuffer. Each model keeps its own parameters, part opacities and transform
+when order is reversed. The SDK reversal changes 13,847–15,680 pixels across
+neutral and 180-step motion states and both texture encodings. All 16 Redot
+captures match the recorded model states. Debug and release images are
+byte-identical for each fixture. Forward/reverse images were visually inspected
+against their SDK references; the expected overlap changes are present.
+
+The paired foreground RGB RMS ranges from 0.775 to 0.882 on a 0–255 scale;
+alpha RMS ranges from 0.172 to 0.180. Maximum RGB differences are 29–36 and
+maximum alpha differences are 6–7. These are measurements, not new tolerances.
+
+Drawable declarations alone do not establish visible blend coverage. Mao's
+`exp_04` and the sampled `special_01` motion leave all additive meshes hidden;
+those fixture attempts were rejected. `TapBody` index 5 (`special_03`) after
+240 fixed 1/60-second steps exposes nine additive meshes. The recorded visible
+set contains normal, additive and multiply blends, 20 regular masked drawables
+and six inverted masked drawables. The unmodified authored motion supplies the
+state; no drawable opacity or blend mode is forced by the test.
+
+Four additional captures cover that effect in debug/release with straight and
+premultiplied textures. All parameter/part checks pass, and each debug/release
+pair is byte-identical. RGB RMS is 0.410/0.422, maximum RGB error 19/20, alpha
+RMS 0.153 and maximum alpha error 6. SDK and Redot effect images were inspected.
+The private harness adds motion-index selection and per-model diagnostics only;
+a single-Haru control remains byte-identical to the earlier SDK capture.
+
+Reference executable SHA-256 values are
+`17e4a82cf135ae2bd227427523fcee07d57e5f6eecb4577e85aaa4f95fc4f654`
+for paired captures and
+`cc83c1a61320b96c32446478ebc469622f34a0b29afa49d1d6ef2e278056fa61`
+for additive captures. Framework and Core pins are unchanged. Reports, source
+snapshots, raw logs and images remain private in the local recovery archive.
+These transferred-state checks do not prove native effect evaluation, Windows
+rendering, or complete release qualification. Reviewed whole-model acceptance
+limits and the remaining planned fixtures are still required.
