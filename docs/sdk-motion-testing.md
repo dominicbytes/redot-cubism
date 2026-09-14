@@ -38,13 +38,16 @@ editing SDK sources. Python needs only its standard library. Output must be
 outside the prepared project and allow native execution. The test copies
 imported files as-is; it does not edit engine import metadata.
 
-The private desktop workflow runs this comparison for both build variants.
+The private desktop workflow runs this comparison at the default 60 Hz and at
+2 Hz with the explicit manual test flag, for both build variants.
 Provision `CUBISM_MOTION_PROJECT` and `CUBISM_MOTION_FIXTURES` on each runner as
 described in [desktop CI setup](desktop-testing.md#private-ci-setup).
 
 The default samples are steps 1, 30, 90 and 180 at 60 Hz. Use `--steps` and
-`--fps` (10–240) to select additional samples; lower rates would exceed the
-native runtime's 0.1-second delta cap. Both evaluators start motion time at zero
+`--fps` (10–240) to select additional samples. For 1–9 Hz, explicitly add
+`--uncapped-manual-step`; this enables the runtime's manual test flag and records
+it in the report. Without that option the runner removes any inherited flag,
+preserving the normal 0.1-second delta cap. Both evaluators start motion time at zero
 when playback is accepted; the first evaluated step is `1 / fps`. This avoids
 the SDK sample manager's default first-update start offset. Each case starts
 with a fresh model and plays one motion without looping, physics, pose, blink

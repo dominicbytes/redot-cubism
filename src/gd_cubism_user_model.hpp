@@ -162,6 +162,8 @@ public:
     enum WriteLayer { WRITE_BASE, WRITE_MOTION, WRITE_EXPRESSION, WRITE_EFFECT, WRITE_PHYSICS, WRITE_POSE, WRITE_POST_EFFECT, WRITE_LAYER_COUNT };
 
 private:
+    bool test_uncapped_manual_step = false;
+    void advance_internal(double delta, bool manual_request);
     std::unique_ptr<CubismAnimator> preferred_animator;
     std::unique_ptr<CubismProceduralEffects> preferred_effects;
     struct ParameterWrite { int index; double value; double weight; int operation; };
@@ -299,7 +301,7 @@ public:
     void set_shader_mask_mul_inv(Ref<Shader> shader) { this->set_shader(GD_CUBISM_SHADER_MASK_MUL_INV, shader); }
     Ref<Shader> get_shader_mask_mul_inv() const { return this->get_shader(GD_CUBISM_SHADER_MASK_MUL_INV); }    
 
-    void _update(const double delta);
+    void _update(double delta, bool uncapped_manual_step = false);
 
     void advance(const double delta);
 

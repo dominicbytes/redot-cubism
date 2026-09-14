@@ -64,11 +64,13 @@ def main():
     parser.add_argument('--sdk-root', type=Path, default=os.environ.get('CUBISM_SDK_ROOT'))
     parser.add_argument('--steps', type=int, nargs='+', default=[1, 30, 90, 180])
     parser.add_argument('--fps', type=int, default=60)
+    parser.add_argument('--uncapped-manual-step', action='store_true', help='Explicitly enable uncapped manual test steps, including rates below 10 Hz')
     args = parser.parse_args()
     if platform.system() not in ('Linux', 'Windows') or platform.machine().lower() not in ('x86_64', 'amd64'):
         parser.error('Use a native Linux/Windows x86_64 runner')
-    if not args.sdk_root or not args.steps or any(n < 1 or n > 36000 for n in args.steps) or not 10 <= args.fps <= 240:
-        parser.error('Supply SDK root, steps in1..36000 and fps in10..240 (native updates cap delta at0.1s)')
+    minimum_fps = 1 if args.uncapped_manual_step else 10
+    if not args.sdk_root or not args.steps or any(n < 1 or n > 36000 for n in args.steps) or not minimum_fps <= args.fps <= 240:
+        parser.error('Supply SDK root, steps in1..36000 and fps in10..240; use --uncapped-manual-step for1..9Hz')
     source = args.project.resolve()
     output = args.output.resolve()
     if output == source or source in output.parents:
@@ -100,11 +102,14 @@ def main():
               'engine_sha256': sha256(engine), 'library_sha256': sha256(args.library),
               'framework_sha256': pins['cubism_framework']['source_sha256'], 'core_sha256': sha256(core_path),
               'source_hashes': {str(p.relative_to(ROOT)): sha256(p) for p in (reference_source, driver, Path(__file__).resolve())},
-              'tolerance': TOLERANCE, 'steps': args.steps, 'fps': args.fps, 'checks': [], 'cases': []}
+              'tolerance': TOLERANCE, 'steps': args.steps, 'fps': args.fps,
+              'uncapped_manual_step': args.uncapped_manual_step, 'checks': [], 'cases': []}
 
     def save(): (output / 'sdk-motion-report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
 
     env = dict(os.environ, PYTHONUTF8='1', PYTHONIOENCODING='utf-8')
+    env.pop('CUBISM_TEST_UNCAPPED_MANUAL_STEP', None)
+    if args.uncapped_manual_step: env['CUBISM_TEST_UNCAPPED_MANUAL_STEP'] = '1'
     for key in ('CONFIG', 'CACHE', 'DATA'): env['XDG_' + key + '_HOME'] = str(run / key.lower())
 
     def execute(name, command, marker=None):

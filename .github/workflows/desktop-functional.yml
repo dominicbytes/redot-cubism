@@ -77,7 +77,9 @@ jobs:
                               '--expression', os.environ['CUBISM_EXPRESSION'], '--library', libraries[mode],
                               '--other-library', libraries[other], '--template', os.environ['CUBISM_TEMPLATE_' + mode.upper()],
                               '--mode', mode, '--output', str(root / ('tests-' + mode))], check=True)
-              subprocess.run([sys.executable, 'tools/run_sdk_motion_tests.py',
-                              '--project', os.environ['CUBISM_MOTION_PROJECT'], '--library', libraries[mode],
-                              '--fixtures', os.environ['CUBISM_MOTION_FIXTURES'],
-                              '--output', str(root / ('sdk-motion-' + mode))], check=True)
+              for label, options in [('sdk-motion-', []), ('sdk-motion-manual-',
+                                      ['--fps', '2', '--steps', '1', '2', '4', '6', '--uncapped-manual-step'])]:
+                  subprocess.run([sys.executable, 'tools/run_sdk_motion_tests.py',
+                                  '--project', os.environ['CUBISM_MOTION_PROJECT'], '--library', libraries[mode],
+                                  '--fixtures', os.environ['CUBISM_MOTION_FIXTURES'],
+                                  '--output', str(root / (label + mode)), *options], check=True)
