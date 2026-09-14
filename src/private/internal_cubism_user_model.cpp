@@ -15,6 +15,7 @@
 #include <cmath>
 #include <algorithm>
 #include <set>
+#include <string>
 
 #ifdef GD_CUBISM_USE_RENDERER_2D
     #include <private/internal_cubism_renderer_2d.hpp>
@@ -61,6 +62,45 @@ bool InternalCubismUserModel::fail_load(const String &path, const String &messag
     return false;
 }
 
+// The caller has validated the complete JSON with Redot. Preserve decimal
+// tokens: R5 accumulates digits in float precision, so reformatting a number
+// through double precision can change the motion value that Cubism evaluates.
+static PackedByteArray sdk_json_buffer(const String &text) {
+    const CharString utf8 = text.utf8();
+    const std::string source(utf8.get_data(), utf8.length());
+    std::string output;
+    output.reserve(source.size());
+    size_t offset = source.compare(0, 3, "\xef\xbb\xbf") == 0 ? 3 : 0;
+    while (offset < source.size()) {
+        const size_t start = offset;
+        if (source[offset] == '"') {
+            ++offset;
+            while (offset < source.size()) {
+                if (source[offset] == '\\') { offset += 2; continue; }
+                if (source[offset++] == '"') break;
+            }
+            const std::string token = source.substr(start, offset - start);
+            if (token.find("\\u") != std::string::npos) {
+                // Decode Unicode escapes while retaining JSON string escaping.
+                const Variant value = JSON::parse_string(String::utf8(token.c_str()));
+                output += JSON::stringify(value).utf8().get_data();
+            } else output += token;
+        } else if (source[offset] == '-' || (source[offset] >= '0' && source[offset] <= '9')) {
+            ++offset;
+            while (offset < source.size() && std::string("0123456789.eE+-").find(source[offset]) != std::string::npos) ++offset;
+            const std::string token = source.substr(start, offset - start);
+            if (token.find_first_of("eE") != std::string::npos) {
+                // Scientific notation is not accepted by the R5 parser. Keep
+                // the existing Redot conversion for this unsupported spelling.
+                const Variant value = JSON::parse_string(String::utf8(token.c_str()));
+                output += JSON::stringify(value, "", false, true).utf8().get_data();
+            } else output += token;
+            output += '\n'; // R5 accepts newline/comma, not whitespace or ]/}.
+        } else output += source[offset++];
+    }
+    return String::utf8(output.data(), output.size()).to_utf8_buffer();
+}
+
 bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &buffer, bool json) {
     Ref<FileAccess> file = FileAccess::open(path, FileAccess::READ);
     if (file.is_null()) return fail_load(path, "Cannot open the declared Cubism file.", ERR_FILE_CANT_OPEN);
@@ -97,9 +137,7 @@ bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &b
         if (parser->parse(text) != OK || parser->get_data().get_type() != Variant::DICTIONARY) {
             return fail_load(path, "Expected a JSON object: " + parser->get_error_message(), ERR_PARSE_ERROR);
         }
-        // R5's numeric parser requires a newline/comma terminator and cannot read
-        // Unicode escapes. Redot emits decoded UTF-8 strings and formatted numbers.
-        buffer = JSON::stringify(parser->get_data(), "\t", false, true).to_utf8_buffer();
+        buffer = sdk_json_buffer(text);
         auto *sdk_json = Utils::CubismJson::Create(buffer.ptr(), buffer.size());
         if (sdk_json == nullptr) return fail_load(path, "JSON is unsupported by the pinned Cubism parser.", ERR_PARSE_ERROR);
         Utils::CubismJson::Delete(sdk_json);

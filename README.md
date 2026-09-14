@@ -17,6 +17,7 @@ Current evidence: [bootstrap](docs/gamedev/pr-01-report.md) and
 - [Provisional editor model import](docs/editor-import.md)
 - [Editor workflow regression](docs/editor-testing.md)
 - [Desktop functional test sequence](docs/desktop-testing.md)
+- [SDK motion-state comparison](docs/sdk-motion-testing.md)
 - [Imported resource runtime loading](docs/resource-runtime.md)
 - [VN and RPG character examples](demo/addons/gd_cubism/examples/character_workflows/README.md)
 - [Dialogue manager integration](docs/dialogue-integration.md)
