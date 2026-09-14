@@ -43,6 +43,20 @@ class SDKMotionReportTests(unittest.TestCase):
                 with self.assertRaises(ValueError): load_fixtures(path)
 
 
+    def test_look_coordinates_are_finite_and_complete(self):
+        fixture = {'model': 'character.model3.json', 'resource': 'res://character.res',
+                   'motions': [{'group': 'Idle', 'index': 0}]}
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'fixtures.json'
+            for value in (None, {}, True, [1], [1, 2, 3], [True, 0], [float('nan'), 0],
+                          [0, float('inf')], [1e8, 0], ['1', 2]):
+                bad = copy.deepcopy(fixture)
+                bad['motions'][0]['look'] = value
+                path.write_text(json.dumps([bad]))
+                with self.subTest(value=value), self.assertRaises(ValueError): load_fixtures(path)
+            path.write_text(json.dumps([fixture]))
+            self.assertEqual(load_fixtures(path)[0]['motions'][0]['look'], [])
+
     def test_effect_selection_is_typed_and_defaults_off(self):
         fixture = {'model': 'character.model3.json', 'resource': 'res://character.res',
                    'motions': [{'group': 'Idle', 'index': 0}]}
@@ -56,7 +70,7 @@ class SDKMotionReportTests(unittest.TestCase):
                 bad['motions'][0][key] = value
                 path.write_text(json.dumps([bad]))
                 with self.assertRaises(ValueError): load_fixtures(path)
-            fixture['motions'][0].update(expression='笑顔', physics=True, pose=True, breath=True)
+            fixture['motions'][0].update(expression='笑顔', physics=True, pose=True, breath=True, look=[125.5, -300.0])
             path.write_text(json.dumps([fixture]))
             self.assertEqual(load_fixtures(path)[0]['motions'][0], fixture['motions'][0])
 

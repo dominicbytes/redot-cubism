@@ -3,10 +3,13 @@
 #include <CubismFramework.hpp>
 #include <CubismModelSettingJson.hpp>
 #include <Effect/CubismBreath.hpp>
+#include <Effect/CubismLook.hpp>
 #include <Effect/CubismPose.hpp>
 #include <ICubismAllocator.hpp>
 #include <Id/CubismId.hpp>
 #include <Id/CubismIdManager.hpp>
+#include <Math/CubismModelMatrix.hpp>
+#include <Math/CubismTargetPoint.hpp>
 #include <Model/CubismMoc.hpp>
 #include <Model/CubismModel.hpp>
 #include <Motion/CubismMotion.hpp>
@@ -15,6 +18,8 @@
 #include <Motion/CubismExpressionMotionManager.hpp>
 #include <Physics/CubismPhysics.hpp>
 #include <Rendering/CubismRenderer.hpp>
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -77,7 +82,7 @@ static void quoted(std::ostream& json, const char* text) {
 }
 
 static void evaluate(const std::vector<std::string>& args) {
-    if (args.size() != 7 && args.size() != 10 && args.size() != 11) throw std::runtime_error("Pass model3.json, group, index, steps, fps, output.json, optional expression/physics/pose/breath");
+    if (args.size() != 7 && args.size() != 10 && args.size() != 11 && args.size() != 13) throw std::runtime_error("Pass model3.json, group, index, steps, fps, output.json, optional expression/physics/pose/breath and local look x/y");
     std::ofstream json(std::filesystem::u8path(args[6]));
     if (!json) throw std::runtime_error("Cannot write reference JSON");
     const auto manifest_path = std::filesystem::u8path(args[1]);
@@ -86,8 +91,12 @@ static void evaluate(const std::vector<std::string>& args) {
     const std::string expression = args.size() >= 10 ? args[7] : "";
     const bool with_physics = args.size() >= 10 && args[8] == "1";
     const bool with_pose = args.size() >= 10 && args[9] == "1";
-    const bool with_breath = args.size() == 11 && args[10] == "1";
-    for (size_t i = 8; i < args.size(); ++i)
+    const bool with_breath = args.size() >= 11 && args[10] == "1";
+    const bool with_look = args.size() == 13;
+    const double local_x = with_look ? std::stod(args[11]) : 0;
+    const double local_y = with_look ? std::stod(args[12]) : 0;
+    if (!std::isfinite(local_x) || !std::isfinite(local_y)) throw std::runtime_error("Look coordinates must be finite");
+    for (size_t i = 8; i < std::min(args.size(), size_t(11)); ++i)
         if (args[i] != "0" && args[i] != "1") throw std::runtime_error("Effect flags must be 0 or 1");
     if (index < 0 || steps < 1 || steps > 36000 || fps < 1 || fps > 240) throw std::runtime_error("Invalid sample arguments");
     const auto manifest = read(manifest_path);
@@ -155,6 +164,30 @@ static void evaluate(const std::vector<std::string>& args) {
         breath.reset(Csm::CubismBreath::Create());
         breath->SetParameters(profile);
     }
+    Csm::CubismTargetPoint target;
+    std::unique_ptr<Csm::CubismLook, decltype(&Csm::CubismLook::Delete)> look(nullptr, Csm::CubismLook::Delete);
+    if (with_look) {
+        Csm::CubismModelMatrix layout(model->GetCanvasWidth(), model->GetCanvasHeight());
+        const float base_x = layout.GetScaleX(), base_y = layout.GetScaleY();
+        Csm::csmMap<Csm::csmString, Csm::csmFloat32> values;
+        settings.GetLayoutMap(values);
+        layout.SetupFromLayout(values);
+        // Convert rendered pixel coordinates through the SDK layout inverse.
+        const float x = layout.InvertTransformX(float(local_x * base_x / model->GetPixelsPerUnit()));
+        const float y = layout.InvertTransformY(float(-local_y * base_y / model->GetPixelsPerUnit()));
+        target.Set(std::clamp(2.0f * x / model->GetCanvasWidth(), -1.0f, 1.0f),
+                   std::clamp(2.0f * y / model->GetCanvasHeight(), -1.0f, 1.0f));
+        auto* ids = Csm::CubismFramework::GetIdManager();
+        Csm::csmVector<Csm::CubismLook::LookParameterData> profile;
+        profile.PushBack({ids->GetId("ParamAngleX"), 30.0f});
+        profile.PushBack({ids->GetId("ParamAngleY"), 0.0f, 30.0f});
+        profile.PushBack({ids->GetId("ParamAngleZ"), 0.0f, 0.0f, -30.0f});
+        profile.PushBack({ids->GetId("ParamBodyAngleX"), 10.0f});
+        profile.PushBack({ids->GetId("ParamEyeBallX"), 1.0f});
+        profile.PushBack({ids->GetId("ParamEyeBallY"), 0.0f, 1.0f});
+        look.reset(Csm::CubismLook::Create());
+        look->SetParameters(profile);
+    }
     model->SaveParameters();
     for (int step = 1; step <= steps; ++step) {
         model->LoadParameters();
@@ -162,6 +195,10 @@ static void evaluate(const std::vector<std::string>& args) {
         model->SaveParameters();
         if (expression_motion) expressions.UpdateMotion(model.get(), float(1.0 / fps));
         if (breath) breath->UpdateParameters(model.get(), float(1.0 / fps));
+        if (look) {
+            target.Update(float(1.0 / fps));
+            look->UpdateParameters(model.get(), target.GetX(), target.GetY());
+        }
         if (physics) physics->Evaluate(model.get(), float(1.0 / fps));
         if (pose) pose->UpdateParameters(model.get(), float(1.0 / fps));
         model->Update();
@@ -169,7 +206,9 @@ static void evaluate(const std::vector<std::string>& args) {
     json << std::setprecision(9) << "{\"steps\":" << steps << ",\"fps\":" << fps << ",\"expression\":";
     quoted(json, expression.c_str());
     json << ",\"physics\":" << (with_physics ? "true" : "false") << ",\"pose\":" << (with_pose ? "true" : "false")
-         << ",\"breath\":" << (with_breath ? "true" : "false") << ",\"parameters\":{";
+         << ",\"breath\":" << (with_breath ? "true" : "false") << ",\"look\":[";
+    if (with_look) json << std::setprecision(17) << local_x << ',' << local_y;
+    json << std::setprecision(9) << "],\"parameters\":{";
     for (int i = 0; i < model->GetParameterCount(); ++i) {
         if (i) json << ',';
         quoted(json, model->GetParameterId(i)->GetString().GetRawString());
