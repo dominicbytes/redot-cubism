@@ -46,7 +46,10 @@ def main():
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
     child_reports = []
-    if args.suite == "public":
+    if args.suite == "licensed-desktop":
+        from run_licensed_tests import main as licensed_main
+        return licensed_main(["--output", str(args.output)])
+    elif args.suite == "public":
         commands = [[sys.executable, "-m", "unittest", "discover", "-s", "tests/python", "-v"],
                     [sys.executable, "tools/check_restricted_files.py"], ["git", "diff", "--check"]]
     elif args.suite == "abi":

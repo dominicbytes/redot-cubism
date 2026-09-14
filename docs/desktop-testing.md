@@ -40,8 +40,30 @@ projects remain in that directory. Allow several GB of free space per run.
 variant. `release_qualified` remains false: sanitizer lifecycle, the complete
 SDK visual fixture matrix, dedicated performance thresholds, remaining manual
 editor checks, the other platform/variant, and publication review are separate
-required gates. The aggregate `run_tests.py --suite licensed-desktop` remains
-unqualified until all required gates are connected and verified.
+required gates.
+
+`run_tests.py --suite licensed-desktop --output /private/licensed-results`
+builds both variants and runs the functional sequences, normal and uncapped
+manual-step SDK comparisons, visual comparisons against reviewed limits, all
+eight benchmarks against a reviewed baseline, and Linux ASan/UBSan lifecycle
+checks. It uses the private environment variables listed below; SDKs, fixtures,
+limits and baselines must already exist. It does not download them or generate
+acceptance thresholds. The same `tools/run_licensed_tests.py` implementation is
+used locally and by private CI.
+
+Each invocation creates a fresh `licensed-<platform>-...` directory containing
+`licensed-desktop.json`, build directories, child reports and logs. Configuration
+errors exit 2 before building. Failed commands, missing reports, mismatched
+library/engine identities, incomplete functional stages, measurement-only visual
+or benchmark results, and incomplete combined sanitizer coverage fail the run.
+Subsequent stages stop after failure. Builds and functional sequences have
+one-hour and 90-minute limits respectively; other suites have 30-minute limits
+(benchmarks allow 2500 seconds). A timeout terminates the child process tree.
+
+A passing aggregate covers the supplied fixtures on that native host. Its
+`release_qualified` remains false until the complete approved fixture matrix,
+other platform, remaining manual editor checks and publication review are also
+verified. Wiring this command does not establish that those runs have occurred.
 
 The aggregate frontend can also run the editor or all five export stages against
 a retained passing fixture from the same library and pinned editor:
@@ -130,7 +152,7 @@ and visual tests for both variants. It then runs all eight benchmark scenarios
 with the debug library and requires the baseline comparison to pass. A failed
 comparison fails the job. The benchmark report and raw measurements are retained
 in `benchmark-debug` alongside the other private build/test artifacts under
-`CUBISM_WORK_ROOT/<run-id>/<attempt>`. Retain that directory privately or use a
+`CUBISM_WORK_ROOT/<run-id>/<attempt>/licensed-<platform>-...`. Retain that directory privately or use a
 private artifact store. Provisioning, environment approval, actual Windows runs,
 and required status propagation to the public release branch must still be
 completed; merely committing the workflow does not satisfy those release gates.
