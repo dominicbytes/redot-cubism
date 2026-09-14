@@ -82,7 +82,7 @@ func run() -> void:
 		model.position = Vector2(512, 384) if count == 1 else Vector2(128 + (index % 4) * 256, 192 + (index / 4) * 384)
 		if scenario == "offscreen": model.position += Vector2(10000, 10000)
 		if scenario == "hidden": model.hide()
-		if scenario in ["vn", "party", "physics"]:
+		if scenario in ["vn", "party", "crowd", "physics", "offscreen", "hidden"]:
 			require(model.play_motion(config.motion, CubismMotionPriority.FORCE, true).get_error() == OK, "Motion must exist")
 		if scenario == "party": require(model.set_expression(config.expression, 0) == OK, "Expression must exist")
 		if scenario == "vn":
