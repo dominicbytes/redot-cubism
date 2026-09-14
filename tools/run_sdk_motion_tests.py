@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Compare native motion and selected expression/physics/pose states with the pinned SDK."""
+"""Compare native motion and selected expression/physics/pose/breath states with the pinned SDK."""
 import argparse
 import json
 import math
@@ -17,7 +17,7 @@ from build_inputs import core_library, sdk_roots, sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 TOLERANCE = 1e-5
-CASE_KEYS = ('resource', 'group', 'index', 'steps', 'fps', 'expression', 'physics', 'pose')
+CASE_KEYS = ('resource', 'group', 'index', 'steps', 'fps', 'expression', 'physics', 'pose', 'breath')
 
 
 def compare_states(expected, actual):
@@ -55,9 +55,9 @@ def load_fixtures(path):
                     type(motion.get('index')) is not int or motion['index'] < 0):
                 raise ValueError('Motions require a group and nonnegative integer index')
             motion.setdefault('expression', '')
-            for key in ('physics', 'pose'): motion.setdefault(key, False)
-            if not isinstance(motion['expression'], str) or any(type(motion[key]) is not bool for key in ('physics', 'pose')):
-                raise ValueError('Expression must be a string and physics/pose must be booleans')
+            for key in ('physics', 'pose', 'breath'): motion.setdefault(key, False)
+            if not isinstance(motion['expression'], str) or any(type(motion[key]) is not bool for key in ('physics', 'pose', 'breath')):
+                raise ValueError('Expression must be a string and physics/pose/breath must be booleans')
         fixture['model'] = str((path.parent / fixture['model']).resolve())
     return fixtures
 
@@ -102,7 +102,7 @@ def main():
     sdk_sources = sorted((framework / 'src').glob('*.cpp'))
     for folder in ('Effect', 'Id', 'Math', 'Model', 'Motion', 'Physics', 'Rendering', 'Type', 'Utils'):
         sdk_sources += sorted((framework / 'src' / folder).glob('*.cpp'))
-    report = {'status': 'RUNNING', 'run': str(run), 'scope': 'Native non-looping motion and selected expression/physics/pose parameter and part states',
+    report = {'status': 'RUNNING', 'run': str(run), 'scope': 'Native non-looping motion and selected expression/physics/pose/breath parameter and part states',
               'release_qualified': False, 'platform': platform.system(), 'engine_version': version,
               'engine_sha256': sha256(engine), 'library_sha256': sha256(args.library),
               'framework_sha256': pins['cubism_framework']['source_sha256'], 'core_sha256': sha256(core_path),
@@ -164,11 +164,11 @@ def main():
                     name = 'reference-' + str(len(cases))
                     state_path = run / (name + '.json')
                     execute(name, [str(reference), str(manifest_path), motion['group'], str(motion['index']), str(steps), str(args.fps), str(state_path),
-                                   motion['expression'], str(int(motion['physics'])), str(int(motion['pose']))])
+                                   motion['expression'], str(int(motion['physics'])), str(int(motion['pose'])), str(int(motion['breath']))])
                     state = json.loads(state_path.read_text(encoding='utf-8'))
                     compare_states(state, state)
                     if state['steps'] != steps or state['fps'] != args.fps: raise ValueError('Reference time mismatch')
-                    if any(state[key] != motion[key] for key in ('expression', 'physics', 'pose')): raise ValueError('Reference effects mismatch')
+                    if any(state[key] != motion[key] for key in ('expression', 'physics', 'pose', 'breath')): raise ValueError('Reference effects mismatch')
                     cases.append(dict(state, resource=fixture['resource'], group=motion['group'], index=motion['index'],
                                       manifest_sha256=sha256(manifest_path), moc_sha256=sha256(manifest_path.parent / manifest['Moc']), motion_sha256=sha256(motion_path), **effect_hashes))
         (run / 'reference.json').write_text(json.dumps({'cases': cases}, indent=2) + '\n', encoding='utf-8')

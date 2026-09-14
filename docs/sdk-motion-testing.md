@@ -25,18 +25,20 @@ To compare native effects, add optional fields to each motion entry. Omitted
 fields preserve the original motion-only test:
 
 ```json
-{"group": "Idle", "index": 0, "expression": "Smile", "physics": true, "pose": true}
+{"group": "Idle", "index": 0, "expression": "Smile", "physics": true, "pose": true, "breath": true}
 ```
 
 `expression` is an exact manifest expression name (empty string disables it).
 `physics` and `pose` must be booleans, and their manifest files must exist when
-enabled. Include entries with each effect disabled/enabled separately and in
+enabled. `breath` is a boolean that enables the standard R5 OpenGL sample's
+five-parameter breathing profile through SDK `CubismBreath`; it needs no extra
+manifest file. Include entries with each effect disabled/enabled separately and in
 combination to verify that selected effects actually change the reference state.
 The same motion may appear more than once with different effect selections.
 
 The independent SDK reference loads fresh effect objects, applies the native
 expression fade settings, and evaluates each step in this order: load saved
-primary parameters, motion, save primary parameters, expression, physics, pose,
+primary parameters, motion, save primary parameters, expression, breath, physics, pose,
 Core update. Physics begins at the SDK's fresh-load state without a separate
 stabilization call. Pose initializes through its first normal update. Redot uses
 its own native public playback/effect controls; no expected parameters or part
@@ -71,8 +73,8 @@ it in the report. Without that option the runner removes any inherited flag,
 preserving the normal 0.1-second delta cap. Both evaluators start motion time at zero
 when playback is accepted; the first evaluated step is `1 / fps`. This avoids
 the SDK sample manager's default first-update start offset. Each case starts
-with a fresh model and plays one motion without looping. Physics, pose and
-expression are off unless explicitly selected in the fixture; blink, breath,
+with a fresh model and plays one motion without looping. Physics, pose, breath and
+expression are off unless explicitly selected in the fixture; blink,
 look, lip-envelope and custom effects remain off. The reference applies manifest fade settings and authored blink/lip
 targets using SDK APIs. It does not reproduce the addon's motion implementation.
 
@@ -111,3 +113,10 @@ unchanged part values after the final evaluation stage. Writes queued by legacy
 epilogue callbacks remain pending for the next update. The node regression
 fails on the earlier library and passes with this fix. This result covers the
 listed native effect states; it does not expand the release scope above.
+
+The same Linux matrix also compares breathing off/on for every combination:
+128 cases per debug/release variant. All states match the SDK at `1e-5`, and
+every breathing-on reference differs from its corresponding off control at
+these sample times. The debug and release parameter/part results are identical.
+This verifies the standard breathing profile in the listed effect order; it
+does not qualify procedural blink timing, look targets or effect transitions.
