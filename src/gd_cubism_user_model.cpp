@@ -5,6 +5,7 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/ref.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/sprite2d.hpp>
@@ -24,6 +25,7 @@
 #include <cubism_procedural_effects.hpp>
 #include <cubism_model_2d.hpp>
 #include <cmath>
+#include <limits>
 #include <set>
 
 
@@ -53,6 +55,7 @@ GDCubismUserModel::GDCubismUserModel()
     , cubism_effect_dirty(false)
     , mask_viewport_size(0) {
 
+    test_uncapped_manual_step = OS::get_singleton()->get_environment("CUBISM_TEST_UNCAPPED_MANUAL_STEP") == "1";
     this->ary_shader.resize(GD_CUBISM_SHADER_MAX);
     live_models.insert(this);
 }
@@ -612,7 +615,7 @@ void GDCubismUserModel::update_motion_handles() {
 }
 
 
-void GDCubismUserModel::_update(const double delta) {
+void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
 
     if (native_busy || disposing || !is_initialized()) return;
     if (!std::isfinite(delta) || delta == 0.0 || speed_scale == 0.0f) return;
@@ -622,7 +625,9 @@ void GDCubismUserModel::_update(const double delta) {
         #endif
         return;
     }
-    const double step = MIN(delta * this->speed_scale, 0.1);
+    const double scaled_delta = delta * this->speed_scale;
+    if (uncapped_manual_step && (!std::isfinite(scaled_delta) || scaled_delta > std::numeric_limits<Csm::csmFloat32>::max())) return;
+    const double step = uncapped_manual_step ? scaled_delta : MIN(scaled_delta, 0.1);
     if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
         if (preferred->runtime == this) preferred->begin_custom_effects();
     }
@@ -684,11 +689,15 @@ void GDCubismUserModel::_update(const double delta) {
 
 
 void GDCubismUserModel::advance(const double delta) {
+    advance_internal(delta, true);
+}
+
+void GDCubismUserModel::advance_internal(double delta, bool manual_request) {
     ERR_FAIL_COND(this->is_initialized() == false);
     if(this->playback_process_mode != MANUAL) return;
     if(!is_inside_tree() || !can_process()) return;
 
-    this->_update(delta);
+    this->_update(delta, manual_request && test_uncapped_manual_step);
 }
 
 

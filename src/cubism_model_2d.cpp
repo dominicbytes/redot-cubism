@@ -330,7 +330,9 @@ void CubismModel2D::set_playback_process_mode(PlaybackProcessMode mode) {
 void CubismModel2D::step(double delta, bool controller) {
     if (controller_clock_id && !controller) return;
     if (!paused && is_ready() && is_inside_tree() && can_process()) {
-        runtime->advance(delta);
+        // The internal runtime is always MANUAL, including automatic and
+        // controller-driven updates. Only a direct manual call opts into tests.
+        runtime->advance_internal(delta, !controller && playback_process_mode == MANUAL);
         queue_debug_redraw();
     }
     if (hit_target_active || !hovered_hit_areas.is_empty()) queue_hit_refresh();
