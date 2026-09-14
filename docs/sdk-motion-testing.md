@@ -36,6 +36,13 @@ manifest file. Include entries with each effect disabled/enabled separately and 
 combination to verify that selected effects actually change the reference state.
 The same motion may appear more than once with different effect selections.
 
+Set `loop` to `true` to repeat a motion; it defaults to `false` regardless of
+the source motion's loop flag. Both evaluators use R5 V2 looping with loop
+fade-in enabled. Select steps around the source duration plus one source frame,
+and subsequent cycles, to exercise the endpoint correction and repeated fade.
+At 60 Hz, a source duration of 10 seconds with 30 FPS has a 602-step cycle;
+fractional durations may put the boundary between two evaluation steps.
+
 `look` is either an empty array (the default, disabled) or two finite node-local
 pixel coordinates, each within +/-10,000,000. The reference uses the manifest's
 SDK model-layout inverse to convert these coordinates, then normalizes and clamps
@@ -81,7 +88,8 @@ it in the report. Without that option the runner removes any inherited flag,
 preserving the normal 0.1-second delta cap. Both evaluators start motion time at zero
 when playback is accepted; the first evaluated step is `1 / fps`. This avoids
 the SDK sample manager's default first-update start offset. Each case starts
-with a fresh model and plays one motion without looping. Physics, pose, breath, look and
+with a fresh model and plays one motion, looping only when explicitly selected.
+Physics, pose, breath, look and
 expression are off unless explicitly selected in the fixture; blink,
 lip-envelope and custom effects remain off. The reference applies manifest fade settings and authored blink/lip
 targets using SDK APIs. It does not reproduce the addon's motion implementation.
@@ -96,7 +104,7 @@ test-source identities, commands, logs and per-case differences.
 
 `sdk-motion-report.json` refers only to the listed motions, sample times,
 platform and addon variant. This numeric headless test does not qualify visual
-rendering, loop/event policy, other procedural effects, expression transitions,
+rendering, event dispatch or interruption policy, other procedural effects, expression transitions,
 audio, export or the whole desktop release. Keep its generated JSON, logs and copied project
 private. Windows qualification requires an actual Windows run.
 
@@ -137,3 +145,12 @@ paired controls change when look is enabled. Debug/release results are identical
 and the previous 128 breathing controls are unchanged. This covers a fixed target
 from fresh smoothing state; moving targets, weights and pause/reload controls
 remain covered by the separate native look suite, not this independent oracle.
+
+The Linux loop matrix compares Haru and Mao Idle/0 with looping off/on, both
+motion-only and with the full expression/breath/look/physics/pose combination.
+Fifteen 60 Hz samples bracket the first and second loop boundaries and include
+the following fade-in. All 120 cases per variant match the SDK at `1e-5`, and
+debug/release states are identical. Initial loop/one-shot controls agree; later
+looped states differ from the completed one-shot controls. This checks repeated
+native curve/effect evaluation; event counts, terminal reasons and explicit
+stop/interruption behavior remain separate motion API tests.

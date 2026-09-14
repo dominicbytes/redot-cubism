@@ -22,7 +22,7 @@ func _run() -> void:
 	var failed := false
 	for fixture: Dictionary in reference.cases:
 		var result := {"resource": fixture.resource, "group": fixture.group, "index": fixture.index,
-			"steps": fixture.steps, "fps": fixture.fps, "expression": fixture.expression,
+			"steps": fixture.steps, "fps": fixture.fps, "loop": fixture.loop, "expression": fixture.expression,
 			"physics": fixture.physics, "pose": fixture.pose, "breath": fixture.breath, "look": fixture.look,
 			"status": "FAIL", "parameters": {}, "parts": {}}
 		var resource := load(fixture.resource) as CubismModelResource
@@ -45,7 +45,7 @@ func _run() -> void:
 				if model.load_model(resource) != OK:
 					result.error = model.get_last_error()
 				else:
-					var handle := model.play_motion_from_group(fixture.group, int(fixture.index), CubismMotionPriority.NORMAL, false)
+					var handle := model.play_motion_from_group(fixture.group, int(fixture.index), CubismMotionPriority.NORMAL, fixture.loop)
 					if handle.get_error() != OK:
 						result.error = "Motion playback rejected"
 					elif not fixture.expression.is_empty() and model.set_expression(fixture.expression) != OK:

@@ -81,7 +81,10 @@ static void quoted(std::ostream& json, const char* text) {
     json << '"';
 }
 
-static void evaluate(const std::vector<std::string>& args) {
+static void evaluate(const std::vector<std::string>& raw_args) {
+    auto args = raw_args;
+    const bool with_loop = !args.empty() && args.back() == "--loop";
+    if (with_loop) args.pop_back();
     if (args.size() != 7 && args.size() != 10 && args.size() != 11 && args.size() != 13) throw std::runtime_error("Pass model3.json, group, index, steps, fps, output.json, optional expression/physics/pose/breath and local look x/y");
     std::ofstream json(std::filesystem::u8path(args[6]));
     if (!json) throw std::runtime_error("Cannot write reference JSON");
@@ -121,8 +124,8 @@ static void evaluate(const std::vector<std::string>& args) {
     for (int i = 0; i < settings.GetEyeBlinkParameterCount(); ++i) blink.PushBack(settings.GetEyeBlinkParameterId(i));
     for (int i = 0; i < settings.GetLipSyncParameterCount(); ++i) lip.PushBack(settings.GetLipSyncParameterId(i));
     motion->SetEffectIds(blink, lip);
-    // Compare one non-looping playback; loop/event policy has separate tests.
-    motion->SetLoop(false);
+    motion->SetLoop(with_loop);
+    motion->SetLoopFadeIn(true);
     Csm::CubismMotionQueueEntry entry;
     motion->SetupMotionQueueEntry(&entry, 0.0f);
     std::unique_ptr<Csm::CubismExpressionMotion, decltype(&Csm::ACubismMotion::Delete)> expression_motion(nullptr, Csm::ACubismMotion::Delete);
@@ -203,7 +206,8 @@ static void evaluate(const std::vector<std::string>& args) {
         if (pose) pose->UpdateParameters(model.get(), float(1.0 / fps));
         model->Update();
     }
-    json << std::setprecision(9) << "{\"steps\":" << steps << ",\"fps\":" << fps << ",\"expression\":";
+    json << std::setprecision(9) << "{\"steps\":" << steps << ",\"fps\":" << fps
+         << ",\"loop\":" << (with_loop ? "true" : "false") << ",\"expression\":";
     quoted(json, expression.c_str());
     json << ",\"physics\":" << (with_physics ? "true" : "false") << ",\"pose\":" << (with_pose ? "true" : "false")
          << ",\"breath\":" << (with_breath ? "true" : "false") << ",\"look\":[";
