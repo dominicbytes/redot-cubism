@@ -46,14 +46,14 @@ private:
     void show_checked_export();
     const Color selected_border_color = Color(239.0 / 255.0, 120.0 / 255.0, 62.0 / 255.0, 1.0);
 
-    GDCubismUserModel *selected_model;
+    GDCubismUserModel *selected_model = nullptr;
     Rect2 selected_rect;
-    bool drag;
+    bool drag = false;
     Vector2 drag_position;
     Vector2 base_position;
 
-    Button *p_snapmode_button;
-    SpinBox *p_snapsize_spinbox;
+    Button *p_snapmode_button = nullptr;
+    SpinBox *p_snapsize_spinbox = nullptr;
     
 protected:
     static void _bind_methods() {}

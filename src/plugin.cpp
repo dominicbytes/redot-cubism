@@ -265,7 +265,16 @@ void GDCubismPlugin::_input(const Ref<InputEvent> &p_event) {
     InputEventMouseButton* p_evt_mouse_button = Object::cast_to<InputEventMouseButton>(p_event.ptr());
 
     if (p_evt_mouse_button != nullptr) {
-        const SubViewport *editor_viewport = this->get_editor_interface()->get_editor_viewport_2d();
+        EditorInterface *editor = get_editor_interface();
+        SceneTree *tree = get_tree();
+        if (editor == nullptr || tree == nullptr) return;
+        Node *scene_root = tree->get_edited_scene_root();
+        const SubViewport *editor_viewport = editor->get_editor_viewport_2d();
+        EditorSelection *selection = editor->get_selection();
+        if (scene_root == nullptr || editor_viewport == nullptr || selection == nullptr) {
+            drag = false;
+            return;
+        }
         const Rect2 viewport_rect(Point2(0.0, 0.0), editor_viewport->get_size());
 
         // Check in Viewport2D
@@ -275,7 +284,7 @@ void GDCubismPlugin::_input(const Ref<InputEvent> &p_event) {
 
         if (p_evt_mouse_button->get_button_index() == MOUSE_BUTTON_LEFT) {
             if (p_evt_mouse_button->is_pressed() == true) {
-                TypedArray<Node> ary_node = get_tree()->get_edited_scene_root()->get_children();
+                TypedArray<Node> ary_node = scene_root->get_children();
 
                 for(int64_t i = 0; i < ary_node.size(); i++) {
                     GDCubismUserModel *model = Object::cast_to<GDCubismUserModel>(ary_node[i]);
@@ -290,7 +299,7 @@ void GDCubismPlugin::_input(const Ref<InputEvent> &p_event) {
             
                     if (Geometry2D::get_singleton()->is_point_in_polygon(mouse_pos, ary_vtx) == false) continue;
 
-                    if (get_editor_interface()->get_selection()->get_selected_nodes().size() > 1) continue;
+                    if (selection->get_selected_nodes().size() > 1) continue;
 
                     this->drag = true;
                     this->drag_position = mouse_pos;
