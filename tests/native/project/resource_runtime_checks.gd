@@ -115,6 +115,11 @@ func _run() -> void:
 			expect(ResourceSaver.save(unicode_resource, "res://unicode-resource.res") == OK, "save Unicode runtime fixture")
 		expect(unicode_resource != null, "Unicode resource available in source or PCK")
 		if unicode_resource != null:
+			# Export retains raw dependency records. At runtime the source path is
+			# metadata: verify playback with an unavailable path in both processes.
+			unicode_resource = unicode_resource.duplicate(true)
+			unicode_resource.source_model_path = "res://missing-source.model3.json"
+			expect(not FileAccess.file_exists(unicode_resource.source_model_path), "Unicode runtime source manifest is unavailable")
 			first.model = unicode_resource
 			expect(first.is_initialized(), "Unicode MOC path loads without source manifest")
 			if first.is_initialized():

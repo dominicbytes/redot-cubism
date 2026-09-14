@@ -242,6 +242,8 @@ def main():
                 success = run("fallback-" + mode, ["--quit-after", "600", "--", "--fallback-checks=" + mode, f"--fallback-capture-dir={run_root}"], "CUBISM_FALLBACK_PASS mode=" + mode + " cases=2", graphics=True)
     exported = False
     if success and args.template:
+        success = run("prepare-export", ["--editor", "--quit-after", "1000", "--", "--cubism-native-export-prepare"], "CUBISM_NATIVE_EXPORT_PREPARED")
+    if success and args.template:
         template = args.template.resolve()
         if subprocess.check_output([str(template), "--version"], text=True, timeout=10).strip() != version:
             raise ValueError("Export template version mismatch")

@@ -16,6 +16,7 @@ Current evidence: [bootstrap](docs/gamedev/pr-01-report.md) and
 - [Implementation plan](redot_live2d_cubism_importer_codex_plan.md)
 - [Provisional editor model import](docs/editor-import.md)
 - [Editor workflow regression](docs/editor-testing.md)
+- [Desktop functional test sequence](docs/desktop-testing.md)
 - [Imported resource runtime loading](docs/resource-runtime.md)
 - [VN and RPG character examples](demo/addons/gd_cubism/examples/character_workflows/README.md)
 - [Dialogue manager integration](docs/dialogue-integration.md)

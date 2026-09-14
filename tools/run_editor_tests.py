@@ -26,7 +26,8 @@ def main():
     engine = os.environ['REDOT_BIN']
     version = subprocess.check_output([engine, '--version'], text=True, timeout=10).strip()
     if version != previous['engine_version']: parser.error('Editor version differs from prepared fixture')
-    source = args.native_report.resolve().parent / Path(previous['checks'][0]['log']).parent / 'project'
+    source_name = 'source-not-available' if previous.get('export_template_tested') else 'project'
+    source = args.native_report.resolve().parent / Path(previous['checks'][0]['log']).parent / source_name
     if not (source / 'project.godot').is_file(): parser.error('Prepared source project is missing')
     args.output.mkdir(parents=True, exist_ok=True)
     run = Path(tempfile.mkdtemp(prefix='editor-workflow-', dir=args.output.resolve()))
