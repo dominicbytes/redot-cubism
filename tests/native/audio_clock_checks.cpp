@@ -16,6 +16,14 @@ int main() {
     // Captured exported-cue failure: old playback position with a fresh mix age.
     expect(cubism_audio_clock_estimate(.56, .093195, .0001, .09277, 0, .7, .639304002, estimate) &&
             estimate == .639304002, "cross-mix sample holds the previous clock");
+    // A render stall can leave the previous estimate several buffers behind.
+    // Crossing a mix must not discard the newly observed playback progress.
+    expect(cubism_audio_clock_estimate(5.28, .092, .001, .092, 0, 30, 5, estimate) &&
+            estimate == 5.28, "cross-mix sample catches up after a main-thread stall");
+    expect(cubism_audio_clock_estimate(5.28, .092, .001, .092, .04, 30, 5, estimate) &&
+            std::abs(estimate - 5.24) < 1e-9, "cross-mix catch-up accounts for output latency");
+    expect(cubism_audio_clock_estimate(5.28, .092, .001, .092, 0, 5.25, 5, estimate) &&
+            estimate == 5.25, "cross-mix catch-up stays within the recording");
     expect(cubism_audio_clock_estimate(.56, .0001, .0002, .09267, 0, .7, .639304002, estimate) &&
             estimate == .639304002, "one backend buffer of jitter does not cancel a cue");
     expect(cubism_audio_clock_estimate(.64, .001, .002, .09087, 0, .7, .639304002, estimate) &&

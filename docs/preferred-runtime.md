@@ -541,9 +541,11 @@ Controller pause and inherited scene pause stop both clocks. Target pause is
 observed by the controller and also pauses its voice player.
 
 Voiced playback follows the engine's playback position plus time since the last
-mix minus output latency. Samples that cross a mixer timestamp reset retain the
-previous estimate until the next update. Extrapolation is capped at one mixer
-interval to bound prediction during audio-thread stalls. Backward jitter up to
+mix minus output latency. Across a mixer timestamp reset, the observed playback
+position minus latency advances the clock without interpolation; an older
+position retains the previous estimate. This preserves progress after a main-thread
+stall. Extrapolation is capped at one mixer interval to bound prediction during
+audio-thread stalls. On stable samples, backward jitter up to
 the greater of 0.05 seconds or one mixer interval plus 0.005 seconds is clamped;
 larger backward jumps terminate with `ERR_UNAVAILABLE`. Manual-clock tests retain
 the fixed 0.05-second allowance. Catch-up is subdivided and
