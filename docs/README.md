@@ -17,6 +17,7 @@ Start with [setup and first character](quick-start.md). Use the
 | Migrate existing GDCubism scenes | [Migration](migration/from-gd-cubism.md), [legacy contracts](legacy-compatibility.md), [resource loading](resource-runtime.md) |
 | Refresh changed assets | [Dependency tracking](dependency-tracking.md) |
 | Export a game | [Export workflow](usage/exporting.md), [validation details](export-validation.md), [licensing](licensing.md) |
+| Prepare a source archive | [Source packaging and history checks](source-packaging.md) |
 | Check compatibility or recover from errors | [Redot](compatibility/redot.md), [SDK matrix](compatibility/cubism_sdk_matrix.md), [troubleshooting](troubleshooting.md) |
 | Diagnose rendering and ownership | [Debug overlays](debug-overlay.md), [statistics](debug-statistics.md) |
 | Reproduce qualification checks | [Desktop suite](desktop-testing.md), [editor suite](editor-testing.md), [SDK motion comparison](sdk-motion-testing.md), [visual comparison](visual-testing.md), [benchmarks](benchmarks.md), [sanitizers](sanitizers.md) |

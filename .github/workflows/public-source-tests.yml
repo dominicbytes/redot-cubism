@@ -15,5 +15,6 @@ jobs:
       - run: python -m unittest discover -s tests/python -v
       - run: python tools/check_restricted_files.py
       - run: python tools/check_restricted_files.py --history HEAD
+      - run: python tools/check_public_history.py --ref HEAD
       - run: clang-format --dry-run --Werror tests/abi/probe.cpp
       - run: git diff --check

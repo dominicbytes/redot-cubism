@@ -3,6 +3,7 @@
 import hashlib
 import io
 import sys
+import tarfile
 from pathlib import Path
 import unittest
 import zipfile
@@ -21,6 +22,22 @@ def zipped(name, data):
 class RestrictedFilesTest(unittest.TestCase):
     def test_core_path(self):
         self.assertTrue(inspect_bytes("libLive2DCubismCore.a", b"synthetic"))
+
+    def test_exact_upstream_sdk_placeholder(self):
+        name = "thirdparty/CubismSdkForNative/.gitignore"
+        self.assertFalse(inspect_bytes(name, b"*\n!.gitignore\n", public=True))
+        self.assertTrue(inspect_bytes(name, b"MOC3 hidden content", public=True))
+        self.assertTrue(inspect_bytes(name + ".h", b"*\n!.gitignore\n", public=True))
+
+    def test_renamed_tar_archives(self):
+        for mode in ("w", "w:gz", "w:xz", "w:bz2"):
+            stream = io.BytesIO()
+            with tarfile.open(fileobj=stream, mode=mode) as archive:
+                entry = tarfile.TarInfo("model.dat")
+                entry.size = 4
+                archive.addfile(entry, io.BytesIO(b"MOC3"))
+            with self.subTest(mode=mode):
+                self.assertTrue(inspect_bytes("innocent.dat", stream.getvalue()))
 
     def test_core_header_renamed(self):
         self.assertTrue(inspect_bytes("innocent.h", b"CSM_API unsigned int csmGetVersion(void);"))
