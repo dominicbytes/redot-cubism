@@ -4,6 +4,7 @@
 """Run the selected implemented suite. Missing required gates never pass."""
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -13,6 +14,7 @@ import tempfile
 import time
 
 from run_desktop_tests import check_report, export_stages, sha256
+from run_benchmarks import SCENARIOS
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -37,6 +39,9 @@ def main():
     parser.add_argument("--sanitizer-runtime", type=Path)
     parser.add_argument("--sanitizer-library", type=Path)
     parser.add_argument("--benchmark-project", type=Path, help="Prepared private project for all eight benchmarks")
+    parser.add_argument("--runner-id", default="", help="Stable dedicated benchmark machine label")
+    parser.add_argument("--baseline", type=Path, help="Reviewed benchmark report from the same dedicated runner")
+    parser.add_argument("--relative-threshold", type=float, help="Reviewed nonnegative benchmark regression fraction")
     parser.add_argument("--mask-resource", help="Project-local imported resource with at least eight mask compositions")
     parser.add_argument("--motion", default="Cue/0")
     parser.add_argument("--resource", default="res://imported-model.res")
@@ -110,10 +115,26 @@ def main():
     elif args.suite == "benchmark":
         if not args.benchmark_project or not args.library or not args.mask_resource or not args.expression:
             parser.error("benchmark requires --benchmark-project, --library, --mask-resource and --expression")
+        if not args.library.is_file() or not (args.benchmark_project / "project.godot").is_file():
+            parser.error("benchmark requires an existing library and prepared project.godot")
+        if bool(args.baseline) != (args.relative_threshold is not None):
+            parser.error("Supply --baseline and --relative-threshold together")
+        if args.baseline:
+            if not args.baseline.is_file() or not args.runner_id.strip():
+                parser.error("Baseline comparison requires an existing --baseline and a nonempty --runner-id")
+            if not math.isfinite(args.relative_threshold) or args.relative_threshold < 0:
+                parser.error("Relative threshold must be finite and nonnegative")
+        library_hash = sha256(args.library)
+        engine_version = json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]
+        args.output = Path(tempfile.mkdtemp(prefix="benchmark-", dir=args.output.resolve()))
+        child_reports = [args.output / "benchmark-report.json"]
         commands = [[sys.executable, "tools/run_benchmarks.py", "--project", str(args.benchmark_project),
                      "--library", str(args.library), "--mask-resource", args.mask_resource,
                      "--resource", args.resource, "--motion", args.motion, "--expression", args.expression,
-                     "--output", str(args.output)]]
+                     "--runner-id", args.runner_id, "--output", str(args.output)]]
+        if args.baseline:
+            commands[0] += ["--baseline", str(args.baseline.resolve()), "--relative-threshold", str(args.relative_threshold)]
+        print("Suite output: " + str(args.output), flush=True)
     elif args.suite == "visual":
         if not args.visual_project or not args.library or not args.visual_fixtures or not args.visual_limits:
             parser.error("visual requires --visual-project, --library, --visual-fixtures and --visual-limits")
@@ -135,7 +156,7 @@ def main():
     for index, command in enumerate(commands):
         start = time.monotonic()
         log = ""
-        timeout = 1800 if child_reports else (2500 if args.suite == "benchmark" else (900 if args.sanitizer_runtime or args.suite == "visual" else 300))
+        timeout = 2500 if args.suite == "benchmark" else (1800 if child_reports else (900 if args.sanitizer_runtime or args.suite == "visual" else 300))
         try:
             process = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                        text=True, start_new_session=os.name != "nt")
@@ -154,7 +175,17 @@ def main():
                 child = check_report(child_reports[index], library_hash, engine_version)
                 if args.suite == "editor" and child.get("graphics") is not True:
                     raise ValueError("Editor suite requires a graphical run")
-        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+                if args.suite == "benchmark":
+                    if args.baseline:
+                        from run_licensed_tests import validate_result
+                        validate_result(child_reports[index], "benchmark", library_hash, engine_version)
+                    elif (child.get("qualification") != "MEASURED_ONLY" or
+                          child.get("library_sha256") != library_hash or
+                          child.get("identity", {}).get("engine_version") != engine_version or
+                          set(child.get("scenarios", {})) != set(SCENARIOS)):
+                        raise ValueError("Expected all eight measured scenarios with matching library and engine")
+                    report["qualification"] = child["qualification"]
+        except (OSError, ValueError, TypeError, AttributeError, subprocess.TimeoutExpired) as error:
             code = 1
             log += "\n" + str(error) + "\n"
         path = args.output / f"{args.suite}-{index}.log"

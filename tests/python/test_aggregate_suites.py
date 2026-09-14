@@ -19,6 +19,7 @@ class AggregateSuiteTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
+        (self.root / 'project.godot').touch()
         self.library = self.root / 'library.so'
         self.library.write_bytes(b'fixture library')
         self.other = self.root / 'other.so'
@@ -36,10 +37,12 @@ class AggregateSuiteTests(unittest.TestCase):
                 '--output', str(self.root / 'results')]
         if suite == 'editor':
             return args + ['--native-report', str(self.prepared)]
+        if suite == 'benchmark':
+            return args + ['--benchmark-project', str(self.root), '--mask-resource', 'res://mask.res', '--expression', 'Smile']
         return args + ['--importer-report', str(self.prepared), '--template', str(self.template),
                        '--other-library', str(self.other), '--export-mode', 'release']
 
-    def invoke(self, suite, replacement=None, failing_stage=None, exit_code=0, missing=False):
+    def invoke(self, suite, replacement=None, failing_stage=None, exit_code=0, missing=False, extra=()):
         commands = []
         pattern = suite + '-*/' + suite + '.json'
         before = set((self.root / 'results').glob(pattern))
@@ -50,14 +53,20 @@ class AggregateSuiteTests(unittest.TestCase):
             names = {'editor': 'editor', 'selection': 'selection', 'checked-export': 'checked-export',
                      'legacy-export': 'legacy-export', 'legacy-bridge': 'legacy-bridge', 'export-identity': 'export-identity'}
             report = dict(self.good)
-            fail = output.name == failing_stage
+            if suite == 'benchmark':
+                report.update(identity={'engine_version': self.good['engine_version']},
+                              scenarios={name: {} for name in run_tests.SCENARIOS},
+                              qualification='BASELINE_COMPARISON_PASS' if '--baseline' in extra else 'MEASURED_ONLY',
+                              regressions=[])
+            name = 'benchmark' if suite == 'benchmark' else output.name
+            fail = name == failing_stage
             if fail and replacement is not None:
                 report.update(replacement)
             if not (fail and missing):
-                (output / (names[output.name] + '-report.json')).write_text(json.dumps(report))
+                (output / ((name if name == 'benchmark' else names[name]) + '-report.json')).write_text(json.dumps(report))
             return Mock(returncode=exit_code if fail else 0, communicate=Mock(return_value=('child log\n', None)))
 
-        with patch.object(sys, 'argv', self.arguments(suite)), patch.object(run_tests.subprocess, 'Popen', side_effect=spawn), contextlib.redirect_stdout(io.StringIO()):
+        with patch.object(sys, 'argv', self.arguments(suite) + list(extra)), patch.object(run_tests.subprocess, 'Popen', side_effect=spawn), contextlib.redirect_stdout(io.StringIO()):
             code = run_tests.main()
         report_path, = set((self.root / 'results').glob(pattern)) - before
         return code, json.loads(report_path.read_text()), commands
@@ -123,6 +132,41 @@ class AggregateSuiteTests(unittest.TestCase):
         kill.assert_called_once_with(12345, signal.SIGKILL)
         report = json.loads(next((self.root / 'results').glob('editor-*/editor.json')).read_text())
         self.assertEqual(report['checks'][0]['exit_code'], 124)
+
+    def test_benchmark_records_measurement_only_without_acceptance_defaults(self):
+        code, report, commands = self.invoke('benchmark', extra=['--runner-id', 'dedicated'])
+        self.assertEqual(code, 0)
+        self.assertEqual(report['qualification'], 'MEASURED_ONLY')
+        self.assertFalse(report['release_qualified'])
+        self.assertNotIn('--baseline', commands[0])
+        self.assertNotIn('--relative-threshold', commands[0])
+        self.assertEqual(commands[0][commands[0].index('--runner-id') + 1], 'dedicated')
+
+    def test_benchmark_forwards_reviewed_comparison_and_rejects_measurement_only_result(self):
+        extra = ['--runner-id', 'dedicated', '--baseline', str(self.prepared), '--relative-threshold', '0.05']
+        code, report, commands = self.invoke('benchmark', extra=extra)
+        self.assertEqual(code, 0)
+        self.assertEqual(report['qualification'], 'BASELINE_COMPARISON_PASS')
+        for option in ('--runner-id', '--baseline', '--relative-threshold'):
+            self.assertEqual(commands[0][commands[0].index(option) + 1], extra[extra.index(option) + 1])
+        self.assertEqual(self.invoke('benchmark', extra=extra, failing_stage='benchmark', replacement={'qualification': 'MEASURED_ONLY'})[0], 1)
+        self.assertEqual(self.invoke('benchmark', extra=extra, failing_stage='benchmark', replacement={'regressions': [{}]})[0], 1)
+
+    def test_benchmark_rejects_invalid_or_incomplete_comparison_settings_before_launch(self):
+        cases = [['--baseline', str(self.prepared)], ['--relative-threshold', '0.1'],
+                 ['--baseline', str(self.prepared), '--relative-threshold', '0.1'],
+                 ['--baseline', str(self.root / 'missing'), '--relative-threshold', '0.1', '--runner-id', 'named']]
+        cases += [['--baseline', str(self.prepared), '--runner-id', 'named', '--relative-threshold', v] for v in ('nan', 'inf', '-1')]
+        for extra in cases:
+            with self.subTest(extra=extra), patch.object(sys, 'argv', self.arguments('benchmark') + extra), patch.object(run_tests.subprocess, 'Popen') as spawn, contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit): run_tests.main()
+                spawn.assert_not_called()
+
+    def test_benchmark_requires_fresh_complete_matching_report(self):
+        for change in ({'scenarios': {}}, {'identity': {}}, {'library_sha256': None}, {'status': 'RUNNING'}):
+            with self.subTest(change=change):
+                self.assertEqual(self.invoke('benchmark', failing_stage='benchmark', replacement=change)[0], 1)
+        self.assertEqual(self.invoke('benchmark', failing_stage='benchmark', missing=True)[0], 1)
 
 
 if __name__ == '__main__':
