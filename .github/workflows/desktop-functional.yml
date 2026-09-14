@@ -56,6 +56,8 @@ jobs:
                       'CUBISM_BENCHMARK_PROJECT', 'CUBISM_BENCHMARK_RESOURCE', 'CUBISM_BENCHMARK_MASK_RESOURCE',
                       'CUBISM_BENCHMARK_MOTION', 'CUBISM_BENCHMARK_EXPRESSION', 'CUBISM_BENCHMARK_RUNNER_ID',
                       'CUBISM_BENCHMARK_BASELINE', 'CUBISM_BENCHMARK_RELATIVE_THRESHOLD']
+          if sys.platform == 'linux':
+              required.append('CUBISM_SANITIZER_RUNTIME')
           for key in required:
               if not os.environ.get(key):
                   raise SystemExit('Missing private runner environment variable: ' + key)
@@ -64,6 +66,8 @@ jobs:
               raise SystemExit('Supply a finite, nonnegative reviewed benchmark threshold.')
           if not pathlib.Path(os.environ['CUBISM_BENCHMARK_BASELINE']).is_file():
               raise SystemExit('The reviewed benchmark baseline file is missing.')
+          if sys.platform == 'linux' and not pathlib.Path(os.environ['CUBISM_SANITIZER_RUNTIME']).is_file():
+              raise SystemExit('The provisioned ASan Redot runtime is missing.')
           pins = json.loads(pathlib.Path('DEPENDENCIES.json').read_text())
           if SCons.__version__ != pins['toolchain']['scons']:
               raise SystemExit('Install the pinned SCons version on the private runner.')
@@ -110,3 +114,25 @@ jobs:
                           '--baseline', os.environ['CUBISM_BENCHMARK_BASELINE'],
                           '--relative-threshold', str(threshold),
                           '--output', str(root / 'benchmark-debug')], check=True)
+          if target == 'linux':
+              sanitized_build = root / 'build-asan-ubsan'
+              env = dict(os.environ, CUBISM_BUILD_DIR=str(sanitized_build))
+              subprocess.run([sys.executable, '-m', 'SCons', 'platform=linux', 'arch=x86_64',
+                              'target=template_debug', 'precision=single', 'sanitize=address,undefined',
+                              'custom_api_file=' + str(identity / 'extension_api.json'),
+                              'build_profile=tools/native_build_profile.json', '-j1'], env=env, check=True)
+              sanitized_library = sanitized_build / 'bin/libgd_cubism.linux.debug.x86_64.so'
+              sanitizer_output = root / 'sanitizers'
+              subprocess.run([sys.executable, 'tools/run_native_tests.py',
+                              '--model', os.environ['CUBISM_MODEL'], '--expression', os.environ['CUBISM_EXPRESSION'],
+                              '--library', libraries['debug'],
+                              '--sanitizer-runtime', os.environ['CUBISM_SANITIZER_RUNTIME'],
+                              '--sanitizer-library', str(sanitized_library),
+                              '--output', str(sanitizer_output)], check=True)
+              report = json.loads((sanitizer_output / 'native-report.json').read_text())
+              sanitizer = report.get('sanitizer', {})
+              if (report.get('status') != 'PASS' or sanitizer.get('tested') is not True or
+                  sanitizer.get('addon_sanitizers') != ['address', 'undefined'] or
+                  sanitizer.get('framework_sanitizers') != ['address', 'undefined'] or
+                  sanitizer.get('cycles') != 250):
+                  raise SystemExit('The combined addon/Framework sanitizer lifecycle gate did not pass.')

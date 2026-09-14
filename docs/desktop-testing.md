@@ -72,6 +72,9 @@ in the runner's project-local Python environment before running the workflow.
 `CUBISM_MOTION_PROJECT` and `CUBISM_MOTION_FIXTURES` identify the prepared project
 and explicit fixture list described in [SDK motion testing](sdk-motion-testing.md).
 Paths refer to that runner's private filesystem.
+The Linux runner also requires `CUBISM_SANITIZER_RUNTIME`, pointing to the
+matched ASan Redot test engine described in [sanitizer testing](sanitizers.md).
+It must be provisioned before dispatch; Windows does not use this Linux-only gate.
 Install the pinned Python/SCons toolchain and compiler first. Windows currently
 requires VS 2022/MSVC 14.3; other toolsets fail the Core-library selection check.
 The runner needs an interactive graphics session for real editor/render tests.
@@ -106,6 +109,15 @@ in `benchmark-debug` alongside the other private build/test artifacts under
 private artifact store. Provisioning, environment approval, actual Windows runs,
 and required status propagation to the public release branch must still be
 completed; merely committing the workflow does not satisfy those release gates.
+
+On Linux the workflow also builds a separate `address,undefined` addon/Framework
+library and runs the existing native sanitizer sequence: runtime identity,
+descriptor shutdown, 250 lifecycle cycles, handles and loading/removal. It checks
+the reported instrumentation modes and completed cycle count; an ASan-only
+result cannot satisfy the combined gate. A build failure, test failure, missing
+report or incomplete sanitizer coverage fails the job. The instrumented library
+and logs stay under the private run's `build-asan-ubsan` and `sanitizers` folders.
+Ordinary debug/release libraries remain available for the graphical tests.
 
 ## Dependency updates
 
