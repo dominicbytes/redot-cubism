@@ -86,6 +86,8 @@ def main():
     if output.is_relative_to(source): parser.error('Output must be outside the input project')
     engine = Path(os.environ['REDOT_BIN']).resolve()
     version = subprocess.check_output([str(engine), '--version'], text=True, timeout=10).strip()
+    pins = json.loads((ROOT / 'DEPENDENCIES.json').read_text())
+    if version != pins['redot']['version']: parser.error('Editor differs from pinned Redot')
     output.mkdir(parents=True, exist_ok=True)
     run = Path(tempfile.mkdtemp(prefix='benchmark-', dir=output))
     project = run / 'project'
@@ -94,6 +96,10 @@ def main():
     (project / 'cubism_benchmark.gd').write_bytes(script.read_bytes())
     addon = project / 'addons/gd_cubism'
     (addon / 'bin' / args.library.name).write_bytes(args.library.read_bytes())
+    shaders = ROOT / 'demo/addons/gd_cubism/res/shader'
+    shader_hashes = {p.name: sha(p) for p in shaders.glob('*.gdshader')}
+    for name in shader_hashes:
+        (addon / 'res/shader' / name).write_bytes((shaders / name).read_bytes())
     target = 'windows' if os.name == 'nt' else 'linux'
     (addon / 'gd_cubism.gdextension').write_text('[configuration]\nentry_symbol="gd_cubism_library_init"\ncompatibility_minimum="26.2"\ndisable_godot_checks=true\nreloadable=false\n[libraries]\n' + target + '.x86_64="res://addons/gd_cubism/bin/' + args.library.name + '"\n')
     settings = {key: getattr(args, key) for key in ('resource', 'mask_resource', 'motion', 'expression', 'samples', 'warmup')}
@@ -102,8 +108,9 @@ def main():
                 'runner_script_sha256': sha(Path(__file__)),
                 'settings': settings, 'viewport': [1024, 768], 'simulation_step': 1 / 60, 'vsync': False}
     report = {'status': 'RUNNING', 'run': str(run), 'identity': identity,
-              'library_sha256': sha(args.library), 'scenarios': {}}
-    env = dict(os.environ)
+              'library_sha256': sha(args.library), 'shader_sha256': shader_hashes, 'scenarios': {}}
+    env = {key: value for key, value in os.environ.items()
+           if not key.startswith(('CUBISM_TEST_', 'CUBISM_COMPARE_', 'CUBISM_REFERENCE_'))}
     for key in ('CONFIG', 'CACHE', 'DATA'): env['XDG_' + key + '_HOME'] = str(run / key.lower())
     flags = ['--rendering-method', 'gl_compatibility', '--audio-driver', 'Dummy']
     if os.name != 'nt': flags += ['--display-driver', 'x11']
