@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismModelImporter" inherits="EditorImportPlugin">
+	<brief_description>Imports project-local Cubism models through the Redot editor.</brief_description>
+	<description>Editor-only importer registered automatically by [GDCubismPlugin]. Stock Redot 26.2 does not discover compound [code].model3.json[/code] suffixes on a fresh filesystem scan; use Project &gt; Tools &gt; Import Cubism Model for a separately saved resource, or Prepare Legacy Cubism Model for an engine-managed import. Wait for texture/audio scanning to finish. The importer provisions owned textures and persists resource dependency edges; engine import metadata remains owned by Redot.</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="import_model" qualifiers="static">
+			<return type="int" enum="Error" />
+			<param index="0" name="source_file" type="String" />
+			<param index="1" name="destination" type="String" />
+			<param index="2" name="strict_optional_files" type="bool" default="false" />
+			<description>Imports [param source_file] to a contained project-local [code].res[/code] or [code].tres[/code] destination and returns a Redot [enum @GlobalScope.Error]. Missing optional files warn unless [param strict_optional_files] is true. Source assets are preserved; invalid inputs are not saved as a successful model.</description>
+		</method>
+		<method name="import_model_with_options" qualifiers="static">
+			<return type="int" enum="Error" />
+			<param index="0" name="source_file" type="String" />
+			<param index="1" name="destination" type="String" />
+			<param index="2" name="options" type="Dictionary" />
+			<description>Imports to [param destination] using validated import [param options]. On success saves the resource, replaces its cached resource data and refreshes the editor resource index. Use this for explicit output resources; [method import_source] uses Redot-managed source import instead.</description>
+		</method>
+		<method name="import_source" qualifiers="static">
+			<return type="int" enum="Error" />
+			<param index="0" name="source_file" type="String" />
+			<description>Asks the editor filesystem to import the original project-local manifest using this importer. Preserves existing Cubism import options and refuses a source assigned to another importer. Used by legacy-scene preparation. Reopen and save legacy scenes afterward so their hidden resource dependency edge is stored. This method is unavailable in exported games.</description>
+		</method>
+	</methods>
+	<members>
+		<member name="expressions/import" type="bool" setter="" getter="" default="true">Import option controlling the manifest expression catalog. Disabled expressions are not added to the imported runtime catalog.</member>
+		<member name="motions/import_manifest_motions" type="bool" setter="" getter="" default="true">Import option controlling declared manifest motions. No extra motion files are discovered by scanning neighboring folders.</member>
+		<member name="rendering/mask_quality" type="int" setter="" getter="" default="1">Imported default mask limit: Low (0), Medium (1) or High (2). Preferred model nodes inherit it unless explicitly overridden.</member>
+		<member name="rendering/premultiplied_alpha" type="bool" setter="" getter="" default="false">Provision textures and shader selection consistently for premultiplied alpha. Change this import option and reimport/reload instead of changing a node shader alone.</member>
+		<member name="validation/strict_optional_files" type="bool" setter="" getter="" default="false">Treat missing optional inputs as failures. Malformed or unsafe inputs fail regardless of this option.</member>
+	</members>
+</class>

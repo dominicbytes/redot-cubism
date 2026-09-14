@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismDependencyTracker" inherits="Node">
+	<brief_description>Tracks imported model dependencies in the editor.</brief_description>
+	<description>Editor-only node owned by [GDCubismPlugin]. It schedules bounded dependency scans, detects changed or restored inputs and requests reimport while preserving the last successful resource on validation failure. It reads engine-owned import metadata but does not rewrite it. Do not add this node to game scenes or create duplicate trackers.</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="get_status" qualifiers="const">
+			<return type="Dictionary" />
+			<description>Returns a diagnostic snapshot with [code]busy[/code] and [code]models[/code]. Each model entry contains [code]resource[/code], [code]source[/code], [code]status[/code] and [code]attempts[/code]. A non-busy tracker is not proof that every entry imported successfully or that export validation passed.</description>
+		</method>
+		<method name="request_scan">
+			<return type="void" />
+			<description>Requests a scan on a later editor update. The request is coalesced with pending work and waits while filesystem import work is active; this method does not synchronously rebuild a model.</description>
+		</method>
+	</methods>
+</class>

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismManifestParser" inherits="RefCounted">
+	<brief_description>Provides bounded Cubism JSON and project-source validation.</brief_description>
+	<description>The parse methods validate supplied JSON text without opening source files or creating live SDK models. Check each result before using any returned data. Lexical path validation alone does not establish physical containment or authorize a resource load; [method validate_project_file] and [method read_project_json] are separate physical-source operations. These helpers enforce the pinned supported schemas and finite numeric values, and return bounded diagnostics.</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="parse_display_info" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="json" type="String" />
+			<description>Validates display-info JSON, including parameter-group references and parent cycles. Returns [code]ok[/code], diagnostics and [code]display_info[/code], empty on failure. This is not a check of all IDs against a particular MOC.</description>
+		</method>
+		<method name="parse_expression" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="json" type="String" />
+			<param index="1" name="expression_id" type="String" />
+			<param index="2" name="source_path" type="String" />
+			<description>Validates expression text and returns [code]ok[/code], [code]diagnostics[/code], [code]expression[/code] and [code]source_data[/code]. The expression is a [CubismExpressionDescriptor] on success and null on failure. The ID must be nonempty and the source path must be a project-local [code].exp3.json[/code]. Missing fade values use the pinned SDK defaults; no parameter is applied to a live model.</description>
+		</method>
+		<method name="parse_manifest" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="json" type="String" />
+			<param index="1" name="source_path" type="String" />
+			<description>Validates version-3 model settings relative to a project-local [code].model3.json[/code] source path. Returns [code]ok[/code], [code]manifest[/code], [code]dependencies[/code] and [code]diagnostics[/code]. Known references are normalized to project paths, preserving texture and motion order. The manifest is empty on failure; an incomplete dependency list must not be treated as a valid model.</description>
+		</method>
+		<method name="parse_motion" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="json" type="String" />
+			<param index="1" name="group" type="String" />
+			<param index="2" name="index" type="int" />
+			<param index="3" name="source_path" type="String" />
+			<description>Validates version-3 motion text for an ordered manifest group/index and a project-local [code].motion3.json[/code] path. Returns [code]ok[/code], diagnostics and a [CubismMotionDescriptor] under [code]motion[/code], null on failure. Checks finite motion metadata, curve segment structure and event data. It neither converts tracks to [Animation] nor starts playback.</description>
+		</method>
+		<method name="parse_physics" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="json" type="String" />
+			<description>Validates physics JSON structure, metadata, vectors and finite values. Returns [code]ok[/code], diagnostics and [code]physics[/code], which is empty on failure. This does not evaluate physics or verify every parameter ID against a particular MOC.</description>
+		</method>
+		<method name="parse_pose" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="json" type="String" />
+			<description>Validates pose JSON and returns [code]ok[/code], diagnostics, [code]pose[/code] and resolved [code]fade_in_seconds[/code]. Pose data is empty on failure. This does not evaluate pose or validate part IDs against a loaded model.</description>
+		</method>
+		<method name="parse_user_data" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="json" type="String" />
+			<description>Validates user-data JSON and returns [code]ok[/code], diagnostics and [code]user_data[/code], empty on failure. User values remain data and are not executed.</description>
+		</method>
+		<method name="read_project_json" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="path" type="String" />
+			<description>Reads a physically contained project source file with the JSON byte-size and UTF-8/NUL limits. Returns [code]ok[/code], [code]status[/code], [code]path[/code], [code]message[/code] and decoded [code]text[/code]; success also records [code]sha256[/code] and [code]byte_length[/code] for the exact original bytes. An initial UTF-8 BOM is allowed. Call a parse method separately to validate the JSON schema. This is not a PCK resource lookup.</description>
+		</method>
+		<method name="validate_project_file" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="path" type="String" />
+			<description>Returns [code]path[/code], [code]message[/code] and [code]status[/code]: [code]file[/code], [code]missing[/code], [code]unsafe[/code] or [code]error[/code]. Checks a normalized project path against physical project containment, including symlink resolution. Only [code]missing[/code] may qualify for optional-file leniency. The result is a filesystem snapshot, not an atomic guarantee against later replacement or a virtual/PCK file lookup.</description>
+		</method>
+	</methods>
+</class>

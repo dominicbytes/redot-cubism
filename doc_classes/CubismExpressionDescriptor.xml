@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismExpressionDescriptor" inherits="Resource">
+	<brief_description>Imported expression identity, fades and ordered parameters.</brief_description>
+	<description>Data-only expression resource retained in [member CubismModelResource.expressions]. Runtime expressions have independently owned SDK state. This resource does not apply parameters or play an expression. Setters emit [signal Resource.changed] without making arbitrary values valid; the parser and runtime validate the descriptor.</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="fade_in_seconds" type="float" setter="set_fade_in_seconds" getter="get_fade_in_seconds" default="-1.0">Expression fade-in time. -1 is the uninitialized/absent override sentinel; parsing resolves source defaults.</member>
+		<member name="fade_out_seconds" type="float" setter="set_fade_out_seconds" getter="get_fade_out_seconds" default="-1.0">Expression fade-out time. -1 is the uninitialized/absent override sentinel; parsing resolves source defaults.</member>
+		<member name="id" type="StringName" setter="set_id" getter="get_id" default="&amp;&quot;&quot;">Declared expression name used for runtime selection.</member>
+		<member name="parameters" type="CubismExpressionParameter[]" setter="set_parameters" getter="get_parameters" default="[]">Ordered [CubismExpressionParameter] entries. Repeated IDs retain source ordering.</member>
+		<member name="source_path" type="String" setter="set_source_path" getter="get_source_path" default="&quot;&quot;">Normalized project-local [code].exp3.json[/code] source path.</member>
+	</members>
+</class>

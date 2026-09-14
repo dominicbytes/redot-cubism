@@ -59,5 +59,7 @@ python tools/run_importer_tests.py --model /path/to/Haru.model3.json \
 The dependency suite uses an actual graphics backend for live texture pixels.
 Pinned Redot's dummy renderer discards texture replacements, so headless pixel
 readback cannot qualify that behavior. Restart and template checks remain
-headless. A current editor index is not an export guarantee: checked/selective
-export and full import-option support are still separate unfinished work.
+headless. A current editor index is not an export guarantee: use the separate
+[checked export workflow](usage/exporting.md), which validates selected resource
+dependencies before packaging. Import settings are documented in the
+[import guide](usage/importing-models.md).

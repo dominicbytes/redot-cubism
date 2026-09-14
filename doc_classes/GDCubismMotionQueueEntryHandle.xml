@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="GDCubismMotionQueueEntryHandle" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
-	<brief_description>
-	</brief_description>
+	<brief_description>Completion handle returned by legacy native motion playback.</brief_description>
 	<description>
 		The result of starting a native motion. Each accepted playback has one terminal result. Retained handles remain safe after stopping or destroying the model. Check is_finished before awaiting finished because a rejected request is already terminal.
 	</description>

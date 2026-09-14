@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismModelResource" inherits="Resource">
+	<brief_description>Serializable imported model data shared by independent runtimes.</brief_description>
+	<description>Contains validated source metadata, ordered animation catalogs and real texture/audio/extension resource edges. Constructing or loading this resource does not create a live SDK model. Runtime nodes validate and snapshot it, keep their own native state and must not mutate shared descriptor data during playback. Setters emit [signal Resource.changed] but do not validate arbitrary manually supplied data. Reimport sources and reload affected nodes when changing import policy; saving a resource alone is not proof of a valid model or export.</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="get_mask_quality" qualifiers="const">
+			<return type="int" />
+			<description>Reads [code]rendering/mask_quality[/code] from [member import_options]. Returns Low=0, Medium=1 or High=2; an absent entry defaults to Medium and an invalid value returns -1. Runtime loading rejects invalid policy.</description>
+		</method>
+		<method name="get_premultiplied_alpha" qualifiers="const">
+			<return type="bool" />
+			<description>Reads [code]rendering/premultiplied_alpha[/code] from [member import_options], defaulting to false. Runtime/export validation separately reject malformed policy or texture encoding mismatches. This query does not transform texture pixels.</description>
+		</method>
+	</methods>
+	<members>
+		<member name="canvas_origin" type="Vector2" setter="set_canvas_origin" getter="get_canvas_origin" default="Vector2(0, 0)">MOC canvas origin from validated source data.</member>
+		<member name="canvas_size" type="Vector2" setter="set_canvas_size" getter="get_canvas_size" default="Vector2(0, 0)">MOC canvas dimensions in pixels, before node/camera transforms.</member>
+		<member name="dependency_fingerprints" type="Dictionary" setter="set_dependency_fingerprints" getter="get_dependency_fingerprints" default="{}">Imported source/dependency hashes and explicit missing markers used to detect stale data. Treat as importer-owned metadata.</member>
+		<member name="dependency_paths" type="PackedStringArray" setter="set_dependency_paths" getter="get_dependency_paths" default="PackedStringArray()">Normalized declared dependency paths, including tracked optional missing inputs. Paths alone do not establish texture/audio resource edges.</member>
+		<member name="display_info_path" type="String" setter="set_display_info_path" getter="get_display_info_path" default="&quot;&quot;">Enabled display-info source path, or an empty string when absent or disabled.</member>
+		<member name="expressions" type="Array" setter="set_expressions" getter="get_expressions" default="[]">Ordered catalog of [CubismExpressionDescriptor] resources. Runtime consumers validate its shape before use.</member>
+		<member name="eye_blink_parameter_ids" type="PackedStringArray" setter="set_eye_blink_parameter_ids" getter="get_eye_blink_parameter_ids" default="PackedStringArray()">Declared eye-blink parameter IDs in manifest order.</member>
+		<member name="hit_areas" type="Dictionary[]" setter="set_hit_areas" getter="get_hit_areas" default="[]">Declared hit-area dictionaries mapping logical IDs/names to drawable IDs. Runtime hit testing uses evaluated geometry rather than this metadata alone.</member>
+		<member name="import_fingerprint" type="String" setter="set_import_fingerprint" getter="get_import_fingerprint" default="&quot;&quot;">Combined source/options/dependency identity used for reimport, stable state and export validation. It is not a native pointer or active motion state.</member>
+		<member name="import_options" type="Dictionary" setter="set_import_options" getter="get_import_options" default="{}">Normalized import settings and defaults. This dictionary is the serialized source for mask quality and alpha policy.</member>
+		<member name="import_schema_version" type="int" setter="set_import_schema_version" getter="get_import_schema_version" default="1">Resource data schema version. The factory/importer supplies the supported version and runtime loading rejects incompatible data.</member>
+		<member name="import_warnings" type="PackedStringArray" setter="set_import_warnings" getter="get_import_warnings" default="PackedStringArray()">Warnings produced by a successful import, including permitted missing optional files.</member>
+		<member name="layout" type="Dictionary" setter="set_layout" getter="get_layout" default="{}">Imported Cubism layout values applied by each runtime model matrix.</member>
+		<member name="lip_sync_parameter_ids" type="PackedStringArray" setter="set_lip_sync_parameter_ids" getter="get_lip_sync_parameter_ids" default="PackedStringArray()">Declared lip-sync parameter IDs. Audio envelopes cannot invent missing model parameters.</member>
+		<member name="metadata" type="Dictionary" setter="set_metadata" getter="get_metadata" default="{}">Imported extra/source metadata retained for inspection. It contains no dedicated native model or renderer handles.</member>
+		<member name="moc_path" type="String" setter="set_moc_path" getter="get_moc_path" default="&quot;&quot;">Contained project path of the MOC used for validation and runtime loading.</member>
+		<member name="moc_version" type="int" setter="set_moc_version" getter="get_moc_version" default="0">MOC format version reported by Core during factory validation.</member>
+		<member name="motion_groups" type="Dictionary" setter="set_motion_groups" getter="get_motion_groups" default="{}">Dictionary of group names to ordered [CubismMotionDescriptor] arrays. Index order determines stable motion IDs.</member>
+		<member name="physics_path" type="String" setter="set_physics_path" getter="get_physics_path" default="&quot;&quot;">Enabled physics source path, or an empty string when absent or disabled.</member>
+		<member name="pixels_per_unit" type="float" setter="set_pixels_per_unit" getter="get_pixels_per_unit" default="0.0">MOC canvas pixels-per-unit scale used to map source coordinates.</member>
+		<member name="pose_path" type="String" setter="set_pose_path" getter="get_pose_path" default="&quot;&quot;">Enabled pose source path, or an empty string when absent or disabled.</member>
+		<member name="runtime_extension" type="Variant" setter="set_runtime_extension" getter="get_runtime_extension" default="null">Importer-owned reference to the addon GDExtension descriptor so Redot retains the matching native library during export. Do not replace it with a filename string.</member>
+		<member name="sdk_compatibility" type="Dictionary" setter="set_sdk_compatibility" getter="get_sdk_compatibility" default="{}">Imported SDK/format compatibility metadata checked together with the pinned native build. It does not certify target-platform execution.</member>
+		<member name="source_hash" type="String" setter="set_source_hash" getter="get_source_hash" default="&quot;&quot;">SHA-256 of the original manifest bytes, including an initial BOM when present.</member>
+		<member name="source_model_path" type="String" setter="set_source_model_path" getter="get_source_model_path" default="&quot;&quot;">Normalized project-local path to the source model manifest.</member>
+		<member name="texture_paths" type="PackedStringArray" setter="set_texture_paths" getter="get_texture_paths" default="PackedStringArray()">Ordered source texture paths matching the manifest indices.</member>
+		<member name="textures" type="Texture2D[]" setter="set_textures" getter="get_textures" default="[]">Ordered real [Texture2D] references with the imported texture policy. Shared references remain shared across resources; native character state remains independent.</member>
+		<member name="user_data_path" type="String" setter="set_user_data_path" getter="get_user_data_path" default="&quot;&quot;">Enabled user-data source path, or an empty string when absent or disabled.</member>
+	</members>
+</class>

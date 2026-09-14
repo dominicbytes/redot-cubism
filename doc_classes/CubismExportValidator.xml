@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismExportValidator" inherits="RefCounted">
+	<brief_description>Validates imported model dependencies before checked export.</brief_description>
+	<description>Editor-only, read-only validation shared by checked export and the native raw-dependency injection plugin. Run on the editor main thread after asset importing finishes. Validation checks current source bytes, resource shape, fingerprints and enabled dependencies. It does not reimport, package or promote a build. Reimport stale resources before retrying.</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="validate_file" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="path" type="String" />
+			<description>Validates models embedded in the specified project-local resource or packed scene without instantiating scene nodes or executing their scripts. Returns [code]ok[/code], diagnostics, model count and [code]raw_hashes[/code]. External resource edges are left to their own export callbacks. Prepared legacy scene references must match their original assets paths.</description>
+		</method>
+		<method name="validate_model" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="model" type="CubismModelResource" />
+			<description>Returns [code]ok[/code], structured [code]diagnostics[/code] and a sorted [code]raw_files[/code] list for [param model]. Diagnostics contain [code]path[/code] and [code]message[/code]. On failure the raw-file list is empty. Texture/audio dependencies remain real resource edges rather than raw payload entries.</description>
+		</method>
+	</methods>
+</class>

@@ -15,8 +15,9 @@ The optional Animation field supports serialization only; motion conversion
 remains a separate P1 feature and is not enabled by this resource class.
 
 `CubismMotionEvent` stores `time_seconds` and a String `value`. Event values are
-data, including Unicode text. The future playback layer is responsible for
-event timing, ordering and notification policy.
+data, including Unicode text. Native playback delivers deferred events through
+`CubismMotionHandle.event` and `CubismModel2D.motion_event`; see the
+[runtime guide](preferred-runtime.md) for timing and completion behavior.
 
 `CubismExpressionDescriptor` stores `id: StringName`, `source_path`, fade-in
 and fade-out seconds, and `parameters: Array[CubismExpressionParameter]`.

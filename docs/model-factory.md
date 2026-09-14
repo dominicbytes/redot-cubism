@@ -15,7 +15,7 @@ Manifest motion fades override nonnegative motion-level values. Declared motions
 are required; missing physics, pose, expressions, user data, display info or audio
 warn by default and fail in strict-optional mode. Malformed or unsafe references
 always fail. Missing optional paths remain indexed with a `missing` fingerprint
-so a future editor invalidation service can detect their arrival.
+so the [dependency tracker](dependency-tracking.md) can detect their arrival.
 
 The project setting `cubism/import/maximum_file_count` defaults to 1,024 and
 accepts integers from 1 through 4,096. It counts the manifest plus unique
@@ -34,8 +34,8 @@ Display-info parameter-group references must resolve, and parent cycles fail
 before the data reaches the editor. This does not validate all IDs against the MOC.
 
 The factory requires already imported PNG/WAV/OGG assets. It does not itself
-provision the Cubism-owned texture sampling policy, apply the full planned importer
-option set, register an automatic importer, or track changes. The importer applies
+provision the Cubism-owned texture sampling policy, register an automatic importer,
+or track changes. `build_with_options` applies validated factory options; the importer applies
 the [texture policy](texture-import.md) after factory validation succeeds.
 See the [explicit editor import](editor-import.md)
 and [runtime resource adapter](resource-runtime.md) for the current integration.
