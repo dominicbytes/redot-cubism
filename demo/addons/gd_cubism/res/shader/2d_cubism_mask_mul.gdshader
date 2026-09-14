@@ -38,6 +38,8 @@ void fragment() {
     color_for_mask.rgb *= premultiplied_alpha ? modulate.a : color_for_mask.a;
 
     vec4 clip_mask = texture(tex_mask, MASK_UV) * channel;
+    // Mask coverage is empty outside its buffer, even when edge texels are nonzero.
+    clip_mask *= float(all(greaterThanEqual(MASK_UV, vec2(0.0))) && all(lessThanEqual(MASK_UV, vec2(1.0))));
 
     float mask_val = clip_mask.r + clip_mask.g + clip_mask.b + clip_mask.a;
     color_for_mask = color_for_mask * mask_val;

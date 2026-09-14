@@ -321,3 +321,41 @@ the reference executable is
 Private evidence and its checksum manifest are saved in
 `.local-build/sdk-current-checkpoint`. These static RGB measurements do not
 qualify animated, alpha, Windows or final whole-model visual acceptance.
+
+
+### Coverage outside a mask buffer
+
+A deterministic closed-eye expression exposed colored patches above Mao's eyes
+that were absent in the same-SDK reference. Parameters, part opacities and the
+model-view-projection matrix matched. Thin mask buffers had nonzero edge texels;
+clamped texture sampling extended that coverage beyond the mask buffer.
+
+All six masked normal/add/multiply shaders now treat samples outside the mask UV
+rectangle as zero coverage. Inverted masks then correctly yield full coverage
+outside the rectangle. An expanded regression checks all four exterior edges,
+source and destination alpha variants, and each blend/mask combination. Original
+shaders fail 96 cases; corrected shaders pass all 198 cases with the existing
+3/255 channel tolerance.
+
+The private reference matrix covers Haru and Mao in neutral, motion, expression,
+180-step physics and rotated/scaled states, with both straight and premultiplied
+textures. The SDK reference explicitly selects and reports the matching texture
+encoding. SDK states are transferred into Redot to isolate rendering; these
+captures do not establish native expression/physics evaluator parity.
+
+For Mao's closed-eye expression, foreground RGB RMS on a 0–255 scale improves
+from 2.825 to 0.783 for straight textures and from 2.799 to 0.819 for premultiplied
+textures. Alpha RMS remains 0.175. All 20 fixed-shader captures have matching
+model states. The visible patches disappear; residual edge differences remain.
+These measurements do not replace approved whole-model or Windows acceptance
+criteria, and no comparison tolerance was relaxed.
+
+The unchanged native debug library SHA-256 is
+`d9e934116136e5b7664522e0c483abbcace04280d652efb50eff43d23a67d0b7`.
+Shader identities, original failures, mask-buffer diagnostics, SDK reference
+identity and captures are retained privately in `.local-build` recovery records.
+
+Linux native and exported debug/release suites each pass all 59 checks, including
+198 blend/mask-edge cases in both source and exported execution. The 53 public
+tests and restricted-file audit pass. Shader changes do not require rebuilding
+the unchanged native libraries; final release revision qualification remains open.
