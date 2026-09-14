@@ -35,6 +35,18 @@ def check_report(path, library_hash, engine_version):
     return report
 
 
+def export_stages(library, template, mode, imported, bridge, other_library):
+    common = ['--library', str(library)]
+    template = ['--template', str(template)]
+    return [
+        ('selection', 'run_export_selection_tests.py', template + ['--importer-report', str(imported), '--export-mode', mode, '--preflight'], 'selection-report.json'),
+        ('checked-export', 'run_checked_export_tests.py', ['--importer-report', str(imported), '--mode', mode, '--ui'], 'checked-export-report.json'),
+        ('legacy-export', 'run_legacy_export_tests.py', common + ['--importer-report', str(imported)], 'legacy-export-report.json'),
+        ('legacy-bridge', 'run_legacy_bridge_tests.py', common + template + ['--importer-report', str(imported), '--mode', mode, '--graphics'], 'legacy-bridge-report.json'),
+        ('export-identity', 'run_export_identity_tests.py', ['--bridge-report', str(bridge), '--wrong-library', str(other_library)], 'export-identity-report.json'),
+    ]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ('model', 'library', 'other-library', 'template', 'output'):
@@ -68,12 +80,7 @@ def main():
         ('editor', 'run_editor_tests.py', common + ['--native-report', str(native)], 'editor-report.json'),
         ('importer', 'run_importer_tests.py', common + model + template + ['--export-mode', args.mode, '--dependencies', '--graphics', 'gl_compatibility'], 'importer-report.json'),
         ('model2d', 'run_model2d_tests.py', common + template + ['--importer-report', str(imported), '--mode', args.mode, '--graphics', '--motion', '--examples', '--audio-timing'], 'model2d-report.json'),
-        ('selection', 'run_export_selection_tests.py', template + ['--importer-report', str(imported), '--export-mode', args.mode, '--preflight'], 'selection-report.json'),
-        ('checked-export', 'run_checked_export_tests.py', ['--importer-report', str(imported), '--mode', args.mode, '--ui'], 'checked-export-report.json'),
-        ('legacy-export', 'run_legacy_export_tests.py', common + ['--importer-report', str(imported)], 'legacy-export-report.json'),
-        ('legacy-bridge', 'run_legacy_bridge_tests.py', common + template + ['--importer-report', str(imported), '--mode', args.mode, '--graphics'], 'legacy-bridge-report.json'),
-        ('export-identity', 'run_export_identity_tests.py', ['--bridge-report', str(bridge), '--wrong-library', str(args.other_library)], 'export-identity-report.json'),
-    ]
+    ] + export_stages(args.library, args.template, args.mode, imported, bridge, args.other_library)
     report = {'status': 'RUNNING', 'suite': 'desktop-functional', 'platform': platform.system(),
               'architecture': platform.machine(), 'mode': args.mode, 'run': str(run),
               'runner_sha256': sha256(__file__),

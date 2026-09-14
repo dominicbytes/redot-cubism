@@ -43,6 +43,31 @@ editor checks, the other platform/variant, and publication review are separate
 required gates. The aggregate `run_tests.py --suite licensed-desktop` remains
 unqualified until all required gates are connected and verified.
 
+The aggregate frontend can also run the editor or all five export stages against
+a retained passing fixture from the same library and pinned editor:
+
+```sh
+python tools/run_tests.py --suite editor \
+  --native-report /private/native/native-report.json \
+  --library /private/build/libgd_cubism.linux.debug.x86_64.so \
+  --output /private/editor-results
+
+python tools/run_tests.py --suite export \
+  --importer-report /private/importer/importer-report.json \
+  --library /private/build/libgd_cubism.linux.debug.x86_64.so \
+  --other-library /private/build/libgd_cubism.linux.release.x86_64.so \
+  --template /private/templates/linux_debug.x86_64 \
+  --export-mode debug --output /private/export-results
+```
+
+Set `REDOT_BIN` as above. Keep the prepared projects referenced by the input
+reports; copying only their JSON files is insufficient. Editor runs require a
+graphics session. Export runs include the checked-export dialog and graphical
+legacy bridge. A fresh directory below `--output` contains `editor.json` or
+`export.json`, child reports and logs. Missing or failing child reports fail the
+aggregate even if the child exits zero. These commands qualify only their named
+suite; `release_qualified` remains false.
+
 For licensed CI, execute reviewed commits in an isolated private runner with
 locally provisioned SDK/model inputs. Do not expose that runner, its cache, or
 its artifacts to public pull-request jobs. These output directories contain
