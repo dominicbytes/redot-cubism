@@ -86,3 +86,18 @@ def windows_core_library(core, env):
     # redot-cpp always uses /MDd for debug_crt, including use_static_cpp=yes.
     crt = "MDd" if env["debug_crt"] else ("MT" if env["use_static_cpp"] else "MD")
     return core / "lib/windows/x86_64/143" / f"Live2DCubismCore_{crt}.lib"
+
+
+def sanitizer_flags(mode, platform):
+    """Return addon compiler/linker flags; SDK Core and binding archives stay unchanged."""
+    if mode not in ("none", "address", "undefined", "address,undefined"):
+        raise ValueError("sanitize supports none, address, undefined or address,undefined")
+    if mode == "none":
+        return [], []
+    if platform != "linux":
+        raise ValueError("Sanitizer builds are supported on Linux only")
+    flags = ["-fsanitize=" + mode]
+    compile_flags = flags + ["-fno-omit-frame-pointer", "-g1"]
+    if "undefined" in mode:
+        compile_flags += ["-fno-sanitize-recover=undefined"]
+    return compile_flags, flags
