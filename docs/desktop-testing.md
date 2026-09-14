@@ -69,17 +69,39 @@ variables: `REDOT_BIN`, `REDOT_CPP_ROOT`, `CUBISM_SDK_ROOT`, `CUBISM_WORK_ROOT`,
 Prepare the private SDK captures and reviewed adapter-specific limits using
 [visual testing](visual-testing.md). Install `tools/requirements-visual.txt`
 in the runner's project-local Python environment before running the workflow.
-The last two identify the prepared project and explicit fixture list described
-in [SDK motion testing](sdk-motion-testing.md). Paths refer to that runner's
-private filesystem.
+`CUBISM_MOTION_PROJECT` and `CUBISM_MOTION_FIXTURES` identify the prepared project
+and explicit fixture list described in [SDK motion testing](sdk-motion-testing.md).
+Paths refer to that runner's private filesystem.
 Install the pinned Python/SCons toolchain and compiler first. Windows currently
 requires VS 2022/MSVC 14.3; other toolsets fail the Core-library selection check.
 The runner needs an interactive graphics session for real editor/render tests.
 
+Performance acceptance additionally requires these runner variables:
+
+- `CUBISM_BENCHMARK_PROJECT`, `CUBISM_BENCHMARK_RESOURCE` and
+  `CUBISM_BENCHMARK_MASK_RESOURCE`: the prepared project and its two imported
+  model resource paths.
+- `CUBISM_BENCHMARK_MOTION` and `CUBISM_BENCHMARK_EXPRESSION`: authored IDs used
+  by the eight workloads.
+- `CUBISM_BENCHMARK_RUNNER_ID`: the stable dedicated-machine identity used when
+  recording the baseline.
+- `CUBISM_BENCHMARK_BASELINE`: the reviewed baseline report on that machine.
+- `CUBISM_BENCHMARK_RELATIVE_THRESHOLD`: the reviewed nonnegative fractional
+  regression limit, such as `0.10` for 10%; no default is supplied.
+
+Record and review a baseline with [the benchmark runner](benchmarks.md) before
+dispatching licensed CI. Use its default 60 warmup and 300 measured frames and
+the same fixture IDs. Configuration must match the baseline, including the
+runner, engine, graphics driver and benchmark scripts. A changed measurement
+script requires a newly reviewed baseline. Missing inputs or a missing baseline
+file fail before any build; mismatched identities or regressions fail the job.
+
 The workflow verifies the editor/API, builds both native variants sequentially,
 then runs each functional sequence and the independent SDK motion comparison
-for both variants. A failed comparison fails the job. Builds and reports remain
-under
+and visual tests for both variants. It then runs all eight benchmark scenarios
+with the debug library and requires the baseline comparison to pass. A failed
+comparison fails the job. The benchmark report and raw measurements are retained
+in `benchmark-debug` alongside the other private build/test artifacts under
 `CUBISM_WORK_ROOT/<run-id>/<attempt>`. Retain that directory privately or use a
 private artifact store. Provisioning, environment approval, actual Windows runs,
 and required status propagation to the public release branch must still be
