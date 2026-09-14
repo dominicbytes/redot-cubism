@@ -1,0 +1,78 @@
+name: Licensed desktop functional tests
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_sha:
+        description: Full commit SHA reviewed for execution with private SDK inputs
+        required: true
+        type: string
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: utf-8
+jobs:
+  private-repository:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require private repository and explicit commit
+        shell: python
+        env:
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+        run: |
+          import os, re
+          if os.environ['REPOSITORY_PRIVATE'] != 'true':
+              raise SystemExit('Licensed jobs require a private repository; no runner was selected.')
+          if not re.fullmatch('[0-9a-f]{40}', os.environ['REVIEWED_SHA']):
+              raise SystemExit('Supply the full reviewed commit SHA.')
+  functional:
+    needs: private-repository
+    environment: licensed-desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [Linux, Windows]
+    runs-on: [self-hosted, cubism-licensed, '${{ matrix.platform }}']
+    timeout-minutes: 180
+    concurrency:
+      group: cubism-licensed-${{ matrix.platform }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.reviewed_sha }}
+          persist-credentials: false
+      - name: Build both variants and run the functional sequence
+        shell: python
+        run: |
+          import json, os, pathlib, subprocess, sys
+          import SCons
+          required = ['REDOT_BIN', 'REDOT_CPP_ROOT', 'CUBISM_SDK_ROOT', 'CUBISM_WORK_ROOT',
+                      'CUBISM_MODEL', 'CUBISM_EXPRESSION', 'CUBISM_TEMPLATE_DEBUG', 'CUBISM_TEMPLATE_RELEASE']
+          for key in required:
+              if not os.environ.get(key):
+                  raise SystemExit('Missing private runner environment variable: ' + key)
+          pins = json.loads(pathlib.Path('DEPENDENCIES.json').read_text())
+          if SCons.__version__ != pins['toolchain']['scons']:
+              raise SystemExit('Install the pinned SCons version on the private runner.')
+          target = 'windows' if sys.platform == 'win32' else 'linux'
+          suffix = 'dll' if target == 'windows' else 'so'
+          root = pathlib.Path(os.environ['CUBISM_WORK_ROOT']).resolve() / os.environ['GITHUB_RUN_ID'] / os.environ['GITHUB_RUN_ATTEMPT']
+          root.mkdir(parents=True, exist_ok=True)
+          identity = root / 'identity'
+          subprocess.run([sys.executable, 'tools/verify_dependencies.py', '--output', str(identity)], check=True)
+          libraries = {}
+          for mode in ['debug', 'release']:
+              env = dict(os.environ, CUBISM_BUILD_DIR=str(root / ('build-' + mode)))
+              subprocess.run([sys.executable, '-m', 'SCons', 'platform=' + target, 'arch=x86_64',
+                              'target=template_' + mode, 'precision=single', 'use_static_cpp=yes',
+                              'custom_api_file=' + str(identity / 'extension_api.json'),
+                              'build_profile=tools/native_build_profile.json', '-j2',
+                              *(['debug_crt=no'] if target == 'windows' else [])], env=env, check=True)
+              libraries[mode] = str(pathlib.Path('demo/addons/gd_cubism/bin').resolve() / ('libgd_cubism.' + target + '.' + mode + '.x86_64.' + suffix))
+          for mode, other in [('debug', 'release'), ('release', 'debug')]:
+              subprocess.run([sys.executable, 'tools/run_desktop_tests.py', '--model', os.environ['CUBISM_MODEL'],
+                              '--expression', os.environ['CUBISM_EXPRESSION'], '--library', libraries[mode],
+                              '--other-library', libraries[other], '--template', os.environ['CUBISM_TEMPLATE_' + mode.upper()],
+                              '--mode', mode, '--output', str(root / ('tests-' + mode))], check=True)
