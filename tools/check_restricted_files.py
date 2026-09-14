@@ -24,7 +24,7 @@ def git(*args):
     return subprocess.check_output(["git", *args])
 
 
-def inspect_bytes(name, data, approved=None, depth=0, budget=None):
+def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False):
     """Return problems; approvals allow only one exact native file/hash pair."""
     approved = approved or {}
     budget = budget if budget is not None else [MAX_BYTES, MAX_MEMBERS]
@@ -32,7 +32,15 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None):
     parts = PurePosixPath(lower).parts
     suffix = PurePosixPath(lower).suffix
     problems = []
-    if "live2dcubismcore" in lower or "cubismsdkfornative" in lower:
+    if public:
+        public_parts = PurePosixPath(lower.replace("!", "/")).parts
+        if (any(p in {".local-build", ".private-fixtures", ".local-sdk"} for p in public_parts)
+                or "source-of-truth.xlsx" in public_parts or suffix == ".bundle"):
+            problems.append(f"{name}: private publication content")
+    # Upstream history contains this empty SDK-directory placeholder, not SDK bytes.
+    sdk_placeholder = (lower == "thirdparty/cubismsdkfornative/.gitignore"
+                       and data == b"*\n!.gitignore\n")
+    if "live2dcubismcore" in lower or ("cubismsdkfornative" in lower and not sdk_placeholder):
         problems.append(f"{name}: restricted Core/SDK path")
     if suffix == ".moc3" or any(p in SAMPLES for p in parts):
         problems.append(f"{name}: model/sample path requires separate review")
@@ -59,7 +67,7 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None):
         if depth >= MAX_DEPTH or min(budget) < 0:
             problems.append(f"{child}: archive audit limit exceeded")
             return
-        problems.extend(inspect_bytes(child, read(), approved, depth + 1, budget))
+        problems.extend(inspect_bytes(child, read(), approved, depth + 1, budget, public))
 
     try:
         stream = io.BytesIO(data)
@@ -74,7 +82,9 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None):
                         break
         elif lower.endswith((".zip", ".xlsx", ".jar", ".aar")):
             problems.append(f"{name}: invalid ZIP archive")
-        elif lower.endswith((".tar", ".tar.gz", ".tgz", ".tar.xz", ".tar.bz2")):
+        elif (lower.endswith((".tar", ".tar.gz", ".tgz", ".tar.xz", ".tar.bz2"))
+              or tarfile.is_tarfile(stream)):
+            stream.seek(0)
             with tarfile.open(fileobj=stream, mode="r:*") as archive:
                 for entry in archive:
                     if not entry.isdir():
