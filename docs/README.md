@@ -9,13 +9,15 @@ Start with [setup and first character](quick-start.md). Use the
 
 | Task | Guide |
 |---|---|
-| Import a model and choose options | [Editor import](editor-import.md), [texture import](texture-import.md) |
+| Build the addon | [Linux](build/linux.md), [Windows](build/windows.md), [macOS status](build/macos.md), [mobile status](build/mobile.md) |
+| Import a model and choose options | [Importing models](usage/importing-models.md), [editor options](editor-import.md), [texture import](texture-import.md) |
 | Inspect the imported model | [Model Inspector](model-inspector.md), [resource format](model-resource.md), [motion/expression descriptors](descriptors.md) |
-| Display and animate a character | [Preferred runtime API](preferred-runtime.md) |
-| Play dialogue with optional recorded voice | [Dialogue integration](dialogue-integration.md), [VN/RPG examples](../demo/addons/gd_cubism/examples/character_workflows/README.md) |
-| Migrate existing GDCubism scenes | [Legacy compatibility](legacy-compatibility.md), [resource loading](resource-runtime.md) |
+| Display and animate a character | [CubismModel2D](usage/cubism-model-2d.md), [motions and expressions](usage/motions-and-expressions.md), [detailed runtime API](preferred-runtime.md) |
+| Play dialogue with optional recorded voice | [Lip sync](usage/lip-sync.md), [dialogue integration](dialogue-integration.md), [VN example](usage/visual-novel-example.md), [RPG example](usage/rpg-example.md) |
+| Migrate existing GDCubism scenes | [Migration](migration/from-gd-cubism.md), [legacy contracts](legacy-compatibility.md), [resource loading](resource-runtime.md) |
 | Refresh changed assets | [Dependency tracking](dependency-tracking.md) |
-| Export a game | [Checked exports](export-validation.md), [licensing](licensing.md) |
+| Export a game | [Export workflow](usage/exporting.md), [validation details](export-validation.md), [licensing](licensing.md) |
+| Check compatibility or recover from errors | [Redot](compatibility/redot.md), [SDK matrix](compatibility/cubism_sdk_matrix.md), [troubleshooting](troubleshooting.md) |
 | Diagnose rendering and ownership | [Debug overlays](debug-overlay.md), [statistics](debug-statistics.md) |
 | Reproduce qualification checks | [Desktop suite](desktop-testing.md), [editor suite](editor-testing.md), [SDK motion comparison](sdk-motion-testing.md), [visual comparison](visual-testing.md), [benchmarks](benchmarks.md), [sanitizers](sanitizers.md) |
 
