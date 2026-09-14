@@ -14,6 +14,7 @@ protected:
 
 public:
 	static godot::Dictionary get_versions();
+	static godot::Dictionary get_debug_statistics();
 };
 
 #endif

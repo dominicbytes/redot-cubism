@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: 2026 Redot Cubism contributors
 #include "cubism_build_info.hpp"
 #include "cubism_build_info.gen.h"
+#include "gd_cubism_user_model.hpp"
 
 #include <CubismFramework.hpp>
 #include <godot_cpp/classes/engine.hpp>
@@ -12,6 +13,11 @@ using namespace godot;
 
 void CubismBuildInfo::_bind_methods() {
 	ClassDB::bind_static_method("CubismBuildInfo", D_METHOD("get_versions"), &CubismBuildInfo::get_versions);
+	ClassDB::bind_static_method("CubismBuildInfo", D_METHOD("get_debug_statistics"), &CubismBuildInfo::get_debug_statistics);
+}
+
+Dictionary CubismBuildInfo::get_debug_statistics() {
+	return GDCubismUserModel::get_debug_statistics();
 }
 
 Dictionary CubismBuildInfo::get_versions() {

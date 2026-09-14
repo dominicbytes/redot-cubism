@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2023 MizunagiKB <mizukb@live.jp>
 // ----------------------------------------------------------------- include(s)
+#include "cubism_debug_statistics.hpp"
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/classes/file_access.hpp>
@@ -76,6 +77,48 @@ void GDCubismUserModel::shutdown_models() {
         model->destroying = true;
         model->clear(GDCubismMotionQueueEntryHandle::MODEL_DESTROYED);
     }
+}
+
+Dictionary GDCubismUserModel::get_debug_statistics() {
+#ifdef DEBUG_ENABLED
+    Dictionary result = cubism_debug_frame_statistics();
+    int64_t models = 0, drawables = 0, masks = 0, handles = 0, atlases = 0;
+    std::set<uint64_t> meshes, materials;
+    for (const auto *model : live_models) {
+        if (model->is_initialized()) ++models;
+        handles += model->motion_handles.size();
+        if (model->preferred_animator) handles += model->preferred_animator->get_owned_handle_count();
+        if (!model->internal_model) continue;
+        const auto &resources = model->internal_model->_renderer_resource;
+        masks += resources.dict_mask.size();
+        TypedArray<Node> nodes = resources.managed_nodes.duplicate();
+        const int original_count = nodes.size();
+        resources.compositor.append_debug_nodes(nodes);
+        for (int i = 0; i < nodes.size(); ++i) {
+            Node *node = Object::cast_to<Node>(nodes[i]);
+            if (i >= original_count && Object::cast_to<SubViewport>(node)) ++atlases;
+            if (auto *drawable = Object::cast_to<MeshInstance2D>(node)) {
+                ++drawables;
+                const Ref<Mesh> mesh = drawable->get_mesh();
+                const Ref<Material> material = drawable->get_material();
+                if (mesh.is_valid()) meshes.insert(mesh->get_instance_id());
+                if (material.is_valid()) materials.insert(material->get_instance_id());
+            }
+        }
+    }
+    result["loaded_models"] = models;
+    result["live_drawable_nodes"] = drawables;
+    result["live_mesh_resources"] = static_cast<int64_t>(meshes.size());
+    result["live_material_resources"] = static_cast<int64_t>(materials.size());
+    result["live_mask_viewports"] = masks;
+    result["live_compositor_viewports"] = atlases;
+    result["live_motion_handles"] = handles;
+    return result;
+#else
+    Dictionary result;
+    result["enabled"] = false;
+    return result;
+#endif
 }
 
 
@@ -590,6 +633,9 @@ void GDCubismUserModel::_update(const double delta) {
     }
     native_busy = true;
 
+    #ifdef DEBUG_ENABLED
+    CubismDebugTimer model_timer(CubismDebugPhase::MODEL);
+    #endif
     this->internal_model->pro_update(step);
     update_motion_handles();
 
@@ -617,6 +663,9 @@ void GDCubismUserModel::_update(const double delta) {
     }
 
     this->internal_model->epi_update(step);
+    #ifdef DEBUG_ENABLED
+    model_timer.stop();
+    #endif
 
     // https://github.com/godotengine/godot/issues/90030
     // https://github.com/godotengine/godot/issues/90017

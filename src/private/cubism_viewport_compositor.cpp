@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 #include "cubism_viewport_compositor.hpp"
+#include "cubism_debug_statistics.hpp"
 #include "cubism_model_2d.hpp"
 #include <godot_cpp/classes/array_mesh.hpp>
 #include <godot_cpp/classes/display_server.hpp>
@@ -24,6 +25,19 @@ void CubismViewportCompositor::clear() {
     material.unref();
     error = String();
 }
+
+#ifdef DEBUG_ENABLED
+void CubismViewportCompositor::append_debug_nodes(TypedArray<Node> &nodes) const {
+    if (atlas) nodes.append(atlas);
+    if (copy) nodes.append(copy);
+    if (output) nodes.append(output);
+    for (const auto &cell : cells) {
+        nodes.append(cell.clip);
+        nodes.append(cell.white);
+        nodes.append(cell.mesh);
+    }
+}
+#endif
 
 void CubismViewportCompositor::set_visible(bool visible) {
     if (atlas) atlas->set_update_mode(visible ? SubViewport::UPDATE_ALWAYS : SubViewport::UPDATE_DISABLED);
@@ -205,6 +219,10 @@ void CubismViewportCompositor::update(Node2D *owner, const std::vector<CubismCom
         }
         quad->surface_update_vertex_region(0, 0, bytes);
     }
+    #ifdef DEBUG_ENABLED
+    const uint64_t vertex_format = quad->surface_get_format(0);
+    cubism_debug_vertex_upload(4 * server->mesh_surface_get_format_vertex_stride(vertex_format, 4));
+    #endif
     Rect2 local_bounds(vertices[0], Vector2());
     for (int i = 1; i < 4; ++i) local_bounds.expand_to(vertices[i]);
     quad->set_custom_aabb(AABB(Vector3(local_bounds.position.x, local_bounds.position.y, 0), Vector3(local_bounds.size.x, local_bounds.size.y, 0)));
