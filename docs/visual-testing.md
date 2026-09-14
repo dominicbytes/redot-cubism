@@ -25,6 +25,12 @@ layout in the recorded MVP. Use the same texture encoding and explicit mask
 quality for the SDK and candidate. The candidate's mask buffers are adaptive,
 so an equal maximum size does not imply identical mask sampling.
 
+For multi-model order fixtures, reverse only the drawing order. Verify each
+model's recorded state and transform remain identical, and verify the SDK
+images actually differ in the overlap. For blend and mask coverage, record
+visible drawable flags and nonzero opacity at the captured state. A model
+containing hidden additive meshes does not establish additive image coverage.
+
 The private fixture JSON has this shape. Hash placeholders must be replaced
 with actual SHA-256 values; image paths are relative to the fixture JSON:
 
