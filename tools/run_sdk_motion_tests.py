@@ -17,7 +17,7 @@ from build_inputs import core_library, sdk_roots, sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 TOLERANCE = 1e-5
-CASE_KEYS = ('resource', 'group', 'index', 'steps', 'fps', 'loop', 'expression', 'physics', 'pose', 'breath', 'look')
+CASE_KEYS = ('resource', 'group', 'index', 'steps', 'fps', 'loop', 'expression', 'physics', 'pose', 'breath', 'look', 'expression_switch')
 
 
 def compare_states(expected, actual):
@@ -62,6 +62,11 @@ def load_fixtures(path):
             if (not isinstance(look, list) or len(look) not in (0, 2) or
                     any(type(v) not in (int, float) or not math.isfinite(v) or abs(v) > 1e7 for v in look)):
                 raise ValueError('Look must be empty or two finite local pixel coordinates within +/-1e7')
+            switch = motion.setdefault('expression_switch', {})
+            if not isinstance(switch, dict) or (switch and (
+                    set(switch) != {'step', 'id'} or type(switch['step']) is not int or
+                    not 1 <= switch['step'] <= 36000 or not isinstance(switch['id'], str) or not switch['id'])):
+                raise ValueError('Expression switch requires an ID and a step in 1..36000')
         fixture['model'] = str((path.parent / fixture['model']).resolve())
     return fixtures
 
@@ -106,7 +111,7 @@ def main():
     sdk_sources = sorted((framework / 'src').glob('*.cpp'))
     for folder in ('Effect', 'Id', 'Math', 'Model', 'Motion', 'Physics', 'Rendering', 'Type', 'Utils'):
         sdk_sources += sorted((framework / 'src' / folder).glob('*.cpp'))
-    report = {'status': 'RUNNING', 'run': str(run), 'scope': 'Native motion with optional looping and expression/physics/pose/breath/look parameter and part states',
+    report = {'status': 'RUNNING', 'run': str(run), 'scope': 'Native motion with optional looping, expression switching and physics/pose/breath/look parameter and part states',
               'release_qualified': False, 'platform': platform.system(), 'engine_version': version,
               'engine_sha256': sha256(engine), 'library_sha256': sha256(args.library),
               'framework_sha256': pins['cubism_framework']['source_sha256'], 'core_sha256': sha256(core_path),
@@ -162,6 +167,10 @@ def main():
                     matches = [item['File'] for item in manifest.get('Expressions', []) if item['Name'] == motion['expression']]
                     if len(matches) != 1: raise ValueError('Select exactly one manifest expression')
                     effect_hashes['expression_sha256'] = sha256(manifest_path.parent / matches[0])
+                if motion['expression_switch']:
+                    matches = [item['File'] for item in manifest.get('Expressions', []) if item['Name'] == motion['expression_switch']['id']]
+                    if len(matches) != 1: raise ValueError('Select exactly one switched manifest expression')
+                    effect_hashes['expression_switch_sha256'] = sha256(manifest_path.parent / matches[0])
                 for key in ('physics', 'pose'):
                     if motion[key]: effect_hashes[key + '_sha256'] = sha256(manifest_path.parent / manifest[key.title()])
                 for steps in args.steps:
@@ -169,11 +178,12 @@ def main():
                     state_path = run / (name + '.json')
                     execute(name, [str(reference), str(manifest_path), motion['group'], str(motion['index']), str(steps), str(args.fps), str(state_path),
                                    motion['expression'], str(int(motion['physics'])), str(int(motion['pose'])), str(int(motion['breath'])), *map(str, motion['look'])]
+                                  + (['--expression-at', motion['expression_switch']['id'], str(motion['expression_switch']['step'])] if motion['expression_switch'] else [])
                                   + (['--loop'] if motion['loop'] else []))
                     state = json.loads(state_path.read_text(encoding='utf-8'))
                     compare_states(state, state)
                     if state['steps'] != steps or state['fps'] != args.fps: raise ValueError('Reference time mismatch')
-                    if any(state[key] != motion[key] for key in ('loop', 'expression', 'physics', 'pose', 'breath', 'look')): raise ValueError('Reference effects mismatch')
+                    if any(state[key] != motion[key] for key in ('loop', 'expression', 'physics', 'pose', 'breath', 'look', 'expression_switch')): raise ValueError('Reference effects mismatch')
                     cases.append(dict(state, resource=fixture['resource'], group=motion['group'], index=motion['index'],
                                       manifest_sha256=sha256(manifest_path), moc_sha256=sha256(manifest_path.parent / manifest['Moc']), motion_sha256=sha256(motion_path), **effect_hashes))
         (run / 'reference.json').write_text(json.dumps({'cases': cases}, indent=2) + '\n', encoding='utf-8')
