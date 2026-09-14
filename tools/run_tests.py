@@ -6,9 +6,13 @@ import argparse
 import json
 import os
 from pathlib import Path
+import signal
 import subprocess
 import sys
+import tempfile
 import time
+
+from run_desktop_tests import check_report, export_stages, sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -27,6 +31,9 @@ def main():
     parser.add_argument("--fallback-mode", action="append", default=[], choices=["canvas_group", "subviewport"], help="Explicit composition experiment")
     parser.add_argument("--graphics", choices=["gl_compatibility", "forward_plus"], help="Render private native smoke captures")
     parser.add_argument("--library", type=Path, help="Built addon library for native smoke")
+    parser.add_argument("--native-report", type=Path, help="Passing native report with its prepared project for editor tests")
+    parser.add_argument("--importer-report", type=Path, help="Passing importer report with its prepared project for export tests")
+    parser.add_argument("--other-library", type=Path, help="Opposite build variant for export rejection tests")
     parser.add_argument("--sanitizer-runtime", type=Path)
     parser.add_argument("--sanitizer-library", type=Path)
     parser.add_argument("--benchmark-project", type=Path, help="Prepared private project for all eight benchmarks")
@@ -38,6 +45,7 @@ def main():
     parser.add_argument("--visual-limits", type=Path, help="Reviewed limits for the exact visual fixtures and adapter")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
+    child_reports = []
     if args.suite == "public":
         commands = [[sys.executable, "-m", "unittest", "discover", "-s", "tests/python", "-v"],
                     [sys.executable, "tools/check_restricted_files.py"], ["git", "diff", "--check"]]
@@ -66,6 +74,36 @@ def main():
             commands[0] += ["--sanitizer-runtime", str(args.sanitizer_runtime.resolve()), "--sanitizer-library", str(args.sanitizer_library.resolve())]
         elif args.sanitizer_runtime or args.sanitizer_library:
             parser.error("Supply both sanitizer runtime and library")
+    elif args.suite in ("editor", "export"):
+        required = ("library", "native_report") if args.suite == "editor" else ("library", "importer_report", "other_library", "template")
+        for name in required:
+            path = getattr(args, name)
+            if not path or not path.is_file():
+                parser.error(args.suite + " requires an existing --" + name.replace("_", "-"))
+            setattr(args, name, path.resolve())
+        library_hash = sha256(args.library)
+        engine_version = json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]
+        prepared_report = args.native_report if args.suite == "editor" else args.importer_report
+        try:
+            prepared = check_report(prepared_report, library_hash, engine_version)
+            if prepared.get("library_sha256") != library_hash or prepared.get("engine_version") != engine_version:
+                raise ValueError("Prepared fixture must identify the selected library and pinned engine")
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+        args.output = Path(tempfile.mkdtemp(prefix=args.suite + "-", dir=args.output.resolve()))
+        if args.suite == "editor":
+            stages = [("editor", "run_editor_tests.py", ["--native-report", str(args.native_report),
+                       "--library", str(args.library)], "editor-report.json")]
+        else:
+            stages = export_stages(args.library, args.template, args.export_mode, args.importer_report,
+                                   args.output / "legacy-bridge/legacy-bridge-report.json", args.other_library)
+        commands = []
+        for name, tool, switches, filename in stages:
+            output = args.output / name
+            output.mkdir()
+            commands.append([sys.executable, str(ROOT / "tools" / tool), *switches, "--output", str(output)])
+            child_reports.append(output / filename)
+        print("Suite output: " + str(args.output), flush=True)
     elif args.suite == "benchmark":
         if not args.benchmark_project or not args.library or not args.mask_resource or not args.expression:
             parser.error("benchmark requires --benchmark-project, --library, --mask-resource and --expression")
@@ -85,21 +123,50 @@ def main():
         print(f"BLOCKED: {args.suite} is not qualified at this stage. It requires the matched SDK, fixture and target runner.", file=sys.stderr)
         return 2
     results = []
+    report = {"suite": args.suite, "status": "RUNNING", "checks": results, "release_qualified": False,
+              "cubism_model_tests_selected": args.suite in ("native-smoke", "benchmark", "visual", "editor", "export")}
+    if child_reports:
+        report.update(library_sha256=library_hash, engine_version=engine_version, run=str(args.output))
+    destination = args.output / f"{args.suite}.json"
+    destination.write_text(json.dumps(report, indent=2) + "\n")
     for index, command in enumerate(commands):
         start = time.monotonic()
+        log = ""
+        timeout = 1800 if child_reports else (2500 if args.suite == "benchmark" else (900 if args.sanitizer_runtime or args.suite == "visual" else 300))
         try:
-            result = subprocess.run(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=2500 if args.suite == "benchmark" else (900 if args.sanitizer_runtime or args.suite == "visual" else 300))
-            code, log = result.returncode, result.stdout
-        except subprocess.TimeoutExpired:
-            code, log = 124, "Test command exceeded the wall-clock limit."
+            process = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       text=True, start_new_session=os.name != "nt")
+            try:
+                log, _ = process.communicate(timeout=timeout)
+                code = process.returncode
+            except subprocess.TimeoutExpired:
+                if os.name == "nt":
+                    subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, timeout=30)
+                else:
+                    os.killpg(process.pid, signal.SIGKILL)
+                log, _ = process.communicate(timeout=30)
+                code = 124
+                log += "\nTest command exceeded the wall-clock limit.\n"
+            if not code and child_reports:
+                child = check_report(child_reports[index], library_hash, engine_version)
+                if args.suite == "editor" and child.get("graphics") is not True:
+                    raise ValueError("Editor suite requires a graphical run")
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            code = 1
+            log += "\n" + str(error) + "\n"
         path = args.output / f"{args.suite}-{index}.log"
         path.write_text(log)
         results.append({"command": command, "exit_code": code, "elapsed_seconds": round(time.monotonic() - start, 3), "log": path.name})
+        if child_reports:
+            results[-1]["report"] = str(child_reports[index])
+        report["status"] = "FAIL" if code else "RUNNING"
+        destination.write_text(json.dumps(report, indent=2) + "\n")
         print(log, end="" if log.endswith("\n") else "\n")
         if code:
             break
     status = "FAIL" if any(r["exit_code"] for r in results) else "PASS"
-    (args.output / f"{args.suite}.json").write_text(json.dumps({"suite": args.suite, "status": status, "checks": results, "cubism_model_tests_selected": args.suite in ("native-smoke", "benchmark", "visual")}, indent=2) + "\n")
+    report["status"] = status
+    destination.write_text(json.dumps(report, indent=2) + "\n")
     return int(status != "PASS")
 
 
