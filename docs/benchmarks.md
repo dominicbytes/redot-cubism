@@ -82,15 +82,26 @@ implicitly. Repeat measurements under controlled conditions before reviewing a
 baseline; a VM measurement is useful evidence but does not replace the plan's
 dedicated-runner gate.
 
-`tools/run_tests.py --suite benchmark` exposes the default measurement workflow
+`tools/run_tests.py --suite benchmark` exposes measurement and baseline comparison
 through `--benchmark-project`, `--library`, `--resource`, `--mask-resource`,
-`--motion`, `--expression` and `--output`. Use `run_benchmarks.py` directly for
-sample counts and baseline comparison. Reports and copied projects can contain
+`--motion`, `--expression` and `--output`. It also accepts `--runner-id`, `--baseline`
+and `--relative-threshold` with the same meanings as above. Baseline and threshold
+must be supplied together, with a nonempty runner ID; no threshold is inferred.
+Use `run_benchmarks.py` directly to override sample counts.
+
+The aggregate creates a fresh directory below `--output` containing its
+`benchmark.json` and the underlying `benchmark-report.json`. It checks the child
+report as well as its exit status. The aggregate copies `qualification` into its
+own report: `MEASURED_ONLY` is a completed measurement run, while
+`BASELINE_COMPARISON_PASS` requires all eight scenarios to pass the reviewed
+comparison. `release_qualified` remains false in both cases. Missing reports,
+incomplete scenarios or mismatched library/engine identities fail the command.
+Reports and copied projects can contain
 licensed assets and private paths; keep them private unless separately reviewed.
 
 ## Current Linux VM measurements
 
-The corrected workload was exercised on Redot 26.2 using the current repository
+The workload was exercised through the aggregate frontend on 2026-09-14, using Redot 26.2 and the current repository
 shaders and a debug addon. The prepared SDK fixtures were Haru (`Idle/0`, `F03`)
 and Mao for mask stress. All eight scenarios passed their workload, cleanup and
 measurement checks: 60 warmup frames and 300 measured frames each (2,400 measured
@@ -98,18 +109,20 @@ frames total). Animated scenarios retained the expected 2/3/8 motion handles;
 static/mask scenarios retained none. Both culled scenarios requested zero mask
 redraws throughout measurement; mask stress created 16 mask compositions.
 
-These p95 timings are from an Omarchy VM using GL Compatibility through virgl:
+These p95 timings are from an Omarchy VM using GL Compatibility through virgl.
+They are a fresh measurement snapshot, not a regression comparison against the
+earlier VM run:
 
 | Scenario | Frame interval (ms) | Model CPU (ms) | Renderer CPU (ms) |
 |---|---:|---:|---:|
-| static | 19.683 | 0.709 | 2.543 |
-| vn | 27.335 | 1.513 | 6.110 |
-| party | 45.796 | 2.069 | 9.223 |
-| crowd | 104.393 | 3.728 | 27.298 |
-| masks | 41.939 | 1.095 | 6.559 |
-| physics | 41.105 | 2.078 | 9.827 |
-| offscreen | 59.240 | 3.636 | 27.170 |
-| hidden | 63.201 | 3.766 | 29.375 |
+| static | 14.685 | 0.955 | 2.818 |
+| vn | 25.398 | 1.344 | 5.106 |
+| party | 33.713 | 1.863 | 6.157 |
+| crowd | 124.015 | 4.492 | 27.765 |
+| masks | 55.218 | 0.841 | 8.105 |
+| physics | 49.212 | 2.243 | 8.981 |
+| offscreen | 72.854 | 3.747 | 29.102 |
+| hidden | 80.198 | 5.618 | 31.306 |
 
 The frame interval includes engine, graphics scheduling and harness overhead;
 CPU phase percentiles cannot be added to derive its percentile. Offscreen and
