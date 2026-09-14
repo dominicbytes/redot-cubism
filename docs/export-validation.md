@@ -43,7 +43,7 @@ are allowed. Validation inspects scene state without instantiating scene nodes.
 
 The native export plugin calls this validation for included model/resource/scene
 files, stages verified raw payloads with their original paths and `remap=false`,
-and includes the ten known runtime shaders. It avoids duplicate raw entries when
+and includes the eleven known runtime shaders. It avoids duplicate raw entries when
 normal export selection already includes those files. Texture/audio and native
 extension references go through Redot's normal dependency/remap/export process.
 

@@ -13,6 +13,8 @@ Current evidence: [bootstrap](docs/gamedev/pr-01-report.md) and
 [Linux compatibility spike](docs/gamedev/pr-02a-report.md), and
 [real SDK port tests](docs/gamedev/pr-02b-native-report.md).
 
+- [Setup and first character](docs/quick-start.md)
+- [Documentation index](docs/README.md)
 - [Implementation plan](redot_live2d_cubism_importer_codex_plan.md)
 - [Provisional editor model import](docs/editor-import.md)
 - [Editor workflow regression](docs/editor-testing.md)
@@ -25,8 +27,8 @@ Current evidence: [bootstrap](docs/gamedev/pr-01-report.md) and
 - Local source, decision and risk index: `docs/gamedev/source-of-truth.xlsx`
   (excluded from the public source branch).
 
-The first milestone preserves the upstream API. Importer, export workflow and
-gameplay additions follow the plan's dependency graph. Run the current public
+The port retains the legacy API alongside the preferred `CubismModel2D` resource
+workflow and `CubismCharacterController` for motion and recorded-audio cues. Run the current public
 checks with `python tools/run_tests.py --suite public`. Read [dependencies](DEPENDENCIES.md)
 and [licensing](docs/licensing.md) before a native build. The original GDCubism
-notices and documentation remain in the `.adoc` files.
+notices and [archived documentation](docs-src/README.md) remain in the `.adoc` files.

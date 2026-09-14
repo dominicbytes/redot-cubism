@@ -41,11 +41,20 @@ user approval was requested. Until resolved, any public checkpoint must omit
 this workbook from every uploaded commit, not merely delete it at the tip.
 The workbook remains in local history and must not be pushed indirectly.
 
-The mechanical port and Linux-tested lifecycle checkpoint are published. Clean
-public-commit debug and release builds each passed 19 checks. Source-identical
-lifecycle code passed 250 ASan cycles, handles and loading-removal tests. The
-renderer stage is in progress locally; drawable-layer and bounds regressions
-now pass in debug/release, and mask identity is being qualified. These renderer
-changes are not in the published checkpoint above. Windows qualification,
-measured renderer parity, importer,
-controller/audio and later feature stages remain incomplete.
+The recorded upload above contains the mechanical port and Linux-tested lifecycle
+checkpoint. Its clean public-commit debug and release builds each passed 19
+checks; source-identical lifecycle code passed 250 ASan cycles, handles and
+loading-removal tests. These are historical results for that checkpoint, not
+qualification of the later local implementation.
+
+Subsequent local work includes imported model resources, `CubismModel2D`, native
+motions/expressions, controller/audio cues, checked exports, editor tooling and
+renderer fixes. The [current documentation](../README.md) describes those APIs;
+[renderer measurements](pr-04-renderer-report.md) and [benchmarks](../benchmarks.md)
+record later coverage and its limits. Those additions require a fresh filtered
+publication; do not push the unfiltered local history containing the workbook.
+
+Windows native/editor/export checks, live desktop CI, full visual acceptance,
+dedicated performance thresholds, remaining editor checks and final package/legal
+review are still open. The port remains unqualified for release. This file records
+the known upload checkpoint; inspect the remote before making the final push.
