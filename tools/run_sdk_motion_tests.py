@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
-"""Compare native non-looping motion states with the pinned SDK, without SDK sample edits."""
+"""Compare native motion and selected expression/physics/pose states with the pinned SDK."""
 import argparse
 import json
 import math
@@ -17,6 +17,7 @@ from build_inputs import core_library, sdk_roots, sha256
 
 ROOT = Path(__file__).resolve().parents[1]
 TOLERANCE = 1e-5
+CASE_KEYS = ('resource', 'group', 'index', 'steps', 'fps', 'expression', 'physics', 'pose')
 
 
 def compare_states(expected, actual):
@@ -53,6 +54,10 @@ def load_fixtures(path):
             if (not isinstance(motion, dict) or not isinstance(motion.get('group'), str) or not motion['group'] or
                     type(motion.get('index')) is not int or motion['index'] < 0):
                 raise ValueError('Motions require a group and nonnegative integer index')
+            motion.setdefault('expression', '')
+            for key in ('physics', 'pose'): motion.setdefault(key, False)
+            if not isinstance(motion['expression'], str) or any(type(motion[key]) is not bool for key in ('physics', 'pose')):
+                raise ValueError('Expression must be a string and physics/pose must be booleans')
         fixture['model'] = str((path.parent / fixture['model']).resolve())
     return fixtures
 
@@ -97,7 +102,7 @@ def main():
     sdk_sources = sorted((framework / 'src').glob('*.cpp'))
     for folder in ('Effect', 'Id', 'Math', 'Model', 'Motion', 'Physics', 'Rendering', 'Type', 'Utils'):
         sdk_sources += sorted((framework / 'src' / folder).glob('*.cpp'))
-    report = {'status': 'RUNNING', 'run': str(run), 'scope': 'Native non-looping motion parameter and part states',
+    report = {'status': 'RUNNING', 'run': str(run), 'scope': 'Native non-looping motion and selected expression/physics/pose parameter and part states',
               'release_qualified': False, 'platform': platform.system(), 'engine_version': version,
               'engine_sha256': sha256(engine), 'library_sha256': sha256(args.library),
               'framework_sha256': pins['cubism_framework']['source_sha256'], 'core_sha256': sha256(core_path),
@@ -148,15 +153,24 @@ def main():
             manifest = json.loads(manifest_path.read_text(encoding='utf-8-sig'))['FileReferences']
             for motion in fixture['motions']:
                 motion_path = manifest_path.parent / manifest['Motions'][motion['group']][motion['index']]['File']
+                effect_hashes = {}
+                if motion['expression']:
+                    matches = [item['File'] for item in manifest.get('Expressions', []) if item['Name'] == motion['expression']]
+                    if len(matches) != 1: raise ValueError('Select exactly one manifest expression')
+                    effect_hashes['expression_sha256'] = sha256(manifest_path.parent / matches[0])
+                for key in ('physics', 'pose'):
+                    if motion[key]: effect_hashes[key + '_sha256'] = sha256(manifest_path.parent / manifest[key.title()])
                 for steps in args.steps:
                     name = 'reference-' + str(len(cases))
                     state_path = run / (name + '.json')
-                    execute(name, [str(reference), str(manifest_path), motion['group'], str(motion['index']), str(steps), str(args.fps), str(state_path)])
+                    execute(name, [str(reference), str(manifest_path), motion['group'], str(motion['index']), str(steps), str(args.fps), str(state_path),
+                                   motion['expression'], str(int(motion['physics'])), str(int(motion['pose']))])
                     state = json.loads(state_path.read_text(encoding='utf-8'))
                     compare_states(state, state)
                     if state['steps'] != steps or state['fps'] != args.fps: raise ValueError('Reference time mismatch')
+                    if any(state[key] != motion[key] for key in ('expression', 'physics', 'pose')): raise ValueError('Reference effects mismatch')
                     cases.append(dict(state, resource=fixture['resource'], group=motion['group'], index=motion['index'],
-                                      manifest_sha256=sha256(manifest_path), moc_sha256=sha256(manifest_path.parent / manifest['Moc']), motion_sha256=sha256(motion_path)))
+                                      manifest_sha256=sha256(manifest_path), moc_sha256=sha256(manifest_path.parent / manifest['Moc']), motion_sha256=sha256(motion_path), **effect_hashes))
         (run / 'reference.json').write_text(json.dumps({'cases': cases}, indent=2) + '\n', encoding='utf-8')
         project = run / 'project'
         shutil.copytree(source, project, copy_function=shutil.copyfile, ignore=shutil.ignore_patterns('shader_cache'))
@@ -170,10 +184,10 @@ def main():
         actual = json.loads((run / 'actual.json').read_text())
         if actual['status'] != 'PASS' or len(actual['cases']) != len(cases): raise ValueError('Incomplete native results')
         for expected, found in zip(cases, actual['cases']):
-            if found['status'] != 'PASS' or any(found[k] != expected[k] for k in ('resource', 'group', 'index', 'steps', 'fps')):
+            if found['status'] != 'PASS' or any(found[k] != expected[k] for k in CASE_KEYS):
                 raise ValueError('Native case identity mismatch')
             differences = compare_states(expected, found)
-            report['cases'].append({k: found[k] for k in ('resource', 'group', 'index', 'steps', 'fps')} |
+            report['cases'].append({k: found[k] for k in CASE_KEYS} |
                                    {'status': 'FAIL' if differences else 'PASS', 'differences': differences})
         report['status'] = 'PASS' if all(c['status'] == 'PASS' for c in report['cases']) else 'FAIL'
     except (OSError, ValueError, KeyError, IndexError, TypeError) as error:

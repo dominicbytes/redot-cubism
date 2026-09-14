@@ -668,6 +668,14 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
     }
 
     this->internal_model->epi_update(step);
+    // Pose and queued part writes run in the epilogue. Preserve any new write
+    // queued by an epilogue callback for the next update.
+    for(Csm::csmInt32 index = 0; index < this->ary_part_opacity.size(); index++) {
+        Ref<GDCubismPartOpacity> part = this->ary_part_opacity[index];
+        if(part.is_valid() && !part->changed) {
+            part->get_raw_value();
+        }
+    }
     #ifdef DEBUG_ENABLED
     model_timer.stop();
     #endif

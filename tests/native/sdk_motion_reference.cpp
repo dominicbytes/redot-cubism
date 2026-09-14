@@ -2,12 +2,16 @@
 // Numeric motion oracle linked only to the user's pinned Cubism SDK.
 #include <CubismFramework.hpp>
 #include <CubismModelSettingJson.hpp>
+#include <Effect/CubismPose.hpp>
 #include <ICubismAllocator.hpp>
 #include <Id/CubismId.hpp>
 #include <Model/CubismMoc.hpp>
 #include <Model/CubismModel.hpp>
 #include <Motion/CubismMotion.hpp>
 #include <Motion/CubismMotionQueueEntry.hpp>
+#include <Motion/CubismExpressionMotion.hpp>
+#include <Motion/CubismExpressionMotionManager.hpp>
+#include <Physics/CubismPhysics.hpp>
 #include <Rendering/CubismRenderer.hpp>
 #include <cstdlib>
 #include <filesystem>
@@ -71,12 +75,17 @@ static void quoted(std::ostream& json, const char* text) {
 }
 
 static void evaluate(const std::vector<std::string>& args) {
-    if (args.size() != 7) throw std::runtime_error("Pass model3.json, group, index, steps, fps, output.json");
+    if (args.size() != 7 && args.size() != 10) throw std::runtime_error("Pass model3.json, group, index, steps, fps, output.json, optional expression/physics/pose");
     std::ofstream json(std::filesystem::u8path(args[6]));
     if (!json) throw std::runtime_error("Cannot write reference JSON");
     const auto manifest_path = std::filesystem::u8path(args[1]);
     const std::string& group = args[2];
     const int index = std::stoi(args[3]), steps = std::stoi(args[4]), fps = std::stoi(args[5]);
+    const std::string expression = args.size() == 10 ? args[7] : "";
+    const bool with_physics = args.size() == 10 && args[8] == "1";
+    const bool with_pose = args.size() == 10 && args[9] == "1";
+    if (args.size() == 10 && ((args[8] != "0" && args[8] != "1") || (args[9] != "0" && args[9] != "1")))
+        throw std::runtime_error("Physics and pose flags must be 0 or 1");
     if (index < 0 || steps < 1 || steps > 36000 || fps < 1 || fps > 240) throw std::runtime_error("Invalid sample arguments");
     const auto manifest = read(manifest_path);
     Csm::CubismModelSettingJson settings(manifest.data(), manifest.size());
@@ -104,14 +113,45 @@ static void evaluate(const std::vector<std::string>& args) {
     motion->SetLoop(false);
     Csm::CubismMotionQueueEntry entry;
     motion->SetupMotionQueueEntry(&entry, 0.0f);
+    std::unique_ptr<Csm::CubismExpressionMotion, decltype(&Csm::ACubismMotion::Delete)> expression_motion(nullptr, Csm::ACubismMotion::Delete);
+    Csm::CubismExpressionMotionManager expressions;
+    if (!expression.empty()) {
+        for (int i = 0; i < settings.GetExpressionCount(); ++i) {
+            if (expression != settings.GetExpressionName(i)) continue;
+            const auto bytes = read(manifest_path.parent_path() / std::filesystem::u8path(settings.GetExpressionFileName(i)));
+            expression_motion.reset(Csm::CubismExpressionMotion::Create(bytes.data(), bytes.size()));
+            break;
+        }
+        if (!expression_motion) throw std::runtime_error("Expression is absent or rejected by SDK");
+        expressions.StartMotion(expression_motion.get(), false);
+    }
+    std::unique_ptr<Csm::CubismPhysics, decltype(&Csm::CubismPhysics::Delete)> physics(nullptr, Csm::CubismPhysics::Delete);
+    if (with_physics) {
+        if (!*settings.GetPhysicsFileName()) throw std::runtime_error("Physics file is absent");
+        const auto bytes = read(manifest_path.parent_path() / std::filesystem::u8path(settings.GetPhysicsFileName()));
+        physics.reset(Csm::CubismPhysics::Create(bytes.data(), bytes.size()));
+        if (!physics) throw std::runtime_error("SDK rejected physics");
+    }
+    std::unique_ptr<Csm::CubismPose, decltype(&Csm::CubismPose::Delete)> pose(nullptr, Csm::CubismPose::Delete);
+    if (with_pose) {
+        if (!*settings.GetPoseFileName()) throw std::runtime_error("Pose file is absent");
+        const auto bytes = read(manifest_path.parent_path() / std::filesystem::u8path(settings.GetPoseFileName()));
+        pose.reset(Csm::CubismPose::Create(bytes.data(), bytes.size()));
+        if (!pose) throw std::runtime_error("SDK rejected pose");
+    }
     model->SaveParameters();
     for (int step = 1; step <= steps; ++step) {
         model->LoadParameters();
         motion->UpdateParameters(model.get(), &entry, float(double(step) / fps));
         model->SaveParameters();
+        if (expression_motion) expressions.UpdateMotion(model.get(), float(1.0 / fps));
+        if (physics) physics->Evaluate(model.get(), float(1.0 / fps));
+        if (pose) pose->UpdateParameters(model.get(), float(1.0 / fps));
         model->Update();
     }
-    json << std::setprecision(9) << "{\"steps\":" << steps << ",\"fps\":" << fps << ",\"parameters\":{";
+    json << std::setprecision(9) << "{\"steps\":" << steps << ",\"fps\":" << fps << ",\"expression\":";
+    quoted(json, expression.c_str());
+    json << ",\"physics\":" << (with_physics ? "true" : "false") << ",\"pose\":" << (with_pose ? "true" : "false") << ",\"parameters\":{";
     for (int i = 0; i < model->GetParameterCount(); ++i) {
         if (i) json << ',';
         quoted(json, model->GetParameterId(i)->GetString().GetRawString());
