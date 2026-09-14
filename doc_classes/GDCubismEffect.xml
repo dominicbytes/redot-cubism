@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="GDCubismEffect" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
-	<brief_description>
-	</brief_description>
-	<description>
-	</description>
+	<brief_description>Base node for legacy Cubism effects.</brief_description>
+	<description>Base class for effect children of [GDCubismUserModel]. [member active] controls participation in model evaluation. Use [CubismEffect] for custom effects on the preferred [CubismModel2D] node.</description>
 	<tutorials>
 	</tutorials>
 	<members>

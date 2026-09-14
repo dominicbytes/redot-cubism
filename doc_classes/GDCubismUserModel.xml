@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="GDCubismUserModel" inherits="Node2D" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
-	<brief_description>
-	</brief_description>
+	<brief_description>Legacy Cubism model runtime and renderer.</brief_description>
 	<description>
 		Loads and renders a Live2D Cubism model. Required native processing continues when a GDScript subclass overrides regular process callbacks. The inherited Node pause policy still applies. Runtime nodes are disposed on tree exit and recreated on reentry.
 	</description>
@@ -196,13 +195,13 @@
 		<member name="parameter_mode" type="int" setter="set_parameter_mode" getter="get_parameter_mode" enum="GDCubismUserModel.ParameterMode" default="0">
 			Specifies the control method for the currently held Live2D model.
 		</member>
-		<member name="physics_evaluate" type="int" setter="set_physics_evaluate" getter="get_physics_evaluate" enum="GDCubismUserModel.PhysicsEvaluate" default="true">
+		<member name="physics_evaluate" type="bool" setter="set_physics_evaluate" getter="get_physics_evaluate" default="true">
 			Setting this parameter to [code]false[/code] disables physical calculations.
 		</member>
 		<member name="playback_process_mode" type="int" setter="set_process_callback" getter="get_process_callback" enum="GDCubismUserModel.MotionProcessCallback" default="1">
 			Specifies the playback method for the currently held Live2D model.
 		</member>
-		<member name="pose_update" type="int" setter="set_pose_update" getter="get_pose_update" enum="GDCubismUserModel.PoseUpdate" default="true">
+		<member name="pose_update" type="bool" setter="set_pose_update" getter="get_pose_update" default="true">
 			Setting this parameter to [code]false[/code] disables transparency calculations between drawing parts specified in the pose group.
 			If you want to manually handle all transparency calculations, set this parameter to [code]false[/code].
 		</member>
@@ -546,6 +545,8 @@
 		<member name="speed_scale" type="float" setter="set_speed_scale" getter="get_speed_scale" default="1.0">
 			Specifies the playback speed of the currently held Live2D model.
 		</member>
+		<member name="_legacy_model" type="CubismModelResource" setter="_set_legacy_model" getter="_get_legacy_model">Internal serialized resource bridge for legacy [member assets] scenes. The source path must match the assets selection. Managed by the editor/export workflow; use [member model] for explicit resource assignment.</member>
+		<member name="model" type="CubismModelResource" setter="set_model" getter="get_model">Imported resource for the legacy runtime adapter. Assigning this property clears [member assets]. Prefer [CubismModel2D] for new scenes.</member>
 	</members>
 	<signals>
 		<signal name="model_ready">
@@ -602,14 +603,10 @@
 		<constant name="CSM_MOC_VERSION_50" value="5" enum="moc3FileFormatVersion">
 			moc3 file version 5.0.00 and above
 		</constant>
-		<constant name="PRIORITY_NONE" value="0" enum="Priority">
-		</constant>
-		<constant name="PRIORITY_IDLE" value="1" enum="Priority">
-		</constant>
-		<constant name="PRIORITY_NORMAL" value="2" enum="Priority">
-		</constant>
-		<constant name="PRIORITY_FORCE" value="3" enum="Priority">
-		</constant>
+		<constant name="PRIORITY_NONE" value="0" enum="Priority">No active motion priority.</constant>
+		<constant name="PRIORITY_IDLE" value="1" enum="Priority">Background idle motion priority.</constant>
+		<constant name="PRIORITY_NORMAL" value="2" enum="Priority">Normal motion priority.</constant>
+		<constant name="PRIORITY_FORCE" value="3" enum="Priority">Force playback without the normal priority reservation check.</constant>
 		<constant name="FULL_PARAMETER" value="0" enum="ParameterMode">
 			Specify this when playing the [i]Motion[/i] specified by the [method GDCubismUserModel.start_motion] function.
 			When this is specified, operations by [GDCubismParameter] cannot be performed.

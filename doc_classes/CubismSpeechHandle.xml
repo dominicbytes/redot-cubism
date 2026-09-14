@@ -3,12 +3,23 @@
 	<brief_description>Retained terminal result for a character cue.</brief_description>
 	<description>Owns only status, error and elapsed time; no model pointers. Check is_finished before awaiting finished, including immediately rejected cues. A terminal reason never changes. Completion waits for both voice and assigned motion. Stop/interruption mark the handle terminal immediately, including when an outgoing fade continues.</description>
 	<methods>
-		<method name="is_finished"><return type="bool" /><description>Whether a terminal result is available.</description></method>
-		<method name="get_reason"><return type="int" /><description>Terminal reason, or NONE during playback.</description></method>
-		<method name="get_error"><return type="int" /><description>Error code; OK for successful playback and ordinary cancellation.</description></method>
-		<method name="get_elapsed_seconds"><return type="float" /><description>Evaluated cue time excluding negative-offset pre-roll. Retained after completion.</description></method>
+		<method name="is_finished" qualifiers="const"><return type="bool" /><description>Whether a terminal result is available.</description></method>
+		<method name="get_reason" qualifiers="const"><return type="int" enum="CubismSpeechHandle.FinishReason" /><description>Terminal reason, or NONE during playback.</description></method>
+		<method name="get_error" qualifiers="const"><return type="int" enum="Error" /><description>Error code; OK for successful playback and ordinary cancellation.</description></method>
+		<method name="get_elapsed_seconds" qualifiers="const"><return type="float" /><description>Evaluated cue time excluding negative-offset pre-roll. Retained after completion.</description></method>
 	</methods>
 	<signals>
 		<signal name="finished"><param index="0" name="reason" type="int" /><description>Emitted once, deferred after a running cue becomes terminal. Immediately rejected cues already have a terminal result.</description></signal>
 	</signals>
+	<constants>
+		<constant name="NONE" value="0" enum="FinishReason">No terminal reason has been assigned.</constant>
+		<constant name="COMPLETED" value="1" enum="FinishReason">All active components of the cue completed naturally.</constant>
+		<constant name="STOPPED" value="2" enum="FinishReason">The cue was explicitly stopped.</constant>
+		<constant name="INTERRUPTED" value="3" enum="FinishReason">Another cue or a target change interrupted playback.</constant>
+		<constant name="HIDDEN" value="4" enum="FinishReason">The character was hidden through its controller.</constant>
+		<constant name="UNLOADED" value="5" enum="FinishReason">The target was unloaded or the controller left the scene tree.</constant>
+		<constant name="MODEL_DISPOSED" value="6" enum="FinishReason">The target model was destroyed.</constant>
+		<constant name="CONTROLLER_DISPOSED" value="7" enum="FinishReason">The controller was destroyed.</constant>
+		<constant name="FAILED" value="8" enum="FinishReason">The cue was rejected or failed. Inspect [method get_error].</constant>
+	</constants>
 </class>

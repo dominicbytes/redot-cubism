@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="GDCubismPlugin" inherits="EditorPlugin">
+	<brief_description>Automatically registered editor integration for the native addon.</brief_description>
+	<description>Registers Cubism import/preparation/checked-export tools, the model inspector, export dependency integration and [CubismDependencyTracker]. The native extension creates it automatically; there is no separate plugin checkbox to enable and it should not be instantiated in game scenes. It also handles model selection and editor preview behavior. Import and export helpers require the editor and do not run in an exported game.</description>
+	<tutorials>
+	</tutorials>
+</class>

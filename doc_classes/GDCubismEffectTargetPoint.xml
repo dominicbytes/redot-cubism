@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="GDCubismEffectTargetPoint" inherits="GDCubismEffect" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
-	<brief_description>
-	</brief_description>
+	<brief_description>Target-point effect for a legacy Cubism model.</brief_description>
 	<description>
 		By placing it as a child element of [GDCubsimUserModel], you can make the face and eyes look at the specified coordinates.
 		[b]NOTE:[/b] You need to pre-configure the Live2D model to use this element.

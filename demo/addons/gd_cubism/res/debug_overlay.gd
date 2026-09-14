@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 Redot Cubism contributors
+## Draws optional drawable, mask and draw-order diagnostics for a legacy Cubism model.
+## Place directly under GDCubismUserModel. Use CubismModel2D debug properties for new scenes.
 @tool
 class_name GDCubismDebugOverlay
 extends Node2D

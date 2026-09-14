@@ -17,4 +17,16 @@
 		<signal name="looped"><param index="0" name="loop_count" type="int" /><description>Deferred loop boundary count.</description></signal>
 		<signal name="finished"><param index="0" name="reason" type="int" /><description>Deferred terminal transition, once for an accepted play.</description></signal>
 	</signals>
+	<constants>
+		<constant name="PLAYING" value="0" enum="State">The accepted play has not reached a terminal state.</constant>
+		<constant name="FINISHED" value="1" enum="State">The play is terminal; inspect [method get_reason] and [method get_error].</constant>
+		<constant name="NONE" value="0" enum="FinishReason">No terminal reason has been assigned.</constant>
+		<constant name="COMPLETED" value="1" enum="FinishReason">A nonlooping motion completed naturally.</constant>
+		<constant name="STOPPED" value="2" enum="FinishReason">Playback was explicitly stopped.</constant>
+		<constant name="INTERRUPTED" value="3" enum="FinishReason">Another accepted play replaced this motion.</constant>
+		<constant name="FAILED" value="4" enum="FinishReason">The play was rejected or failed. Inspect [method get_error].</constant>
+		<constant name="UNLOADED" value="5" enum="FinishReason">The model was unloaded or left the scene tree.</constant>
+		<constant name="RELOADED" value="6" enum="FinishReason">The model was reloaded or replaced.</constant>
+		<constant name="MODEL_DISPOSED" value="7" enum="FinishReason">The owning model was destroyed.</constant>
+	</constants>
 </class>

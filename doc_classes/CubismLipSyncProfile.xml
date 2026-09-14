@@ -14,4 +14,41 @@
 		<member name="mouth_form_value" type="float" setter="set_mouth_form_value" getter="get_mouth_form_value" default="0.0">Fixed mouth-form value, subject to authored ownership and native bounds.</member>
 		<member name="blend_with_authored" type="bool" setter="set_blend_with_authored" getter="get_blend_with_authored" default="false">Allow envelope additions on parameters currently controlled by motions or expressions. Optional mouth form writes its fixed value when enabled.</member>
 	</members>
+	<methods>
+		<method name="set_attack">
+			<return type="int" enum="Error" />
+			<param index="0" name="value" type="float" />
+			<description>Set [member attack]. Returns OK on success or ERR_INVALID_PARAMETER for a nonfinite value or a value outside the documented property bounds, preserving the previous setting on rejection. Successful changes emit [signal Resource.changed].</description>
+		</method>
+		<method name="set_gain">
+			<return type="int" enum="Error" />
+			<param index="0" name="value" type="float" />
+			<description>Set [member gain]. Returns OK on success or ERR_INVALID_PARAMETER for a nonfinite value or a value outside the documented property bounds, preserving the previous setting on rejection. Successful changes emit [signal Resource.changed].</description>
+		</method>
+		<method name="set_maximum">
+			<return type="int" enum="Error" />
+			<param index="0" name="value" type="float" />
+			<description>Set [member maximum]. Returns OK on success or ERR_INVALID_PARAMETER for a nonfinite value or a value outside the documented property bounds, preserving the previous setting on rejection. Successful changes emit [signal Resource.changed].</description>
+		</method>
+		<method name="set_minimum">
+			<return type="int" enum="Error" />
+			<param index="0" name="value" type="float" />
+			<description>Set [member minimum]. Returns OK on success or ERR_INVALID_PARAMETER for a nonfinite value or a value outside the documented property bounds, preserving the previous setting on rejection. Successful changes emit [signal Resource.changed].</description>
+		</method>
+		<method name="set_mouth_form_value">
+			<return type="int" enum="Error" />
+			<param index="0" name="value" type="float" />
+			<description>Set [member mouth_form_value]. Returns OK on success or ERR_INVALID_PARAMETER for a nonfinite value or a value outside the documented property bounds, preserving the previous setting on rejection. Successful changes emit [signal Resource.changed].</description>
+		</method>
+		<method name="set_noise_gate">
+			<return type="int" enum="Error" />
+			<param index="0" name="value" type="float" />
+			<description>Set [member noise_gate]. Returns OK on success or ERR_INVALID_PARAMETER for a nonfinite value or a value outside the documented property bounds, preserving the previous setting on rejection. Successful changes emit [signal Resource.changed].</description>
+		</method>
+		<method name="set_release">
+			<return type="int" enum="Error" />
+			<param index="0" name="value" type="float" />
+			<description>Set [member release]. Returns OK on success or ERR_INVALID_PARAMETER for a nonfinite value or a value outside the documented property bounds, preserving the previous setting on rejection. Successful changes emit [signal Resource.changed].</description>
+		</method>
+	</methods>
 </class>

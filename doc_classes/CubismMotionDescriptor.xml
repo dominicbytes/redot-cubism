@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismMotionDescriptor" inherits="Resource">
+	<brief_description>Imported metadata and dependencies for one native motion.</brief_description>
+	<description>Serializable data shared by independent runtime motion instances. This resource does not load files, start motion/audio playback or execute event strings. Setters preserve supplied values and emit [signal Resource.changed]; consumers validate catalog identity and must not modify shared descriptors during playback.</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="animation" type="Animation" setter="set_animation" getter="get_animation">Optional serialized [Animation] reference reserved for later timeline-conversion work. Native motion playback does not require this field and full-fidelity conversion is not implemented.</member>
+		<member name="duration_seconds" type="float" setter="set_duration_seconds" getter="get_duration_seconds" default="0.0">Validated source motion duration in seconds.</member>
+		<member name="events" type="CubismMotionEvent[]" setter="set_events" getter="get_events" default="[]">Ordered [CubismMotionEvent] metadata. Runtime motion handles provide timing and deferred notification semantics.</member>
+		<member name="fade_in_seconds" type="float" setter="set_fade_in_seconds" getter="get_fade_in_seconds" default="-1.0">Imported motion fade-in override. -1 preserves an absent override until source parsing resolves it.</member>
+		<member name="fade_out_seconds" type="float" setter="set_fade_out_seconds" getter="get_fade_out_seconds" default="-1.0">Imported motion fade-out override. -1 preserves an absent override until source parsing resolves it.</member>
+		<member name="group" type="StringName" setter="set_group" getter="get_group" default="&amp;&quot;&quot;">Manifest motion group name.</member>
+		<member name="id" type="StringName" setter="set_id" getter="get_id" default="&amp;&quot;&quot;">Stable imported motion ID in Group/index form. Setters do not derive or repair it automatically.</member>
+		<member name="index" type="int" setter="set_index" getter="get_index" default="0">Zero-based ordered index within the manifest group. Reordering the manifest can change IDs.</member>
+		<member name="loop" type="bool" setter="set_loop" getter="get_loop" default="false">Source loop metadata. Runtime playback owns its selected loop state independently.</member>
+		<member name="metadata" type="Dictionary" setter="set_metadata" getter="get_metadata" default="{}">Extra imported motion metadata retained for inspection.</member>
+		<member name="sound" type="AudioStream" setter="set_sound" getter="get_sound">Real imported [AudioStream] dependency for a declared sound. The descriptor does not play it; direct [method CubismModel2D.play_motion] does not start audio.</member>
+		<member name="sound_path" type="String" setter="set_sound_path" getter="get_sound_path" default="&quot;&quot;">Normalized declared sound path, or an empty string when no sound is declared.</member>
+		<member name="source_path" type="String" setter="set_source_path" getter="get_source_path" default="&quot;&quot;">Normalized project-local source [code].motion3.json[/code] path.</member>
+	</members>
+</class>

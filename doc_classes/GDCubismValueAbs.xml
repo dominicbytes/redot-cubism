@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="GDCubismValueAbs" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
-	<brief_description>
-	</brief_description>
-	<description>
-	</description>
+	<brief_description>Base resource for legacy parameter and part-opacity values.</brief_description>
+	<description>Stores a cached ID and value associated with a native model parameter or part. The model invalidates this resource on unload or replacement; retained references remain readable. Use [method is_valid] before expecting a write to affect a live model.</description>
 	<tutorials>
 	</tutorials>
 	<methods>
@@ -13,9 +11,7 @@
 		</method>
 	</methods>
 	<members>
-		<member name="id" type="String" setter="" getter="get_id" default="&quot;&quot;">
-		</member>
-		<member name="value" type="float" setter="set_value" getter="get_value" default="0.0">
-		</member>
+		<member name="id" type="String" setter="" getter="get_id" default="&quot;&quot;">Read-only native parameter or part ID.</member>
+		<member name="value" type="float" setter="set_value" getter="get_value" default="0.0">Cached numeric value. Assignments mark it for application during the legacy model update while the native reference remains valid. After invalidation, changes affect only the retained resource.</member>
 	</members>
 </class>

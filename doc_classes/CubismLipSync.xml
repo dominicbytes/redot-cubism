@@ -1,34 +1,39 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="CubismLipSync" inherits="Node" version="4.3">
 	<brief_description>Deterministic lip-sync component driven by its target model clock.</brief_description>
-	<description>Deterministic lip-sync component driven by its target model clock. Attach one component per CubismModel2D. Sampling occurs after look and before custom effects, physics, pose and manual overrides. Does not start audio or synchronize a motion to a voice. The separate character controller remains under development.</description>
+	<description>Deterministic lip-sync component driven by its target model clock. Attach one component per [CubismModel2D]. Sampling occurs after look and before custom effects, physics, pose and manual overrides. Does not start audio or synchronize a motion to a voice. Use [CubismCharacterController] to coordinate recorded voice and motion cues.</description>
 	<methods>
 		<method name="submit_sample">
-			<return type="int" />
+			<return type="int" enum="Error" />
 			<param index="0" name="value" type="float" />
 			<description>Accept a finite nonnegative amplitude, clamped to [0,1]. Returns ERR_INVALID_PARAMETER for invalid inputs and retains the previous sample. Used by MANUAL_VALUE mode.</description>
 		</method>
 		<method name="submit_peak_db">
-			<return type="int" />
+			<return type="int" enum="Error" />
 			<param index="0" name="left_db" type="float" />
 			<param index="1" name="right_db" type="float" />
 			<description>Convert the larger channel peak to a manual amplitude. Negative infinity is silence; NaN and positive infinity are rejected. Positive finite dB clips to one.</description>
 		</method>
-		<method name="get_envelope">
+		<method name="get_envelope" qualifiers="const">
 			<return type="float" />
 			<description>Current normalized envelope. Attack/release use an exponential one-pole response in the target model clock.</description>
 		</method>
-		<method name="get_output_value">
+		<method name="get_output_value" qualifiers="const">
 			<return type="float" />
 			<description>Current envelope mapped between profile minimum and maximum, before native parameter clamping.</description>
 		</method>
-		<method name="get_last_error">
-			<return type="int" />
+		<method name="get_last_error" qualifiers="const">
+			<return type="int" enum="Error" />
 			<description>Most recent operation/frame error. Missing buses or parameters are ERR_DOES_NOT_EXIST. Valid parameters still receive the sample.</description>
 		</method>
 		<method name="reset">
 			<return type="void" />
 			<description>Reset sample and envelope without changing settings or enabled state. A nonzero profile minimum still contributes when enabled. Disable to release all influence.</description>
+		</method>
+		<method name="set_target_model">
+			<return type="int" enum="Error" />
+			<param index="0" name="value" type="CubismModel2D" />
+			<description>Assign [member target_model]. Returns ERR_ALREADY_IN_USE when another live lip-sync component owns the target, retaining the previous assignment. A null target detaches this component. Returns OK on success.</description>
 		</method>
 	</methods>
 	<members>
@@ -38,4 +43,8 @@
 		<member name="audio_bus" type="StringName" setter="set_audio_bus" getter="get_audio_bus" default="&amp;&quot;Master&quot;">Bus read in AUDIO_BUS_PEAK mode. Use a separate voice bus for each character. Missing buses are silent and reported by get_last_error.</member>
 		<member name="enabled" type="bool" setter="set_enabled" getter="get_enabled" default="true">Disabling resets sample/envelope and releases influence on the next model update. Does not stop an AudioStreamPlayer.</member>
 	</members>
+	<constants>
+		<constant name="MANUAL_VALUE" value="0" enum="InputMode">Use the latest amplitude supplied through [method submit_sample] or [method submit_peak_db].</constant>
+		<constant name="AUDIO_BUS_PEAK" value="1" enum="InputMode">Read stereo peak levels from [member audio_bus] during the target model update.</constant>
+	</constants>
 </class>

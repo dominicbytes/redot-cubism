@@ -2,8 +2,8 @@
 
 `CubismManifestParser.parse_manifest(json, source_path)` performs native,
 filesystem-independent validation using Redot JSON. `source_path` must identify
-a `.model3.json` under `res://`. This API is the initial PR5 parser layer, not
-the editor importer or authorization to load the returned paths.
+a `.model3.json` under `res://`. This API validates syntax; the editor importer
+also checks physical files and resource types before loading the returned paths.
 
 The result contains:
 
@@ -32,8 +32,8 @@ is bounded even when a manifest contains many invalid references.
 
 Applying physical containment and existence checks, missing optional file
 policy, referenced JSON schemas, MOC consistency/version/texture indices,
-imported resource types and deterministic texture provisioning still belong to
-the unfinished importer layer. Empty texture arrays are retained here; deciding
+imported resource types and deterministic texture provisioning belong to
+the [factory](model-factory.md) and [importer](editor-import.md). Empty texture arrays are retained here; deciding
 whether a model permits them requires MOC inspection. Raw JSON duplicate object
 keys follow Redot's parser behavior; this layer checks semantic IDs represented
 in arrays, not raw duplicate JSON keys.
@@ -79,7 +79,8 @@ are supported; Windows filesystem qualification remains pending.
 This is a filesystem snapshot for importing source assets, not a PCK resource
 lookup, extension allowlist, or atomic guarantee against concurrent filesystem
 replacement. The importer must combine syntax validation, this check, file
-validation and resource-type checks. No import/load path is wired to it yet.
+validation and resource-type checks. The model factory and editor importer use
+these checks when resolving source dependencies.
 Run `tools/run_path_tests.py --library <native-library> --output <persistent-dir>`
 with `REDOT_BIN` set to test 18 cases using real task-owned symlinks. The output
 directory retains fixtures, logs and the tested binary identity. Symlink setup
@@ -113,7 +114,7 @@ not consume it. Unknown metadata and all original curves are retained in the
 descriptor's metadata. Missing or negative motion-level fades resolve to one
 second, matching the pinned SDK. Per-curve fades remain in the preserved data.
 
-The importer still needs to apply model-manifest fade overrides and sound
+The model factory applies model-manifest fade overrides and sound
 associations. This helper does not create Redot Animation tracks, play motion,
 or qualify the complete importer/runtime pipeline.
 
@@ -172,8 +173,8 @@ Unknown metadata is retained under the shared JSON size/node limits.
 
 This validates structure before SDK allocation. It does not resolve parameter
 IDs against the MOC, run the physics simulation, prove numerical stability for
-all finite inputs, or wire the file into the editor importer. Those remain
-runtime/importer qualification requirements.
+all finite inputs, or load a live model. The factory invokes this parser during
+import; numerical simulation is checked separately by the runtime suites.
 
 ## User-data and display-info validation
 
