@@ -88,6 +88,20 @@ def windows_core_library(core, env):
     return core / "lib/windows/x86_64/143" / f"Live2DCubismCore_{crt}.lib"
 
 
+def windows_tool_override(cpp, output):
+    """Select the pinned v143 toolset through redot-cpp's custom_tools option."""
+    source = (cpp / "tools/windows.py").read_text()
+    original = 'env["MSVC_VERSION"] = None'
+    if source.count(original) != 1:
+        raise ValueError("Pinned redot-cpp Windows tool no longer has the expected MSVC selection")
+    selected = source.replace(original, 'env["MSVC_VERSION"] = "14.3"')
+    output.mkdir(parents=True, exist_ok=True)
+    destination = output / "windows.py"
+    if not destination.exists() or destination.read_text() != selected:
+        destination.write_text(selected)
+    return output
+
+
 def sanitizer_flags(mode, platform):
     """Return addon compiler/linker flags; SDK Core and binding archives stay unchanged."""
     if mode not in ("none", "address", "undefined", "address,undefined"):

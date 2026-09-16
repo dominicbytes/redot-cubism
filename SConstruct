@@ -10,7 +10,7 @@ from pathlib import Path
 
 root = Path(Dir("#").abspath)
 sys.path.insert(0, str(root / "tools"))
-from build_inputs import binding_root, core_library, sdk_roots, windows_core_library, sanitizer_flags, sha256
+from build_inputs import binding_root, core_library, sdk_roots, windows_core_library, windows_tool_override, sanitizer_flags, sha256
 from framework_patch import patch_csm_string, PATCH_ID
 
 pins = json.loads((root / "DEPENDENCIES.json").read_text())
@@ -26,6 +26,15 @@ except (OSError, ValueError) as exc:
 build_dir = Path(options.get("CUBISM_BUILD_DIR", root / ".local-build/native")).resolve()
 build_dir.mkdir(parents=True, exist_ok=True)
 SConsignFile(str(build_dir / ".sconsign.dblite"))
+if ARGUMENTS.get("platform") == "windows":
+    if ARGUMENTS.get("custom_tools"):
+        print("Redot Cubism build input error: custom_tools cannot override the pinned Windows toolchain")
+        Exit(1)
+    try:
+        ARGUMENTS["custom_tools"] = str(windows_tool_override(cpp, build_dir / "tools"))
+    except (OSError, ValueError) as exc:
+        print(f"Redot Cubism build input error: {exc}")
+        Exit(1)
 env = SConscript(str(cpp / "SConstruct"))
 # Some shared filesystems report a constant or invalid mtime. Do not reuse a
 # source signature solely because its timestamp is unchanged.

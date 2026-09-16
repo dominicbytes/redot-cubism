@@ -49,10 +49,10 @@ def main():
             raise ValueError(f"Expected {pins['redot']['version']}; got {version}")
         help_text = run("--help")
         (args.output / "redot-help.txt").write_text(help_text)
-        for switch in ("--headless", "--dump-extension-api", "--dump-gdextension-interface", "--quit-after"):
+        for switch in ("--headless", "--editor", "--dump-extension-api", "--dump-gdextension-interface", "--quit-after"):
             if switch not in help_text:
                 raise ValueError(f"Required editor switch missing: {switch}")
-        log = run("--headless", "--dump-extension-api", "--dump-gdextension-interface", "--quit-after", "2")
+        log = run("--headless", "--editor", "--dump-extension-api", "--dump-gdextension-interface", "--quit-after", "2")
         (args.output / "api-dump.log").write_text(log)
         api = json.loads((args.output / "extension_api.json").read_text())
         redot_header = api.get("redot_header", {})

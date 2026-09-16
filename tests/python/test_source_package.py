@@ -25,6 +25,7 @@ class SourcePackageTest(unittest.TestCase):
         self.git('init', '-q')
         self.git('config', 'user.name', 'Test')
         self.git('config', 'user.email', 'test@example.invalid')
+        self.git('config', 'core.autocrlf', 'false')
         for name in REQUIRED:
             self.write(name, b'{"addon_version":"0.1.0-test"}' if name.endswith('.json') else b'Source fixture\n')
         self.sha = self.commit()

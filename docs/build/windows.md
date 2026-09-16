@@ -9,10 +9,12 @@ Redot 26.2 single-precision editor and matching templates, and the separately
 obtained Cubism Native SDK 5-r.5. Core libraries must come from its `143` toolset
 directory. Read [dependencies](../../DEPENDENCIES.md) and [licensing](../licensing.md).
 
-From PowerShell with the VS compiler environment initialized, run from the port
-checkout and replace the editor/SDK paths:
+From PowerShell, run from the port checkout and replace the editor/SDK paths.
+Start the VS 2022 x64 shell in that PowerShell process, even if newer Visual
+Studio versions are installed:
 
 ```powershell
+& 'C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/Tools/Launch-VsDevShell.ps1' -Arch amd64 -HostArch amd64
 git submodule update --init godot-cpp
 python -m venv .local-build/tools
 & ./.local-build/tools/Scripts/python.exe -m pip install scons==4.11.1
@@ -28,6 +30,12 @@ $env:PYTHONUTF8 = '1'
 Stop if dependency verification fails. Run the builds sequentially. The expected
 outputs are `libgd_cubism.windows.debug.x86_64.dll` and
 `libgd_cubism.windows.release.x86_64.dll` under `demo/addons/gd_cubism/bin`.
+The build creates a v143-selecting copy of redot-cpp's Windows tool under
+`CUBISM_BUILD_DIR/tools` (default `.local-build/native/tools`). Confirm the SCons
+output says `MSVC_VERSION = 14.3`; the pinned redot-cpp checkout stays clean.
+For long-path failures, set `CUBISM_BUILD_DIR` to a short writable local path.
+Keep `TEMP` and `TMP` on a writable path without spaces for this PowerShell
+session; the pinned MSVC output wrapper uses that path in shell redirection.
 Do not substitute a Linux binary or rename a debug DLL to stand in for release.
 
 Before distributing a Windows build, run both variants through the native editor,
