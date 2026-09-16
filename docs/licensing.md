@@ -1,6 +1,6 @@
 # Licensing and distribution
 
-The user authorized publishing this derived source to dominicbytes/redot_cubism.
+The user authorized publishing this derived source to dominicbytes/redot-cubism.
 Preserve the upstream MIT notices. Live2D's Framework, proprietary Core, models,
 screenshots, and application publication have separate terms. Do not infer a
 binary-publication exemption from the source license.
