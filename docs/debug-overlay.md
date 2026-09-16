@@ -1,6 +1,7 @@
-# Renderer debug overlay
+# Legacy renderer debug overlay
 
-Add a `Node2D` directly beneath a `GDCubismUserModel` and attach
+This page documents the legacy overlay for `GDCubismUserModel`. Add a `Node2D`
+directly beneath that node and attach
 `res://addons/gd_cubism/res/debug_overlay.gd`. It runs in the editor and game.
 No overlay is created automatically by the model.
 
@@ -24,3 +25,14 @@ This is a diagnostic view, not a renderer-quality comparison. It shows draw orde
 as the current sorted sibling ordinal; it does not expose raw Core order values.
 It adds per-frame drawing work only when attached and enabled, and should normally
 be omitted from shipping scenes.
+
+## Preferred model diagnostics
+
+For new scenes, add a `CubismModel2D` node and use its saved
+`debug_draw_bounds` and `debug_draw_hit_areas` properties instead of adding the
+legacy overlay. The first draws a cyan rectangle around current drawable geometry;
+the second draws magenta rectangles around declared hit drawables. These flags are
+available in the editor and in debug/release builds, do not advance simulation, and
+do not add a script or sample dependency to exported scenes. See the
+[preferred runtime guide](preferred-runtime.md) and
+[CubismModel2D class reference](../doc_classes/CubismModel2D.xml).

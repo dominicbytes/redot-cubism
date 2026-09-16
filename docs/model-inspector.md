@@ -24,5 +24,7 @@ are registered as internal classes only in editor processes, keeping them out of
 game-node creation menus. A shared native library may still
 contain their compiled code.
 
-Preview, parameter editing, dedicated reimport controls and the preferred
-`CubismModel2D` creation workflow remain separate planned work.
+Inspector-assisted preview, parameter editing, dedicated reimport controls and
+preferred-node creation conveniences remain separate planned work. The
+`CubismModel2D` runtime itself is available now; add the node and assign a
+`CubismModelResource` as described in [Using CubismModel2D](usage/cubism-model-2d.md).
