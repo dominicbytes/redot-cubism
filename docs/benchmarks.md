@@ -99,10 +99,13 @@ incomplete scenarios or mismatched library/engine identities fail the command.
 Reports and copied projects can contain
 licensed assets and private paths; keep them private unless separately reviewed.
 
-## Current Linux VM measurements
+## Linux VM measurements recorded on 2026-09-14
 
-The workload was exercised through the aggregate frontend on 2026-09-14, using Redot 26.2 and the current repository
-shaders and a debug addon. The prepared SDK fixtures were Haru (`Idle/0`, `F03`)
+The workload was exercised through the aggregate frontend using Redot 26.2,
+the repository shaders at that time and a debug addon. The report records library
+and shader hashes but not a source revision or dirty state; these measurements
+cannot establish performance for revision `90f8d18` or a later release candidate.
+The prepared SDK fixtures were Haru (`Idle/0`, `F03`)
 and Mao for mask stress. All eight scenarios passed their workload, cleanup and
 measurement checks: 60 warmup frames and 300 measured frames each (2,400 measured
 frames total). Animated scenarios retained the expected 2/3/8 motion handles;
@@ -110,8 +113,8 @@ static/mask scenarios retained none. Both culled scenarios requested zero mask
 redraws throughout measurement; mask stress created 16 mask compositions.
 
 These p95 timings are from an Omarchy VM using GL Compatibility through virgl.
-They are a fresh measurement snapshot, not a regression comparison against the
-earlier VM run:
+They describe that measurement run, not a regression comparison against an
+approved baseline:
 
 | Scenario | Frame interval (ms) | Model CPU (ms) | Renderer CPU (ms) |
 |---|---:|---:|---:|
