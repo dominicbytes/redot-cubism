@@ -124,6 +124,23 @@ def main():
             checks.append({'test': 'editor-ui', 'status': 'PASS' if passed else 'FAIL', 'exit_code': result.returncode})
             print('editor-ui', checks[-1]['status'], flush=True)
             assert passed, ui_log[-5000:]
+            script = project / 'addons/gd_cubism/editor/checked_export.py'
+            original_script = script.read_bytes()
+            script.write_text('raise SystemExit(1)\n')
+            try:
+                env['CUBISM_UI_OUTPUT'] = str(run / 'ui-export-missing')
+                with (run / 'editor-ui-missing-report.log').open('w') as log:
+                    result = subprocess.run([*command, '--', '--checked-export-ui-test'], env=env, stdout=log,
+                                            stderr=subprocess.STDOUT, text=True, timeout=60)
+                ui_log = (run / 'editor-ui-missing-report.log').read_text()
+                passed = (result.returncode != 0 and 'Checked export did not write a valid status report' in ui_log
+                          and 'CUBISM_CHECKED_EXPORT_UI_PASS' not in ui_log)
+                checks.append({'test': 'editor-ui-missing-report', 'status': 'PASS' if passed else 'FAIL',
+                               'exit_code': result.returncode})
+                print('editor-ui-missing-report', checks[-1]['status'], flush=True)
+                assert passed, ui_log[-5000:]
+            finally:
+                script.write_bytes(original_script)
         ok = True
     except (AssertionError, KeyError, OSError, subprocess.TimeoutExpired) as error:
         checks.append({'test': 'pipeline-assertions', 'status': 'FAIL', 'error': str(error)})

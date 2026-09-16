@@ -18,6 +18,7 @@ from pck_inspection import inspect_pack
 
 HERE = Path(__file__).resolve().parent
 MANIFEST = 'cubism-export.json'
+MAX_SNAPSHOT_FILES = 100000
 
 
 def sha256(path):
@@ -91,6 +92,55 @@ def check_native_build(build, target, mode):
             raise ValueError('Exported native build ' + key + ' mismatch: expected ' + value + ', got ' + str(build.get(key)))
 
 
+def stage_identity_editor(editor, probe, target):
+    # A Windows parent editor may still hold the original executable open.
+    # Removing a hard link to it then fails even after the probe exits.
+    if target != 'Windows':
+        try:
+            os.link(editor, probe)
+            return
+        except OSError:
+            pass
+    shutil.copyfile(editor, probe)
+    probe.chmod(editor.stat().st_mode)
+
+
+def copy_project_snapshot(project, snapshot, excluded, output=None):
+    """Give child editors their own extension path without copying generated output."""
+    excluded = {path.resolve() for path in excluded}
+    count = 0
+
+    def fail_walk(error):
+        raise error
+
+    for root, directories, files in os.walk(project, onerror=fail_walk, followlinks=False):
+        source = Path(root)
+        destination = snapshot / source.relative_to(project)
+        destination.mkdir(parents=True, exist_ok=True)
+        for name in directories[:]:
+            path = source / name
+            generated = output is not None and source == output.parent and (
+                name.startswith('.' + output.name + '.cubism-export-') or name.startswith('.cubism-project-'))
+            if path in excluded or generated or (source == project and name in ('.git', '.godot')):
+                directories.remove(name)
+            elif path.is_symlink() or (hasattr(path, 'is_junction') and path.is_junction()):
+                raise ValueError('Directory link in checked-export source: ' + str(path))
+        for name in files:
+            path = source / name
+            if path in excluded:
+                continue
+            resolved = path.resolve(strict=True) if path.is_symlink() else path
+            if not resolved.is_relative_to(project):
+                raise ValueError('File link escapes checked-export source: ' + str(path))
+            if not resolved.is_file():
+                raise ValueError('Unsupported checked-export source file: ' + str(path))
+            count += 1
+            if count > MAX_SNAPSHOT_FILES:
+                raise ValueError('Checked-export source exceeds the file-count limit')
+            shutil.copy2(resolved, destination / name)
+    return count
+
+
 def checked_export(args):
     project = args.project.resolve(strict=True)
     output = args.output.absolute()
@@ -106,10 +156,12 @@ def checked_export(args):
     output.parent.mkdir(parents=True, exist_ok=True)
     lock = output.parent / ('.' + output.name + '.cubism-export.lock')
     lock_fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    private = None
     try:
         os.write(lock_fd, str(os.getpid()).encode())
         work = Path(tempfile.mkdtemp(prefix='.' + output.name + '.cubism-export-', dir=output.parent))
         args.work = work
+        (work / '.gdignore').write_text('')
         stage = work / 'build'
         stage.mkdir()
         env = dict(os.environ)
@@ -119,8 +171,16 @@ def checked_export(args):
             env['XDG_' + kind + '_HOME'] = str(path)
         (work / 'cache/fontconfig').mkdir()
         version = execute([args.redot_bin, '--version'], work / 'version.log', work, env, 10).strip()
+        private = Path(tempfile.mkdtemp(prefix='.cubism-project-', dir=output.parent))
+        (private / '.gdignore').write_text('')
+        snapshot = private / 'project'
+        count = copy_project_snapshot(project, snapshot, (output, work, private), output=output)
+        (work / 'source-project.json').write_text(json.dumps({
+            'source': str(project), 'snapshot': str(snapshot), 'copied_files': count,
+            'project_sha256': sha256(project / 'project.godot'),
+            'presets_sha256': sha256(project / 'export_presets.cfg')}, indent=2) + '\n')
         preflight_file = work / 'preflight.json'
-        execute([args.redot_bin, '--headless', '--editor', '--path', str(project), '--quit-after', '10000', '--',
+        execute([args.redot_bin, '--headless', '--editor', '--path', str(snapshot), '--quit-after', '10000', '--',
                  '--cubism-preflight', args.preset, str(preflight_file)],
                 work / 'preflight.log', work, env, args.timeout, 'CUBISM_EXPORT_PREFLIGHT_PASS')
         preflight = json.loads(preflight_file.read_text())
@@ -136,15 +196,17 @@ def checked_export(args):
         hashes.update(preflight['raw_hashes'])
         # Freeze the selected source files as well as the validated raw payload.
         for name in preflight['files']:
-            path = (project / name.removeprefix('res://')).resolve()
-            if not name.startswith('res://') or not path.is_relative_to(project):
+            path = (snapshot / name.removeprefix('res://')).resolve()
+            if not name.startswith('res://') or not path.is_relative_to(snapshot):
                 raise ValueError('Selected export input escapes the project: ' + name)
             hashes.setdefault(name, sha256(path))
+        check_sources(snapshot, hashes)
         check_sources(project, hashes)
         name = args.name + ('.exe' if target == 'Windows' and not args.name.lower().endswith('.exe') else '')
         game = stage / name
-        execute([args.redot_bin, '--headless', '--path', str(project), '--export-' + args.mode, args.preset, str(game)],
+        execute([args.redot_bin, '--headless', '--path', str(snapshot), '--export-' + args.mode, args.preset, str(game)],
                 work / 'export.log', work, env, args.timeout)
+        check_sources(snapshot, hashes)
         check_sources(project, hashes)
         if binary_architecture(game) != preset['architecture']:
             raise ValueError('Exported executable architecture mismatch')
@@ -171,11 +233,7 @@ def checked_export(args):
         if probe.exists():
             raise ValueError('Reserved identity-probe filename is already present in the staged export')
         try:
-            try:
-                os.link(editor, probe)
-            except OSError:
-                shutil.copyfile(editor, probe)
-                probe.chmod(editor.stat().st_mode)
+            stage_identity_editor(editor, probe, target)
             execute([str(probe), '--headless', '--main-pack', str(game.with_suffix('.pck')),
                      '--script', str(HERE / 'export_identity.gd'), '--quit-after', '2', '--', str(identity_file)],
                     work / 'native-identity.log', stage, env, args.timeout, 'CUBISM_EXPORT_IDENTITY_PASS')
@@ -208,11 +266,20 @@ def checked_export(args):
                     'native_libraries': native,
                     'files': {p.relative_to(stage).as_posix(): sha256(p) for p in stage.rglob('*') if p.is_file()}}
         (stage / MANIFEST).write_text(json.dumps(manifest, indent=2) + '\n')
+        check_sources(project, hashes)
+        shutil.rmtree(private)
+        private = None
         promote(stage, output, work / 'previous')
         return {'status': 'PASS', 'output': str(output), 'work': str(work), 'manifest': str(output / MANIFEST)}
     finally:
-        os.close(lock_fd)
-        lock.unlink()
+        try:
+            if private is not None:
+                if private.resolve(strict=True).parent != output.parent or not private.name.startswith('.cubism-project-'):
+                    raise ValueError('Refusing to remove an unexpected checked-export snapshot path')
+                shutil.rmtree(private)
+        finally:
+            os.close(lock_fd)
+            lock.unlink()
 
 
 def main():
