@@ -1,6 +1,26 @@
 # Current status and tested evidence
 
-This page is keyed to the clean tested baseline
+## Linux candidate checked on 2026-09-16
+
+Clean sanitized revision `fd43bd35add05ea348e1a1d7d5e68a773b96471d`
+passed both ten-stage Linux desktop suites, 1,660 SDK numeric cases, 92 visual
+cases, and 26 sanitizer checks with 250 lifecycle cycles. Its debug/release
+libraries also passed 14 scoped checks at 200% editor UI scale: rendered model,
+origin selection, scaled dragging, exact undo, readable resource summary, and
+clean shutdown. This evidence covers Linux X11 GL Compatibility on the recorded
+VM graphics environment; it does not qualify Windows, physical/mixed-DPI panels,
+or Forward+.
+
+Later documentation and source-release workflow changes do not change native
+behavior, but these results remain attributed to the exact revision above.
+Windows qualification, actual public/private CI and required status propagation,
+dedicated-hardware benchmark comparison, and final publication remain pending.
+The development version remains unreleased. The [source archive workflow](source-release.md)
+only prepares a checked source artifact and cannot certify runtime qualification.
+
+## Historical baseline checked on 2026-09-14
+
+The historical results below are keyed to the clean tested baseline
 `90f8d18298369a3ecd942928806ed52269e5871c` (2026-09-14). Later source-only
 packaging, CI, or documentation commits may advance the checkout; they are not
 automatically covered by the results below. Re-key and rerun the relevant gates
@@ -33,8 +53,9 @@ Windows support, complete renderer parity, or a distributable release.
   undo recovery. A supplemental debug invalid-resource UI recovery pass adds 5
   checks on the same baseline library: empty-resource unload guidance, restored
   factory-model rendering after undo, ready state, and clean exit without
-  diagnostics. This supplement is not a new full native rerun. High-DPI, audible
-  audio, and Windows behavior remain open.
+  diagnostics. This supplement is not a new full native rerun. At that baseline, supplemental high-DPI coverage had not yet been included
+  in this page. Current-candidate scope is stated above; physical audible output
+  remains unqualified rather than a P0 requirement.
 
 ## Known boundaries
 
