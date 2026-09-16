@@ -45,10 +45,22 @@ func _run() -> void:
 	assert(int(controller.get("_pid")) >= 0)
 	while int(controller.get("_pid")) >= 0:
 		await get_tree().create_timer(0.5).timeout
-	var status: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(controller.get("_report")))
-	assert(status.status == "PASS", JSON.stringify(status))
+	var report_path: String = str(controller.get("_report"))
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(report_path)) if FileAccess.file_exists(report_path) else null
+	if not parsed is Dictionary:
+		push_error("Checked export did not write a valid status report: " + report_path)
+		get_tree().quit(1)
+		return
+	var status: Dictionary = parsed
+	if status.get("status") != "PASS":
+		push_error("Checked export failed: " + JSON.stringify(status))
+		get_tree().quit(1)
+		return
 	var label: Label = controller.get("_status")
-	assert(label.text.contains("Export passed"))
+	if not label.text.contains("Export passed"):
+		push_error("Checked export result did not report success: " + label.text)
+		get_tree().quit(1)
+		return
 	RenderingServer.force_draw(false)
 	assert(dialog.size.y < 700, "Export result must not create an oversized dialog")
 	assert(dialog.get_texture().get_image().save_png(OS.get_environment("CUBISM_UI_AFTER")) == OK)
