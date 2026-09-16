@@ -3,7 +3,8 @@
 Unofficial GDCubism port for Redot Engine LTS 26.2 and Cubism Native SDK 5-r.5.
 Implementation is in progress. Linux debug/release native model loading, motion,
 expression and private exported-template smoke tests pass. Compatibility rendering
-has been exercised on this Linux host. Windows and full renderer parity remain unqualified.
+has been exercised on this Linux host. Windows debug/release builds and scoped
+checks have passed; complete desktop and visual acceptance remain pending.
 The SDK and test models are not bundled.
 
 Source destination: [dominicbytes/redot-cubism](https://github.com/dominicbytes/redot-cubism).
