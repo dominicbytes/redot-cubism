@@ -6,11 +6,12 @@
 > commits after that baseline are not automatically covered. See
 > [current status](../current-status.md) before treating any checkpoint as current.
 
-The user-created public fork is
-[`dominicbytes/redot_cubism`](https://github.com/dominicbytes/redot_cubism).
+The user-created public fork, renamed on 2026-09-16, is
+[`dominicbytes/redot-cubism`](https://github.com/dominicbytes/redot-cubism).
 It is a fork of `MizunagiKB/gd_cubism`; `main` was verified at
-`3aaa3c9001808732c40aa3fa07460a95125d9ccc` on 2026-09-07. The local `origin`
-now uses that URL. The local implementation branch is `port/redot-26.2`.
+`3aaa3c9001808732c40aa3fa07460a95125d9ccc` on 2026-09-07. The local
+implementation branch is `port/redot-26.2`; historical upload links below retain
+the fork's former URL, which redirects to its current name.
 
 Source checkpoints prepared for publication:
 

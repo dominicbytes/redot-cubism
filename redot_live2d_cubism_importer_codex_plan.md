@@ -7,7 +7,7 @@
 **Secondary target:** Redot Engine LTS 26.2, Linux x86_64  
 **Implementation form:** External C++ GDExtension/addon, not an engine-core module  
 **Working directory:** `plugins/redot-cubism`  
-**Authorized remote:** `dominicbytes/redot_cubism` (user-created fork, verified 2026-09-07; supersedes the proposed hyphenated name)  
+**Authorized remote:** `dominicbytes/redot-cubism` (same user-created fork, verified 2026-09-07 and renamed 2026-09-16)  
 **Upstream starting point:** `MizunagiKB/gd_cubism`  
 **Intended users:** Visual-novel, 2D RPG, dialogue, portrait, and character-driven Redot projects
 
@@ -37,8 +37,9 @@ Keep the existing native GDExtension approach. The source review found no demons
 The user has now requested implementation, testing, creation of the `dominicbytes/redot-cubism` fork and saving the source port there. Continue that authorized work without repeated approval. On 2026-09-07 the user also authorized downloading the SDK from Live2D's official website, superseding the earlier manual-provisioning restriction. Restricted asset redistribution and binary-publication decisions remain governed by Section 4.
 
 The user subsequently created `dominicbytes/redot_cubism` and selected that
-existing fork as the destination. Use its underscore spelling for Git remotes
-and publication; keep the local plugin directory name unchanged.
+existing fork as the destination. On 2026-09-16, the same fork was renamed to
+`dominicbytes/redot-cubism` at the user's direction. Use the hyphenated spelling
+for Git remotes and publication; keep the local plugin directory name unchanged.
 
 Implement the work as a sequence of small, reviewable pull requests. Keep every merged PR buildable. Do not combine the initial Redot port, renderer redesign, model importer, high-level gameplay API, and mobile support into one PR.
 

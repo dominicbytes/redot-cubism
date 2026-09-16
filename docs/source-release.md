@@ -27,6 +27,6 @@ python tools/package_addon.py --source-only --ref FULL_REVIEWED_COMMIT_SHA --out
 python tools/check_release_archive.py /private/output/source.tar.gz
 ```
 
-Source publication to `dominicbytes/redot_cubism` is authorized by the user once
+Source publication to `dominicbytes/redot-cubism` is authorized by the user once
 the required checks pass. No binary, SDK/model, screenshot, or private-evidence
 publication is included in this source-only workflow.

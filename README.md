@@ -6,7 +6,7 @@ expression and private exported-template smoke tests pass. Compatibility renderi
 has been exercised on this Linux host. Windows and full renderer parity remain unqualified.
 The SDK and test models are not bundled.
 
-Source destination: [dominicbytes/redot_cubism](https://github.com/dominicbytes/redot_cubism).
+Source destination: [dominicbytes/redot-cubism](https://github.com/dominicbytes/redot-cubism).
 See [publication status](docs/gamedev/publication-status.md) for the historical upload
 checkpoint, and [current status](docs/current-status.md) for the tested baseline and
 remaining gates.

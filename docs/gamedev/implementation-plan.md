@@ -9,7 +9,9 @@ This overrides the earlier planning-only boundary and proposed organization remo
 Source publication to that fork is authorized. It does not assert approval to
 redistribute proprietary Core, SDK packages, private models, or binary releases.
 The user subsequently created `dominicbytes/redot_cubism` (underscore) and asked
-this task to use it. That verified fork is now the destination and local `origin`.
+this task to use it. On 2026-09-16, that same public fork was renamed to
+`dominicbytes/redot-cubism` at the user's direction. This is the current source
+destination; earlier reports retain the repository's former name.
 
 PR 0/1 and the Linux portion of SDK-free PR 2A are READY_FOR_IMPLEMENTATION.
 Current checkpoint: [PR 0/1 report](pr-01-report.md) and
