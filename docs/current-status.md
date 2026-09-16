@@ -29,15 +29,18 @@ against 46 fresh Windows references. The visual limits have not been accepted,
 so those measurements are not visual PASS results.
 
 The isolated checked-export repair at `4f2b85402f26f1f5f500b1568f9ca75f9e473cd5`
-passed 7/7 graphical debug and 7/7 release checked-export cases, plus 12/12
-focused Python checks. Its expected failure paths preserved the previous build.
+and lock-cleanup follow-up `48ecf132146a9f92e51c9930f2fef5fa7bdd520a`
+passed 7/7 graphical debug and 7/7 release checked-export cases, plus 13/13
+focused Python checks on the final exporter source. Tested failure paths preserved
+the previous build; a post-promotion lock cleanup error reports PASS with an
+actionable warning because the new output is already committed.
 The Windows tooling changes at
 `77dba74d7db9f18617b745aac6540fe2a0efb508` produced actual debug and
 release builds; `bce60670b30702d7d7861cca2b926f7d15c51e52` only corrected
 the build guide afterward. These results belong to those identified sources,
 not automatically to a later integrated commit.
 
-The combined Windows Python run had 107 tests: 102 passed, four skipped, and
+The combined Windows Python run had 108 tests: 103 passed, four skipped, and
 one errored because this host lacks Windows symlink-creation privilege
 (`WinError 1314`). The complete debug/release desktop rerun, accepted visual
 limits, dedicated performance baseline, private licensed CI, and final
