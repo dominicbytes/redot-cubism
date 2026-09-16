@@ -18,6 +18,31 @@ dedicated-hardware benchmark comparison, and final publication remain pending.
 The development version remains unreleased. The [source archive workflow](source-release.md)
 only prepares a checked source artifact and cannot certify runtime qualification.
 
+## Scoped Windows progress on 2026-09-16
+
+Sanitized source `13d45b96e4b79552c443f1c1e02aa4ed3288603b` produced
+Windows x86_64 debug and release DLLs with the pinned VS 2022 v143 toolchain.
+Split native, editor, importer, model, and export checks passed in recorded
+Windows runs, while the complete ten-stage desktop suites remain open. A private
+comparison harness passed 1,660 numeric cases and measured 92 visual cases
+against 46 fresh Windows references. The visual limits have not been accepted,
+so those measurements are not visual PASS results.
+
+The isolated checked-export repair at `4f2b85402f26f1f5f500b1568f9ca75f9e473cd5`
+passed 7/7 graphical debug and 7/7 release checked-export cases, plus 12/12
+focused Python checks. Its expected failure paths preserved the previous build.
+The Windows tooling changes at
+`77dba74d7db9f18617b745aac6540fe2a0efb508` produced actual debug and
+release builds; `bce60670b30702d7d7861cca2b926f7d15c51e52` only corrected
+the build guide afterward. These results belong to those identified sources,
+not automatically to a later integrated commit.
+
+The combined Windows Python run had 107 tests: 102 passed, four skipped, and
+one errored because this host lacks Windows symlink-creation privilege
+(`WinError 1314`). The complete debug/release desktop rerun, accepted visual
+limits, dedicated performance baseline, private licensed CI, and final
+publication decisions remain open. No Windows release qualification is claimed.
+
 ## Historical baseline checked on 2026-09-14
 
 The historical results below are keyed to the clean tested baseline

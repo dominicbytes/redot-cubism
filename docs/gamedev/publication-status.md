@@ -1,9 +1,9 @@
 # Source publication status
 
 > Historical upload record: the public commit and CI result below describe an
-> earlier sanitized checkpoint. The tested baseline for the current evidence is
-> `90f8d18298369a3ecd942928806ed52269e5871c`; source-only packaging/history
-> commits after that baseline are not automatically covered. See
+> earlier sanitized checkpoint. Later Linux and Windows checks have separate
+> source identities; source-only packaging/history commits are not automatically
+> covered by them. See
 > [current status](../current-status.md) before treating any checkpoint as current.
 
 The user-created public fork, renamed on 2026-09-16, is
@@ -61,7 +61,10 @@ renderer fixes. The [current documentation](../README.md) describes those APIs;
 record later coverage and its limits. Those additions require a fresh filtered
 publication; do not push the unfiltered local history containing the workbook.
 
-Windows native/editor/export checks, live desktop CI, full visual acceptance,
-dedicated performance thresholds, remaining editor checks and final package/legal
-review are still open. The port remains unqualified for release. This file records
-the known upload checkpoint; inspect the remote before making the final push.
+Later Windows debug/release builds and scoped editor/export checks are recorded
+in [current status](../current-status.md); they do not complete the ten-stage
+desktop matrix. Live licensed CI, accepted Windows visual limits, dedicated
+performance thresholds, remaining editor checks and final package/legal review
+remain open. The port remains unqualified for release. This file records the
+known historical upload checkpoint; inspect the remote before publishing a new
+source review branch.
