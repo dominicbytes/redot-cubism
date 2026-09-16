@@ -38,7 +38,7 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
                 or "source-of-truth.xlsx" in public_parts or suffix == ".bundle"):
             problems.append(f"{name}: private publication content")
     # Upstream history contains this empty SDK-directory placeholder, not SDK bytes.
-    sdk_placeholder = (lower == "thirdparty/cubismsdkfornative/.gitignore"
+    sdk_placeholder = (parts[-3:] == ("thirdparty", "cubismsdkfornative", ".gitignore")
                        and data == b"*\n!.gitignore\n")
     if "live2dcubismcore" in lower or ("cubismsdkfornative" in lower and not sdk_placeholder):
         problems.append(f"{name}: restricted Core/SDK path")

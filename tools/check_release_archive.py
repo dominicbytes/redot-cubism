@@ -24,11 +24,15 @@ def main():
     if args.source_ref:
         if args.approved_native or not re.fullmatch(r'[0-9a-f]{40}', args.source_ref):
             parser.error("Source verification requires a full commit SHA and forbids native approvals")
-        from check_public_history import validate_history
+        from check_public_history import revision, validate_history
         from package_addon import verify_archive
         try:
-            validate_history(args.repo.resolve(), args.source_ref)
-            result = verify_archive(args.repo.resolve(), args.source_ref, args.archive)
+            repo = args.repo.resolve()
+            sha = revision(repo, args.source_ref)
+            if sha != args.source_ref:
+                raise ValueError('Source verification requires the exact commit SHA, not another object type')
+            validate_history(repo, sha)
+            result = verify_archive(repo, sha, args.archive)
         except (OSError, ValueError, subprocess.CalledProcessError, tarfile.TarError) as error:
             print(json.dumps({'status': 'FAIL', 'error': str(error)}, indent=2))
             return 1
