@@ -73,6 +73,13 @@ class SourcePackageTest(unittest.TestCase):
         self.assertEqual(result['submodules'], {'thirdparty/bindings': self.sha})
         self.assertEqual(verify_archive(self.repo, sha, archive)['revision'], sha)
 
+    def test_exact_sdk_placeholder_is_allowed_in_source_archive(self):
+        name = 'thirdparty/CubismSdkForNative/.gitignore'
+        self.write(name, b'*\n!.gitignore\n')
+        sha = self.commit()
+        result = package(self.repo, sha, self.root / 'source.tar.gz')
+        self.assertIn(name, result['files'])
+
     def test_invalid_dependency_manifest_rejected_without_output(self):
         self.write('DEPENDENCIES.json', b'{}')
         sha = self.commit()
@@ -94,6 +101,11 @@ class SourcePackageTest(unittest.TestCase):
         result = subprocess.run(command, capture_output=True, text=True)
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('full commit SHA', result.stderr)
+        self.git('tag', '-a', 'source-tag', '-m', 'source tag')
+        command[-1] = self.git('rev-parse', 'source-tag^{tag}')
+        result = subprocess.run(command, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('exact commit SHA', result.stdout)
 
     def test_rejects_workbook_deleted_later(self):
         self.write('docs/gamedev/source-of-truth.xlsx', b'private')
@@ -138,6 +150,10 @@ class SourcePackageTest(unittest.TestCase):
     def test_missing_required_and_mutable_ref(self):
         with self.assertRaisesRegex(ValueError, 'immutable'):
             package(self.repo, 'HEAD', self.root / 'bad.tar.gz')
+        self.git('tag', '-a', 'fixture-tag', '-m', 'fixture tag')
+        tag_object = self.git('rev-parse', 'fixture-tag^{tag}')
+        with self.assertRaisesRegex(ValueError, 'exact full'):
+            package(self.repo, tag_object, self.root / 'tag.tar.gz')
         (self.repo / 'NOTICE.md').unlink()
         sha = self.commit()
         with self.assertRaisesRegex(ValueError, 'Missing required'):

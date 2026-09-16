@@ -9,7 +9,7 @@ import re
 import subprocess
 import sys
 import tarfile
-from check_public_history import blob, entries, git, revision, validate_history
+from check_public_history import blobs, entries, git, revision, validate_history
 from check_restricted_files import inspect_bytes, MAX_BYTES
 
 REQUIRED = {'README.md', 'LICENSE.adoc', 'LICENSE.en.adoc', 'NOTICE.md',
@@ -19,14 +19,18 @@ REQUIRED = {'README.md', 'LICENSE.adoc', 'LICENSE.en.adoc', 'NOTICE.md',
 
 def source_manifest(repo, sha):
     files = {}
-    for name, mode, kind, oid in entries(repo, sha):
+    source_entries = list(entries(repo, sha))
+    by_oid = {}
+    for name, mode, kind, oid in source_entries:
         if kind == 'commit':  # Git archive does not bundle submodule worktrees.
             continue
         if kind != 'blob' or mode not in ('100644', '100755'):
             raise ValueError('Unsupported source entry: ' + name)
-        data = blob(repo, oid)
-        files[name] = {'sha256': hashlib.sha256(data).hexdigest(),
-                       'executable': mode == '100755'}
+        by_oid.setdefault(oid, []).append((name, mode))
+    for oid, data in blobs(repo, by_oid):
+        for name, mode in by_oid[oid]:
+            files[name] = {'sha256': hashlib.sha256(data).hexdigest(),
+                           'executable': mode == '100755'}
     missing = REQUIRED - files.keys()
     if missing:
         raise ValueError('Missing required source files: ' + ', '.join(sorted(missing)))
@@ -83,6 +87,8 @@ def package(repo, ref, archive):
     if not re.fullmatch(r'[0-9a-f]{40}', ref):
         raise ValueError('Use a full immutable 40-character commit SHA')
     sha = revision(repo, ref)
+    if sha != ref:
+        raise ValueError('Use the exact full 40-character commit SHA, not another object type')
     history = validate_history(repo, sha)
     source_manifest(repo, sha)  # Reject incomplete refs before creating an output.
     manifest = archive.with_name(archive.name + '.manifest.json')

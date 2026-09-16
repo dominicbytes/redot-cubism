@@ -26,6 +26,8 @@ class RestrictedFilesTest(unittest.TestCase):
     def test_exact_upstream_sdk_placeholder(self):
         name = "thirdparty/CubismSdkForNative/.gitignore"
         self.assertFalse(inspect_bytes(name, b"*\n!.gitignore\n", public=True))
+        self.assertFalse(inspect_bytes("source.tar.gz!prefix/" + name,
+                                      b"*\n!.gitignore\n", public=True))
         self.assertTrue(inspect_bytes(name, b"MOC3 hidden content", public=True))
         self.assertTrue(inspect_bytes(name + ".h", b"*\n!.gitignore\n", public=True))
 

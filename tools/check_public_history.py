@@ -25,22 +25,48 @@ def entries(repo, ref):
             yield name.decode('utf-8'), mode, kind, oid
 
 
-def blob(repo, oid):
-    if int(git(repo, 'cat-file', '-s', oid)) > MAX_BYTES:
-        raise ValueError('Git blob exceeds audit size limit: ' + oid)
-    return git(repo, 'cat-file', 'blob', oid)
+def blobs(repo, oids):
+    """Yield requested blobs through one bounded cat-file process."""
+    process = subprocess.Popen(
+        ['git', '-c', 'safe.directory=' + str(repo), '-C', str(repo), 'cat-file', '--batch'],
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    complete = False
+    try:
+        for oid in oids:
+            process.stdin.write((oid + '\n').encode('ascii'))
+            process.stdin.flush()
+            header = process.stdout.readline().split()
+            if len(header) != 3 or header[0].decode() != oid or header[1] != b'blob':
+                raise ValueError('Invalid Git blob response: ' + oid)
+            size = int(header[2])
+            if size > MAX_BYTES:
+                raise ValueError('Git blob exceeds audit size limit: ' + oid)
+            data = process.stdout.read(size)
+            if len(data) != size or process.stdout.read(1) != b'\n':
+                raise ValueError('Truncated Git blob response: ' + oid)
+            yield oid, data
+        complete = True
+    finally:
+        if not complete and process.poll() is None:
+            process.kill()
+        process.stdin.close()
+        process.stdout.close()
+        code = process.wait()
+        if complete and code:
+            raise subprocess.CalledProcessError(code, process.args)
 
 
 def validate_history(repo, ref):
     sha = revision(repo, ref)
     commits = git(repo, 'rev-list', sha).decode().splitlines()
-    seen = set()
+    seen = {}
+    by_oid = {}
     for commit in commits:
         for name, mode, kind, oid in entries(repo, commit):
             key = (name, mode, oid)
             if key in seen:
                 continue
-            seen.add(key)
+            seen[key] = commit
             # Check path policy even for an empty submodule or renamed identical blob.
             problems = inspect_bytes(name, b'', public=True)
             if kind == 'commit':
@@ -49,7 +75,10 @@ def validate_history(repo, ref):
                 continue
             if mode not in ('100644', '100755') or kind != 'blob':
                 raise ValueError(commit + ': unsupported source entry ' + name)
-            problems = inspect_bytes(name, blob(repo, oid), public=True)
+            by_oid.setdefault(oid, []).append((commit, name))
+    for oid, data in blobs(repo, by_oid):
+        for commit, name in by_oid[oid]:
+            problems = inspect_bytes(name, data, public=True)
             if problems:
                 raise ValueError(commit + ': ' + '; '.join(problems))
     return {'revision': sha, 'commits': len(commits), 'file_versions': len(seen)}
