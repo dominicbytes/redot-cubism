@@ -1,5 +1,11 @@
 # Source publication status
 
+> Historical upload record: the public commit and CI result below describe an
+> earlier sanitized checkpoint. The tested baseline for the current evidence is
+> `90f8d18298369a3ecd942928806ed52269e5871c`; source-only packaging/history
+> commits after that baseline are not automatically covered. See
+> [current status](../current-status.md) before treating any checkpoint as current.
+
 The user-created public fork is
 [`dominicbytes/redot_cubism`](https://github.com/dominicbytes/redot_cubism).
 It is a fork of `MizunagiKB/gd_cubism`; `main` was verified at

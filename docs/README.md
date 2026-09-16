@@ -6,10 +6,15 @@ complete release gates remain unqualified. SDK/model assets are supplied separat
 
 Start with [setup and first character](quick-start.md). Use the
 [dependency pins and build requirements](../DEPENDENCIES.md) for the native build.
+The tested baseline and remaining qualification gates are summarized in
+[current status](current-status.md); source-only commits after that baseline are
+not automatically covered by its results.
 
 | Task | Guide |
 |---|---|
+| Check the tested baseline and release gates | [Current status](current-status.md) |
 | Build the addon | [Linux](build/linux.md), [Windows](build/windows.md), [macOS status](build/macos.md), [mobile status](build/mobile.md) |
+| Browse the current public classes | [API reference](api-reference.md) |
 | Import a model and choose options | [Importing models](usage/importing-models.md), [editor options](editor-import.md), [texture import](texture-import.md) |
 | Inspect the imported model | [Model Inspector](model-inspector.md), [resource format](model-resource.md), [motion/expression descriptors](descriptors.md) |
 | Display and animate a character | [CubismModel2D](usage/cubism-model-2d.md), [motions and expressions](usage/motions-and-expressions.md), [detailed runtime API](preferred-runtime.md) |

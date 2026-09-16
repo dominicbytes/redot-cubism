@@ -1,6 +1,12 @@
-# Redot Cubism plan review
+# Historical Redot Cubism preflight review
 
 Date: 2026-09-07. Scope: revise the existing plan without implementing or publishing the addon.
+
+> Historical record: this report predates SDK provisioning and implementation
+> evidence. Its `PREFLIGHT_BLOCKED` recommendation and “future gate” statements
+> describe the 2026-09-07 planning snapshot, not the current tested baseline. See
+> [current status](../current-status.md) for source-keyed evidence and remaining
+> gates.
 
 The source review supports retaining GDCubism as the basis for a Redot C++ GDExtension. The original plan combined a plausible port with substantial new features and contained build-order and API-contract errors. Those have been corrected in [the canonical plan](../../redot_live2d_cubism_importer_codex_plan.md). The planning review is complete; a working port is not yet demonstrated.
 

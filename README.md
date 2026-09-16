@@ -7,13 +7,20 @@ has been exercised on this Linux host. Windows and full renderer parity remain u
 The SDK and test models are not bundled.
 
 Source destination: [dominicbytes/redot_cubism](https://github.com/dominicbytes/redot_cubism).
-See [publication status](docs/gamedev/publication-status.md) for the current upload checkpoint.
+See [publication status](docs/gamedev/publication-status.md) for the historical upload
+checkpoint, and [current status](docs/current-status.md) for the tested baseline and
+remaining gates.
 
-Current evidence: [bootstrap](docs/gamedev/pr-01-report.md) and
+Current evidence is keyed to tested source revision
+`90f8d18298369a3ecd942928806ed52269e5871c`: [status and evidence boundaries](docs/current-status.md).
+The PR reports below are retained as historical stage records:
+[bootstrap](docs/gamedev/pr-01-report.md),
 [Linux compatibility spike](docs/gamedev/pr-02a-report.md), and
 [real SDK port tests](docs/gamedev/pr-02b-native-report.md).
 
 - [Setup and first character](docs/quick-start.md)
+- [Current status and tested evidence](docs/current-status.md)
+- [Current API reference](docs/api-reference.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Documentation index](docs/README.md)
 - [Implementation plan](redot_live2d_cubism_importer_codex_plan.md)
@@ -24,12 +31,13 @@ Current evidence: [bootstrap](docs/gamedev/pr-01-report.md) and
 - [Imported resource runtime loading](docs/resource-runtime.md)
 - [VN and RPG character examples](demo/addons/gd_cubism/examples/character_workflows/README.md)
 - [Dialogue manager integration](docs/dialogue-integration.md)
-- [Preflight findings, sources and remaining gates](docs/gamedev/preflight-report.md)
+- [Historical preflight findings and sources](docs/gamedev/preflight-report.md)
 - Local source, decision and risk index: `docs/gamedev/source-of-truth.xlsx`
   (excluded from the public source branch).
 
-The port retains the legacy API alongside the preferred `CubismModel2D` resource
-workflow and `CubismCharacterController` for motion and recorded-audio cues. Run the current public
+The port retains the legacy API alongside the preferred `CubismModel2D` node workflow
+backed by `CubismModelResource`, and `CubismCharacterController` for motion and
+recorded-audio cues. Run the current public
 checks with `python tools/run_tests.py --suite public`. Read [dependencies](DEPENDENCIES.md)
 and [licensing](docs/licensing.md) before a native build. The original GDCubism
 notices and [archived documentation](docs-src/README.md) remain in the `.adoc` files.
