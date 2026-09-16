@@ -36,6 +36,12 @@ Failure stops subsequent stages. Each stage has a 30-minute wall-clock bound
 in addition to the child harness's own process timeouts. Logs and fixture
 projects remain in that directory. Allow several GB of free space per run.
 
+The dependency test keeps its editor process at the pinned focused sleep rate
+(6,900 microseconds), including while unfocused. This prevents desktop focus
+from stretching its frame-based scans past the unchanged 180-second process
+deadline. The test changes no saved editor preference or production tracker
+behavior; all dependency assertions and frame bounds remain in force.
+
 `status: PASS` refers to this functional sequence on the recorded platform and
 variant. `release_qualified` remains false: sanitizer lifecycle, the complete
 SDK visual fixture matrix, dedicated performance thresholds, remaining manual

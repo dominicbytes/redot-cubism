@@ -2,12 +2,21 @@
 @tool
 extends EditorPlugin
 
+# Match the pinned editor's focused sleep rate regardless of desktop focus.
+# This is process-local: test runs must not change saved editor preferences.
+const TEST_PROCESS_SLEEP_USEC := 6900
+
 var tracker: Node
 var failures: Array[String] = []
 var cases := 0
 
 func _enter_tree() -> void:
 	_run.call_deferred()
+
+func _process(_delta: float) -> void:
+	if OS.get_low_processor_usage_mode_sleep_usec() != TEST_PROCESS_SLEEP_USEC:
+		OS.set_low_processor_usage_mode_sleep_usec(TEST_PROCESS_SLEEP_USEC)
+		print("CUBISM_DEPENDENCY_SLEEP_USEC=", OS.get_low_processor_usage_mode_sleep_usec())
 
 func expect(value: bool, label: String) -> void:
 	cases += 1
@@ -39,6 +48,7 @@ func write_bytes(path: String, bytes: PackedByteArray) -> void:
 func _run() -> void:
 	await get_tree().create_timer(1.0).timeout
 	print("CUBISM_DEPENDENCY_GRAPHICS=", RenderingServer.get_current_rendering_method())
+	print("CUBISM_DEPENDENCY_SLEEP_USEC=", OS.get_low_processor_usage_mode_sleep_usec())
 	while EditorInterface.get_resource_filesystem().is_scanning():
 		await get_tree().process_frame
 	tracker = get_tree().root.find_child("CubismDependencies", true, false)
