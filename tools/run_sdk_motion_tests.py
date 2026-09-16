@@ -20,6 +20,10 @@ TOLERANCE = 1e-5
 CASE_KEYS = ('resource', 'group', 'index', 'steps', 'fps', 'loop', 'expression', 'physics', 'pose', 'breath', 'look', 'expression_switch')
 
 
+def is_vs2022_compiler(output):
+    return bool(re.search(r'Version 19\.(?:3\d|4\d)\.\d+ for x64\b', output))
+
+
 def compare_states(expected, actual):
     differences = []
     for group in ('parameters', 'parts'):
@@ -145,7 +149,7 @@ def main():
         compiler = shlex.split(os.environ.get('CXX', 'cl' if os.name == 'nt' else 'g++'))
         if os.name == 'nt':
             compiler_version = execute('compiler', compiler)
-            if not re.search(r'Version 19\.3\d\.', compiler_version):
+            if not is_vs2022_compiler(compiler_version):
                 raise ValueError('Use VS2022 MSVC14.3 x64 Native Tools environment')
             flags = ['/nologo', '/std:c++17', '/EHsc', '/O2', '/MD', '/utf-8', '/I' + str(framework / 'src'), '/I' + str(core / 'include')]
             end = ['/Fe:' + str(reference)]

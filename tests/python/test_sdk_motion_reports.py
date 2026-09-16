@@ -7,10 +7,17 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools'))
-from run_sdk_motion_tests import compare_states, load_fixtures
+from run_sdk_motion_tests import compare_states, is_vs2022_compiler, load_fixtures
 
 
 class SDKMotionReportTests(unittest.TestCase):
+    def test_vs2022_compiler_range_and_architecture(self):
+        for version in ('19.30.30705', '19.44.35221', '19.49.99999'):
+            self.assertTrue(is_vs2022_compiler(f'Microsoft C/C++ Compiler Version {version} for x64'))
+        for version, arch in (('19.29.99999', 'x64'), ('19.50.00000', 'x64'),
+                              ('19.44.35221', 'x86'), ('20.00.00000', 'x64')):
+            self.assertFalse(is_vs2022_compiler(f'Microsoft C/C++ Compiler Version {version} for {arch}'))
+
     def test_numeric_difference_is_reported(self):
         expected = {'parameters': {'目': 0.5}, 'parts': {'body': 1.0}}
         actual = copy.deepcopy(expected)

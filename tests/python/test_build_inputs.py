@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
-from build_inputs import binding_root, core_library, sdk_roots, sha256, source_hash, windows_core_library
+from build_inputs import binding_root, core_library, sdk_roots, sha256, source_hash, windows_core_library, windows_tool_override
 
 
 class BuildInputsTest(unittest.TestCase):
@@ -42,7 +42,7 @@ class BuildInputsTest(unittest.TestCase):
 
     def test_first_missing_required_file(self):
         (self.core / "include/Live2DCubismCore.h").unlink()
-        with self.assertRaisesRegex(ValueError, "Core/include/Live2DCubismCore.h"):
+        with self.assertRaisesRegex(ValueError, r"Core[/\\]include[/\\]Live2DCubismCore[.]h"):
             sdk_roots(self.options, self.pins)
 
     def test_explicit_framework_overrides_sdk_default(self):
@@ -122,6 +122,21 @@ class BuildInputsTest(unittest.TestCase):
         for key, value in (("is_msvc", False), ("MSVC_VERSION", "14.2"), ("MSVC_VERSION", None), ("arch", "arm64")):
             with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, "Windows baseline requires"):
                 windows_core_library(self.core, dict(env, **{key: value}))
+
+    def test_windows_tool_selects_v143_without_editing_bindings(self):
+        cpp = self.root / "bindings"
+        tool = cpp / "tools/windows.py"
+        tool.parent.mkdir(parents=True)
+        original = 'before\nenv["MSVC_VERSION"] = None\nafter\n'
+        tool.write_text(original)
+        output = self.root / "build/tools"
+        self.assertEqual(windows_tool_override(cpp, output), output)
+        self.assertEqual(tool.read_text(), original)
+        self.assertEqual((output / "windows.py").read_text(),
+                         original.replace('env["MSVC_VERSION"] = None', 'env["MSVC_VERSION"] = "14.3"'))
+        tool.write_text('changed pinned tool')
+        with self.assertRaisesRegex(ValueError, 'expected MSVC selection'):
+            windows_tool_override(cpp, output)
 
 
 if __name__ == "__main__":
