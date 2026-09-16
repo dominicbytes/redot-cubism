@@ -1,0 +1,59 @@
+name: Prepare audited source release
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_sha:
+        description: Full sanitized source commit reviewed for packaging
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  source-archive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+    steps:
+      - name: Require an immutable commit
+        shell: python
+        run: |
+          import os, re
+          if not re.fullmatch('[0-9a-f]{40}', os.environ['REVIEWED_SHA']):
+              raise SystemExit('Supply the full reviewed commit SHA.')
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.reviewed_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Verify checkout and run source tests
+        shell: python
+        run: |
+          import os, subprocess, sys
+          actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          if actual != os.environ['REVIEWED_SHA']:
+              raise SystemExit('Checkout differs from the reviewed commit.')
+          subprocess.run([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests/python', '-v'], check=True)
+          subprocess.run([sys.executable, 'tools/check_restricted_files.py'], check=True)
+          subprocess.run([sys.executable, 'tools/check_restricted_files.py', '--history', 'HEAD'], check=True)
+          subprocess.run(['git', 'diff', '--check'], check=True)
+      - name: Package and audit source history and archive
+        shell: python
+        run: |
+          import os, pathlib, subprocess, sys
+          output = pathlib.Path(os.environ['RUNNER_TEMP']) / 'audited-source' / 'source.tar.gz'
+          subprocess.run([sys.executable, 'tools/package_addon.py', '--source-only',
+                          '--ref', os.environ['REVIEWED_SHA'], '--output', str(output)], check=True)
+          subprocess.run([sys.executable, 'tools/check_release_archive.py', str(output)], check=True)
+      - name: Retain source archive and dependency/hash manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-${{ inputs.reviewed_sha }}
+          path: |
+            ${{ runner.temp }}/audited-source/source.tar.gz
+            ${{ runner.temp }}/audited-source/source.tar.gz.manifest.json
+          if-no-files-found: error
+          retention-days: 30
