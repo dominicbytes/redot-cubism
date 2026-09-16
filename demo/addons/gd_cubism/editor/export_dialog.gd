@@ -100,6 +100,8 @@ func _poll() -> void:
 		_status.text = "Export process ended without a result. Check the Python executable and the editor Output log."
 	elif result.get("status") == "PASS":
 		_status.text = "Export passed and the build is ready:\n" + str(result.output) + "\nReports: " + str(result.work)
+		if result.has("cleanup_warning"):
+			_status.text += "\n" + str(result.cleanup_warning)
 	else:
 		_status.text = "Export failed: " + str(result.get("error", "Unknown failure")) + "\nReports: " + str(result.get("work", ""))
 	_dialog.popup_centered()

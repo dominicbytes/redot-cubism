@@ -198,6 +198,70 @@ class CheckedExportTest(unittest.TestCase):
             self.assertEqual((output / 'old.txt').read_text(), 'prior build')
             self.assertEqual((output / checked.MANIFEST).read_text(), 'old')
 
+    def test_postcommit_lock_cleanup_reports_pass_with_warning(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            project, output, editor, report = (root / name for name in ('project', 'output', 'redot.exe', 'report.json'))
+            project.mkdir()
+            (project / 'project.godot').write_text('[application]\n')
+            (project / 'export_presets.cfg').write_text('[preset.0]\n')
+            output.mkdir()
+            (output / checked.MANIFEST).write_text('old')
+            (output / 'old.txt').write_text('prior build')
+            editor.write_bytes(b'editor')
+            version = '26.2.stable.official.4f5b14aba'
+
+            def fake_execute(command, log, cwd, env, timeout, marker=None):
+                if '--version' in command:
+                    return version
+                if '--cubism-preflight' in command:
+                    Path(command[-1]).write_text(json.dumps({
+                        'ok': True, 'build': {'redot_version': version}, 'models': 0,
+                        'preset': {'platform': 'Windows Desktop', 'architecture': 'x86_64',
+                                   'embedded_pck': False, 'encrypted_pck': False, 'encrypted_directory': False,
+                                   'project_hash': checked.sha256(project / 'project.godot'),
+                                   'presets_hash': checked.sha256(project / 'export_presets.cfg')},
+                        'raw_hashes': {}, 'files': []}))
+                    return 'CUBISM_EXPORT_PREFLIGHT_PASS'
+                if '--export-debug' in command:
+                    game = Path(command[-1])
+                    game.write_bytes(b'game')
+                    game.with_suffix('.pck').write_bytes(b'pack')
+                    return ''
+                if '--main-pack' in command:
+                    Path(command[-1]).write_text('{}')
+                    return 'CUBISM_EXPORT_IDENTITY_PASS'
+                if '--script' in command:
+                    Path(command[-1]).write_text(json.dumps({'ok': True, 'models': 0,
+                                                           'motions': 0, 'expressions': 0, 'build': {}}))
+                    return 'CUBISM_EXPORTED_SMOKE_PASS'
+                raise AssertionError(command)
+
+            real_unlink = Path.unlink
+            lock = root / '.output.cubism-export.lock'
+
+            def blocked_unlink(path, missing_ok=False):
+                if path == lock:
+                    raise PermissionError('simulated Windows lock handle')
+                return real_unlink(path, missing_ok=missing_ok)
+
+            argv = ['checked_export.py', '--project', str(project), '--preset', 'P', '--output', str(output),
+                    '--mode', 'debug', '--redot-bin', str(editor), '--report', str(report)]
+            with patch.object(checked, 'execute', fake_execute), \
+                    patch.object(checked.platform, 'system', return_value='Windows'), \
+                    patch.object(checked, 'binary_architecture', return_value='x86_64'), \
+                    patch.object(checked, 'inspect_pack', return_value={'engine_version': [26, 2, 0], 'files': {}}), \
+                    patch.object(checked, 'stage_identity_editor', side_effect=lambda editor, probe, target: probe.write_bytes(b'probe')), \
+                    patch.object(Path, 'unlink', blocked_unlink), patch.object(sys, 'argv', argv):
+                exit_code = checked.main()
+            status = json.loads(report.read_text())
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(status['status'], 'PASS')
+            self.assertEqual(json.loads((output / checked.MANIFEST).read_text())['status'], 'PASS')
+            self.assertIn(str(lock), status['cleanup_warning'])
+            self.assertTrue(lock.exists())
+            self.assertEqual((Path(status['work']) / 'previous' / 'old.txt').read_text(), 'prior build')
+
     def test_native_build_matches_requested_package(self):
         for platform in ('Linux', 'Windows'):
             for mode in ('debug', 'release'):

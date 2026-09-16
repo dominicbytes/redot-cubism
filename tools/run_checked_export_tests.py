@@ -108,6 +108,7 @@ def main():
             config.write_text(config.read_text() + '\n[editor_plugins]\nenabled=PackedStringArray("res://addons/checked_export_test/plugin.cfg")\n')
             env = dict(os.environ, CUBISM_PYTHON_BIN=sys.executable, CUBISM_UI_MODE=args.mode,
                        CUBISM_UI_BEFORE=str(run / 'dialog-before.png'), CUBISM_UI_AFTER=str(run / 'dialog-after.png'),
+                       CUBISM_UI_WARNING=str(run / 'dialog-warning.png'),
                        CUBISM_UI_OUTPUT=str(run / 'ui-export'), PYTHONDONTWRITEBYTECODE='1')
             for kind in ['CONFIG','DATA','CACHE']:
                 path = run / ('ui-' + kind.lower())

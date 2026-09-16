@@ -64,5 +64,27 @@ func _run() -> void:
 	RenderingServer.force_draw(false)
 	assert(dialog.size.y < 700, "Export result must not create an oversized dialog")
 	assert(dialog.get_texture().get_image().save_png(OS.get_environment("CUBISM_UI_AFTER")) == OK)
+	var warning_path: String = OS.get_environment("CUBISM_UI_OUTPUT") + ".warning-status.json"
+	var warning: String = "Export lock cleanup failed at " + OS.get_environment("CUBISM_UI_OUTPUT").get_base_dir().path_join(".ui-export.cubism-export.lock") + ": remove: simulated Windows lock handle. After this process exits, remove the lock if it remains before exporting again."
+	var warning_file: FileAccess = FileAccess.open(warning_path, FileAccess.WRITE)
+	if warning_file == null:
+		push_error("Could not create the cleanup-warning fixture")
+		get_tree().quit(1)
+		return
+	warning_file.store_string(JSON.stringify({"status": "PASS", "output": status.output, "work": status.work, "cleanup_warning": warning}))
+	warning_file.close()
+	controller.set("_report", warning_path)
+	controller.set("_pid", 2147483647)
+	controller.call("_poll")
+	await get_tree().process_frame
+	if not label.text.contains(warning) or dialog.size.y >= 700:
+		push_error("The cleanup warning is missing or does not fit the export dialog")
+		get_tree().quit(1)
+		return
+	RenderingServer.force_draw(false)
+	if dialog.get_texture().get_image().save_png(OS.get_environment("CUBISM_UI_WARNING")) != OK:
+		push_error("Could not capture the cleanup-warning dialog")
+		get_tree().quit(1)
+		return
 	print("CUBISM_CHECKED_EXPORT_UI_PASS")
 	get_tree().quit()

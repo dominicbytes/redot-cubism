@@ -12,6 +12,7 @@ import shutil
 import signal
 import struct
 import subprocess
+import sys
 import tempfile
 
 from pck_inspection import inspect_pack
@@ -157,6 +158,7 @@ def checked_export(args):
     lock = output.parent / ('.' + output.name + '.cubism-export.lock')
     lock_fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     private = None
+    committed = None
     try:
         os.write(lock_fd, str(os.getpid()).encode())
         work = Path(tempfile.mkdtemp(prefix='.' + output.name + '.cubism-export-', dir=output.parent))
@@ -270,7 +272,8 @@ def checked_export(args):
         shutil.rmtree(private)
         private = None
         promote(stage, output, work / 'previous')
-        return {'status': 'PASS', 'output': str(output), 'work': str(work), 'manifest': str(output / MANIFEST)}
+        committed = {'status': 'PASS', 'output': str(output), 'work': str(work), 'manifest': str(output / MANIFEST)}
+        return committed
     finally:
         try:
             if private is not None:
@@ -278,8 +281,23 @@ def checked_export(args):
                     raise ValueError('Refusing to remove an unexpected checked-export snapshot path')
                 shutil.rmtree(private)
         finally:
-            os.close(lock_fd)
-            lock.unlink()
+            cleanup_errors = []
+            try:
+                os.close(lock_fd)
+            except OSError as error:
+                cleanup_errors.append('close: ' + str(error))
+            try:
+                lock.unlink()
+            except OSError as error:
+                cleanup_errors.append('remove: ' + str(error))
+            if cleanup_errors:
+                warning = ('Export lock cleanup failed at ' + str(lock) + ': ' + '; '.join(cleanup_errors)
+                           + '. After this process exits, remove the lock if it remains before exporting again.')
+                args.cleanup_warning = warning
+                if committed is not None:
+                    committed['cleanup_warning'] = warning
+                elif sys.exc_info()[0] is None:
+                    raise OSError(warning)
 
 
 def main():
@@ -299,6 +317,8 @@ def main():
         result = checked_export(args)
     except (OSError, ValueError, KeyError, TypeError) as error:
         result = {'status': 'FAIL', 'error': str(error), 'work': str(getattr(args, 'work', ''))}
+        if getattr(args, 'cleanup_warning', None):
+            result['cleanup_warning'] = args.cleanup_warning
     if args.report:
         args.report.write_text(json.dumps(result, indent=2) + '\n')
     print(json.dumps(result, indent=2), flush=True)
