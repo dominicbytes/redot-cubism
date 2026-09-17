@@ -128,7 +128,7 @@ func run() -> void:
 	await get_tree().create_timer(0.2).timeout
 	expect(handle.get_elapsed_seconds() > 0, "editor preview advances motion")
 	if fixture.has("capture"):
-		await RenderingServer.frame_post_draw
+		RenderingServer.force_draw(false)
 		var image := EditorInterface.get_base_control().get_viewport().get_texture().get_image()
 		expect(image.save_png(fixture.capture) == OK, "save editor capture")
 	EditorInterface.close_scene()
