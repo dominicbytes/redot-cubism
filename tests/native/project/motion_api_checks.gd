@@ -38,12 +38,19 @@ func _run() -> void:
 		expect(node.play_motion(&"Cue/0", CubismMotionPriority.NORMAL, false, speed).get_error() == ERR_INVALID_PARAMETER, "invalid speed")
 	var order: Array[String] = []
 	var node_finishes: Array[int] = []
+	var node_terminals: Dictionary = {}
+	var node_loops: Dictionary = {}
 	node.motion_started.connect(func(handle: CubismMotionHandle, id: StringName):
 		expect(handle.get_motion_id() == id, "started identity")
 		order.append("started"))
 	node.motion_event.connect(func(_handle: CubismMotionHandle, value: String): order.append(value))
+	node.motion_looped.connect(func(handle: CubismMotionHandle, count: int):
+		if not node_loops.has(handle.get_id()): node_loops[handle.get_id()] = []
+		node_loops[handle.get_id()].append(count))
 	node.motion_finished.connect(func(handle: CubismMotionHandle, id: StringName, reason: int):
 		expect(handle.get_motion_id() == id and handle.get_reason() == reason, "finished identity")
+		if not node_terminals.has(handle.get_id()): node_terminals[handle.get_id()] = []
+		node_terminals[handle.get_id()].append(reason)
 		node_finishes.append(reason)
 		order.append("finished"))
 	var handle := node.play_motion_from_group(&"Cue", 0)
@@ -58,14 +65,25 @@ func _run() -> void:
 	expect(handle.is_finished() and terminal == [CubismMotionHandle.COMPLETED], "one shot completes exactly once")
 	expect(order == ["started", "start", "半分_😀", "end", "finished"], "ordered Unicode events and terminal signal")
 	expect(node_finishes == [CubismMotionHandle.COMPLETED], "node terminal once")
+	expect(node_terminals.get(handle.get_id(), []) == [CubismMotionHandle.COMPLETED], "completed node terminal once")
 	near(handle.get_elapsed_seconds(), 1.0, "completed elapsed clamped")
 	var slow := model()
 	var fast := model()
 	var slow_handle := slow.play_motion(&"Cue/0")
 	var fast_handle := fast.play_motion(&"Cue/0", CubismMotionPriority.NORMAL, false, 2.0)
+	var fast_events: Array[String] = []
+	var fast_event_times: Array[float] = []
+	fast.motion_event.connect(func(event_handle: CubismMotionHandle, value: String):
+		expect(event_handle.get_id() == fast_handle.get_id(), "2x event identity")
+		fast_events.append(value)
+		fast_event_times.append(event_handle.get_elapsed_seconds()))
 	expect(slow_handle.get_id() != fast_handle.get_id(), "globally unique handle IDs")
 	steps(slow, 4)
-	steps(fast, 2)
+	steps(fast, 1)
+	await process_frame
+	expect(fast_events == ["start"], "2x start event on first update")
+	near(fast_event_times[0], 0.1, "2x start event time")
+	steps(fast, 1)
 	near(slow.get_parameter_value(&"ParamAngleX"), fast.get_parameter_value(&"ParamAngleX"), "independent per-playback speed")
 	fast.paused = true
 	steps(fast, 3)
@@ -74,6 +92,20 @@ func _run() -> void:
 	fast.speed_scale = 0.5
 	steps(fast, 2)
 	near(fast_handle.get_elapsed_seconds(), 0.3, "global and local speed multiply")
+	steps(fast, 3)
+	await process_frame
+	expect(fast_events == ["start"], "2x half event waits for motion time")
+	fast.advance(0.06)
+	await process_frame
+	expect(fast_events == ["start", "半分_😀"], "2x half event after motion time 0.5")
+	if fast_event_times.size() > 1: near(fast_event_times[1], 0.51, "2x half event time")
+	steps(fast, 9)
+	await process_frame
+	expect(fast_events == ["start", "半分_😀"], "2x end event waits for motion time")
+	steps(fast, 1)
+	await process_frame
+	expect(fast_events == ["start", "半分_😀", "end"], "2x event order and completion")
+	if fast_event_times.size() > 2: near(fast_event_times[2], 1.0, "2x end event time")
 	slow.free()
 	fast.free()
 	var looping := node.play_motion(&"Cue/0", CubismMotionPriority.NORMAL, true)
@@ -84,6 +116,8 @@ func _run() -> void:
 	steps(node, 44)
 	await process_frame
 	expect(not looping.is_finished() and looping.get_loop_count() == 2 and loops == [1, 2], "R5 loop period includes source frame")
+	expect(node_loops.get(looping.get_id(), []) == [1, 2], "node loop boundaries once each")
+	expect(not node_terminals.has(looping.get_id()), "loop boundaries are not terminal")
 	expect(loop_events == ["start", "半分_😀", "end", "start", "半分_😀", "end", "start"], "events repeat once each cycle")
 	expect(node.play_motion(&"Cue/1").get_error() == ERR_BUSY, "equal priority rejected")
 	expect(node.play_motion(&"Cue/1", CubismMotionPriority.IDLE).get_error() == ERR_BUSY, "lower priority rejected")
@@ -98,13 +132,19 @@ func _run() -> void:
 	node.stop_motion(0.0)
 	await process_frame
 	expect(stopped == [CubismMotionHandle.STOPPED], "repeat stop terminates once")
+	expect(node_terminals.get(looping.get_id(), []) == [CubismMotionHandle.INTERRUPTED], "interrupted node terminal once")
+	expect(node_terminals.get(replacement.get_id(), []) == [CubismMotionHandle.STOPPED], "stopped node terminal once")
 	var angle := node.get_parameter_value(&"ParamAngleX")
 	steps(node, 5)
 	near(node.get_parameter_value(&"ParamAngleX"), angle, "zero fade removes native motion immediately")
 	var fading := model()
 	var fade_handle := fading.play_motion(&"Cue/0")
+	var fade_terminals: Array[int] = []
+	fading.motion_finished.connect(func(_handle: CubismMotionHandle, _id: StringName, reason: int): fade_terminals.append(reason))
 	steps(fading, 5)
 	fading.stop_motion(0.2)
+	await process_frame
+	expect(fade_terminals == [CubismMotionHandle.STOPPED], "fading node terminal once")
 	steps(fading, 2)
 	expect(fade_handle.get_reason() == CubismMotionHandle.STOPPED, "fade has immediate terminal status")
 	var fade_angle := fading.get_parameter_value(&"ParamAngleX")
@@ -127,7 +167,10 @@ func _run() -> void:
 	var old := node.play_motion(&"Cue/0", CubismMotionPriority.NORMAL, true)
 	var fresh := node.play_motion(&"Cue/0", CubismMotionPriority.FORCE, false)
 	steps(node, 24)
+	await process_frame
 	expect(old.get_reason() == CubismMotionHandle.INTERRUPTED and fresh.get_reason() == CubismMotionHandle.COMPLETED, "zero tick replay has independent loop state")
+	expect(node_terminals.get(old.get_id(), []) == [CubismMotionHandle.INTERRUPTED], "replayed loop node terminal once")
+	expect(node_terminals.get(fresh.get_id(), []) == [CubismMotionHandle.COMPLETED], "replay node terminal once")
 	var unloading := node.play_motion(&"Cue/0", CubismMotionPriority.NORMAL, true)
 	node.unload_model()
 	expect(unloading.get_reason() == CubismMotionHandle.UNLOADED, "unload terminates looping handle")
@@ -139,6 +182,10 @@ func _run() -> void:
 	var exiting := node.play_motion(&"Cue/0")
 	root.remove_child(node)
 	expect(exiting.get_reason() == CubismMotionHandle.UNLOADED, "tree exit terminates handle")
+	await process_frame
+	expect(node_terminals.get(unloading.get_id(), []) == [CubismMotionHandle.UNLOADED], "unloaded node terminal once")
+	expect(node_terminals.get(reloading.get_id(), []) == [CubismMotionHandle.RELOADED], "reloaded node terminal once")
+	expect(node_terminals.get(exiting.get_id(), []) == [CubismMotionHandle.UNLOADED], "tree exit node terminal once")
 	node.free()
 	var doomed := model()
 	var retained := doomed.play_motion(&"Cue/0")
@@ -149,10 +196,14 @@ func _run() -> void:
 	expect(retained.get_reason() == CubismMotionHandle.MODEL_DISPOSED and disposed == [CubismMotionHandle.MODEL_DISPOSED], "retained handle survives owner disposal")
 	var callback_model := model()
 	var callback_handle := callback_model.play_motion(&"Cue/0")
+	var callback_terminals: Array[int] = []
+	callback_model.motion_finished.connect(func(_handle: CubismMotionHandle, _id: StringName, reason: int): callback_terminals.append(reason))
 	callback_handle.event.connect(func(_value: String): callback_model.unload_model(), CONNECT_ONE_SHOT)
 	steps(callback_model, 1)
 	await process_frame
+	await process_frame
 	expect(callback_handle.get_reason() == CubismMotionHandle.UNLOADED, "event callback safely unloads model")
+	expect(callback_terminals == [CubismMotionHandle.UNLOADED], "callback unload node terminal once")
 	callback_model.free()
 	var snapshot := model()
 	var descriptor := resource.motion_groups["Cue"][0] as CubismMotionDescriptor
