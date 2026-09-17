@@ -143,8 +143,16 @@ class SourcePackageTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'unapproved native binary'):
             validate_history(self.repo, sha)
         self.git('reset', '--hard', self.sha)
-        (self.repo / 'link').symlink_to('README.md')
-        sha = self.commit()
+        # validate_history reads committed Git trees, so stage the symlink
+        # entry without requiring an OS-level link in the working tree.
+        blob = subprocess.check_output(
+            ['git', '-C', str(self.repo), 'hash-object', '-w', '--stdin'],
+            input=b'README.md', stderr=subprocess.PIPE).decode().strip()
+        self.git('update-index', '--add', '--cacheinfo', f'120000,{blob},link')
+        self.git('commit', '-qm', 'fixture')
+        sha = self.git('rev-parse', 'HEAD')
+        self.assertEqual(self.git('ls-tree', 'HEAD', 'link'), f'120000 blob {blob}\tlink')
+        self.assertEqual(self.git('cat-file', 'blob', blob), 'README.md')
         with self.assertRaisesRegex(ValueError, 'unsupported source entry'):
             validate_history(self.repo, sha)
 
