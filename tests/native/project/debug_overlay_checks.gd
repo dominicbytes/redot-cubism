@@ -19,7 +19,9 @@ func expect(value: bool, label: String) -> void:
 	if not value and not failures.has(label): failures.append(label)
 
 func capture(viewport: SubViewport) -> Image:
-	for frame in 3: await RenderingServer.frame_post_draw
+	for frame in 3:
+		await process_frame
+		RenderingServer.force_draw(false)
 	return viewport.get_texture().get_image()
 
 func geometry(reference: ReferenceOverlay, legacy: GDCubismUserModel) -> void:
