@@ -12,11 +12,13 @@ are not certified by the current evidence. Do not substitute their API dumps or
 assume newer Godot APIs exist in this engine. The project remains `project.godot`
 and the retained binding submodule folder remains `godot-cpp`.
 
-Linux x86_64 debug/release, native model playback and exported-template checks
-have passed; graphical evidence uses GL Compatibility. Windows x86_64 remains a
-required unqualified target. Full visual acceptance and final release gates are
-separate from successful loading. See [desktop testing](../desktop-testing.md)
-and the [SDK matrix](cubism_sdk_matrix.md).
+Linux and Windows x86_64 have passing debug/release builds and scoped runtime
+and export evidence using GL Compatibility. The newer Linux build/load smoke,
+earlier full Linux suites, integrated Windows stages and earlier Windows visual
+acceptance belong to distinct revisions; [current status](../current-status.md)
+records those boundaries. Neither source publication nor loading completes the
+release gates. See [desktop testing](../desktop-testing.md) and the
+[SDK matrix](cubism_sdk_matrix.md).
 
 ## Forward+ status
 

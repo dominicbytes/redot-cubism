@@ -9,4 +9,5 @@ matching Redot bindings and templates, architecture, renderer, signing and
 packaging behavior. It must run the lifecycle, animation, visual and export
 matrix on the target OS before a support claim is added. No verified macOS
 installation recipe or binary is supplied here. Current desktop instructions
-are [Linux](linux.md) and the pending [Windows target](windows.md).
+are [Linux](linux.md) and [Windows](windows.md), with scoped results recorded
+in [current status](../current-status.md).

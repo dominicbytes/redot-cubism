@@ -9,4 +9,4 @@
 - Add editor inspection, model preview/debug overlays, checked exports, and legacy compatibility coverage.
 - Add source/history/archive checks, native desktop and SDK comparisons, visual matrices, sanitizer lifecycle checks, benchmark workloads, and private desktop CI support.
 
-This is an unreleased development candidate. See [tested evidence](docs/current-status.md) for exact revision and platform coverage. Native Windows validation, remote CI, dedicated performance acceptance, and final publication remain pending. The source archive workflow prepares an audited source artifact; it does not declare runtime qualification or publish a binary release.
+This is an unreleased development candidate. Public source publication and hosted source CI are complete; Linux and Windows have scoped build/runtime evidence. See [tested evidence](docs/current-status.md) for exact revisions and the remaining native desktop, licensed CI, UI, performance and binary-distribution gates. The source archive workflow prepares an audited source artifact; it does not declare runtime qualification or publish a binary release.

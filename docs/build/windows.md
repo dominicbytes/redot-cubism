@@ -1,15 +1,18 @@
 # Windows x86_64 source build
 
-Windows is a required desktop target, but native Windows execution has not yet
-been qualified. These commands reflect the pinned build configuration and CI
-dispatch; they are not a claim of a passing Windows build or export.
+Windows x86_64 debug/release builds and scoped native, graphical, editor and
+checked-export tests have passed with VS 2022 (MSVC 19.44.35221, VCTools
+14.44.35207), Python 3.14.7 and SCons 4.11.1. The image-comparison tests used
+Pillow 12.3.0. Full release qualification remains incomplete; see
+[current status](../current-status.md) for exact tested revisions and open gates.
 
 Use a VS 2022/MSVC 14.3 x64 Native Tools environment, Python with `venv`, the
 Redot 26.2 single-precision editor and matching templates, and the separately
 obtained Cubism Native SDK 5-r.5. Core libraries must come from its `143` toolset
 directory. Read [dependencies](../../DEPENDENCIES.md) and [licensing](../licensing.md).
 
-From PowerShell, run from the port checkout and replace the editor/SDK paths.
+First [clone the Redot development branch](../quick-start.md#get-the-source).
+From PowerShell, run from that checkout and replace the editor/SDK paths.
 Start the VS 2022 x64 shell in that PowerShell process, even if newer Visual
 Studio versions are installed:
 
@@ -37,6 +40,9 @@ For long-path failures, set `CUBISM_BUILD_DIR` to a short writable local path.
 Keep `TEMP` and `TMP` on a writable path without spaces for this PowerShell
 session; the pinned MSVC output wrapper uses that path in shell redirection.
 Do not substitute a Linux binary or rename a debug DLL to stand in for release.
+
+After building both DLLs, follow [Install and import](../quick-start.md#install-and-import)
+to copy the addon into a GL Compatibility project and import your first model.
 
 Before distributing a Windows build, run both variants through the native editor,
 graphics and checked-export tests described in [desktop testing](../desktop-testing.md).

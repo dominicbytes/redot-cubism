@@ -5,6 +5,13 @@ Use Redot 26.2 single precision, the pinned Redot bindings and Cubism Native SDK
 debug/release builds and real model/export tests have passed; a final release
 still requires the full qualification gates in [desktop testing](../desktop-testing.md).
 
+A fresh build at `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` used
+GCC/G++ 12.2.0, GNU ld 2.40, Python 3.14.7 and SCons 4.11.1. Both variants
+passed strict headless load/identity and bounded editor-import checks. This is
+a separate environment from the historical GCC 16.2.1/ld 2.47 record in
+`DEPENDENCIES.json`; its smoke checks do not repeat the earlier full graphical
+qualification. See [current status](../current-status.md) for the evidence boundaries.
+
 The complete environment setup and sequential debug/release commands are in
 [Setup and first character](../quick-start.md#build-the-native-addon-on-linux).
 Run them from the source checkout. Install the pinned SCons version in a

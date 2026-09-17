@@ -33,7 +33,10 @@ the API wrappers. Use the same profile for debug and release and run builds
 sequentially when they share a binding checkout. Linux rejects unresolved symbols
 at link time. Windows currently requires VS 2022 (`MSVC_VERSION=14.3`), x86_64,
 and SDK toolset directory `143`; Core's MT, MD or MDd library follows the binding's
-`use_static_cpp` and `debug_crt` flags. Windows execution is still unqualified.
+`use_static_cpp` and `debug_crt` flags. Windows builds and scoped execution checks
+have passed; full release qualification remains open. The platform build guides
+and [current status](docs/current-status.md) record the actual tested toolchains
+and source revisions separately from historical toolchain entries in the pins.
 
 Example Linux build after configuring the local SDK and matching editor:
 

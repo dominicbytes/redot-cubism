@@ -1,6 +1,96 @@
 # Current status and tested evidence
 
-## Linux candidate checked on 2026-09-16
+## Development status on 2026-09-17
+
+The Linux and Windows source is public in
+[dominicbytes/redot-cubism](https://github.com/dominicbytes/redot-cubism).
+[Draft PR #1](https://github.com/dominicbytes/redot-cubism/pull/1) targets this
+Redot repository, not the original Godot project. Publication is source-only:
+there is no qualified binary release, and the SDK and private test models are
+not bundled. The release decision remains **not qualified**.
+
+Public source CI at `9c5ce939ee2af710c3a39b92c25352cf38e15809` passed
+109 Python tests, source/history scans, formatting and diff checks
+([run 35280852692](https://github.com/dominicbytes/redot-cubism/actions/runs/35280852692)).
+The private source-only CI mirror also passed its hosted source checks. No
+licensed native workflow has been dispatched for that source revision: repository creation and
+passing source CI do not establish native release qualification.
+
+## Windows builds and scoped checks
+
+Clean integrated source `bc0c6ed82262ca573524c5223085ed596543cd55`
+produced Windows x86_64 debug/release DLLs with VS 2022, MSVC 19.44.35221
+(VCTools 14.44.35207). Both use the pinned editor, bindings and SDK documented
+in [dependencies](../DEPENDENCIES.md). On those exact DLLs:
+
+- Graphical native/runtime checks passed 59/59 per variant and importer checks
+  26/26. The complete debug Model2D sequence passed 45/45; the original release
+  sequence failed after 39 checks at `exported-debug-overlay`. A separate fresh
+  complete release sequence passed 45/45. The original failure remains recorded.
+- The editor capture harness at `8e85f48892024862decf20bc4ca1abafbf52dc95`
+  passed 51 debug and 44 release assertions with real rendered captures.
+- Export selection passed 30/30 and legacy export 8/8 per variant. The repaired
+  checked-export helper at `9c5ce939ee2af710c3a39b92c25352cf38e15809`
+  passed legacy bridge 6/6, export identity 2/2 and checked export 7/7 per variant.
+  The repair retains `.godot/imported` in isolated snapshots so copied import
+  remaps can resolve their generated resources; editor state remains excluded.
+
+These are separate stage results with explicitly identified scripts and DLLs,
+not a single full ten-stage run on the latest source. An earlier release overlay
+test crashed with `0xC0000005`; selective repeats and a fresh complete Model2D
+sequence passed, but the intermittent failure's cause remains unresolved. The
+editor capture timeout and missing imported-resource export failures were
+reproduced and repaired; their original failing reports are retained.
+
+The overlay capture harness at `35eb5b3e1461a2af1cf3d1548902f30955d62a70`
+now waits for process frames and explicitly draws before reading pixels.
+Its unchanged 99 assertions passed in debug and release exports, both normally
+and with automatic rendering deliberately disabled (four clean runs on the
+same integrated DLLs). The previous harness stalled under that controlled
+condition and crashed during forced shutdown with a matching diagnostic
+signature. This fixes the demonstrated capture starvation; it does not prove
+that the same condition caused the original intermittent failure.
+
+Earlier source `13d45b96e4b79552c443f1c1e02aa4ed3288603b` passed
+1,660 SDK numeric comparisons and 92 fresh Windows visual comparisons against
+independently reviewed, fixture-specific limits (16 runs, eight visual families).
+This is scoped GL Compatibility evidence on the recorded Windows adapter, not
+a new visual run on the integrated DLLs. Lifecycle scenarios also passed on that
+earlier source. Eight benchmark scenarios were measured, but have no accepted
+dedicated-runner baseline and therefore no performance qualification verdict.
+
+The Git symlink source-package fixture was repaired at
+`234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a`; its Windows Python suite
+passed 104 tests with four platform skips. This does not remove the separate
+native filesystem-link test requirement, which needs Windows symlink privilege.
+
+## Fresh Linux build and load checks
+
+Source `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` was built in both
+variants with GCC/G++ 12.2.0, GNU ld 2.40, Python 3.14.7 and SCons 4.11.1.
+Both libraries passed strict headless load/build-identity checks and normal
+bounded editor-import runs. This is a separate build environment from the
+historical compiler record in `DEPENDENCIES.json` and does not repeat the full
+graphical suite below. Earlier `--quit-after 2` import attempts crashed during
+editor layout loading; normal `--quit-after 1000` runs passed. The short-bound
+failures remain recorded, without a proven root cause.
+
+## Remaining release gates
+
+- Complete native desktop qualification, including Windows filesystem-link tests
+  and external pointer/keyboard editor acceptance at the required UI scale.
+- Resolve or disposition the intermittent Windows overlay and Linux early-exit
+  failures with adequate evidence.
+- Execute licensed native CI on both platforms and verify required status
+  propagation; hosted source checks alone are insufficient.
+- Establish a dedicated performance baseline and reviewed relative thresholds.
+- Complete the distribution review and notices for any future binary package.
+  Public plugin source does not grant rights to separately licensed Core or models.
+
+The [source archive workflow](source-release.md) prepares a checked source
+artifact; it cannot certify runtime or binary-distribution qualification.
+
+## Earlier Linux candidate checked on 2026-09-16
 
 Clean sanitized revision `fd43bd35add05ea348e1a1d7d5e68a773b96471d`
 passed both ten-stage Linux desktop suites, 1,660 SDK numeric cases, 92 visual
@@ -11,40 +101,8 @@ clean shutdown. This evidence covers Linux X11 GL Compatibility on the recorded
 VM graphics environment; it does not qualify Windows, physical/mixed-DPI panels,
 or Forward+.
 
-Later documentation and source-release workflow changes do not change native
-behavior, but these results remain attributed to the exact revision above.
-Windows qualification, actual public/private CI and required status propagation,
-dedicated-hardware benchmark comparison, and final publication remain pending.
-The development version remains unreleased. The [source archive workflow](source-release.md)
-only prepares a checked source artifact and cannot certify runtime qualification.
-
-## Scoped Windows progress on 2026-09-16
-
-Sanitized source `13d45b96e4b79552c443f1c1e02aa4ed3288603b` produced
-Windows x86_64 debug and release DLLs with the pinned VS 2022 v143 toolchain.
-Split native, editor, importer, model, and export checks passed in recorded
-Windows runs, while the complete ten-stage desktop suites remain open. A private
-comparison harness passed 1,660 numeric cases and measured 92 visual cases
-against 46 fresh Windows references. The visual limits have not been accepted,
-so those measurements are not visual PASS results.
-
-The isolated checked-export repair at `4f2b85402f26f1f5f500b1568f9ca75f9e473cd5`
-and lock-cleanup follow-up `48ecf132146a9f92e51c9930f2fef5fa7bdd520a`
-passed 7/7 graphical debug and 7/7 release checked-export cases, plus 13/13
-focused Python checks on the final exporter source. Tested failure paths preserved
-the previous build; a post-promotion lock cleanup error reports PASS with an
-actionable warning because the new output is already committed.
-The Windows tooling changes at
-`77dba74d7db9f18617b745aac6540fe2a0efb508` produced actual debug and
-release builds; `bce60670b30702d7d7861cca2b926f7d15c51e52` only corrected
-the build guide afterward. These results belong to those identified sources,
-not automatically to a later integrated commit.
-
-The combined Windows Python run had 108 tests: 103 passed, four skipped, and
-one errored because this host lacks Windows symlink-creation privilege
-(`WinError 1314`). The complete debug/release desktop rerun, accepted visual
-limits, dedicated performance baseline, private licensed CI, and final
-publication decisions remain open. No Windows release qualification is claimed.
+These results remain attributed to that exact revision and environment; later
+build and script evidence is listed separately above.
 
 ## Historical baseline checked on 2026-09-14
 
@@ -58,7 +116,7 @@ The port targets Redot 26.2 single precision and Cubism Native SDK 5-r.5. The
 current release decision is **not qualified**: these scoped passes do not establish
 Windows support, complete renderer parity, or a distributable release.
 
-## Baseline results
+## Historical baseline results
 
 - Linux x86_64 debug and release desktop-functional suites pass their ten staged
   sequences, including native model/runtime checks, importer/resource paths,
@@ -85,7 +143,7 @@ Windows support, complete renderer parity, or a distributable release.
   in this page. Current-candidate scope is stated above; physical audible output
   remains unqualified rather than a P0 requirement.
 
-## Known boundaries
+## Historical baseline boundaries
 
 - Use GL Compatibility for the tested environment. Forward+ remains unqualified:
   the debug attempt rendered an initial fixture but failed during shutdown, and
