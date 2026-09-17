@@ -82,7 +82,7 @@ func _run() -> void:
 	steps(fast, 1)
 	await process_frame
 	expect(fast_events == ["start"], "2x start event on first update")
-	near(fast_event_times[0], 0.1, "2x start event time")
+	if fast_event_times.size() > 0: near(fast_event_times[0], 0.1, "2x start event time")
 	steps(fast, 1)
 	near(slow.get_parameter_value(&"ParamAngleX"), fast.get_parameter_value(&"ParamAngleX"), "independent per-playback speed")
 	fast.paused = true
@@ -92,15 +92,18 @@ func _run() -> void:
 	fast.speed_scale = 0.5
 	steps(fast, 2)
 	near(fast_handle.get_elapsed_seconds(), 0.3, "global and local speed multiply")
-	steps(fast, 3)
+	fast.speed_scale = 1.0
+	steps(fast, 1)
 	await process_frame
+	near(fast_handle.get_elapsed_seconds(), 0.4, "2x clock before half event")
 	expect(fast_events == ["start"], "2x half event waits for motion time")
 	fast.advance(0.06)
 	await process_frame
 	expect(fast_events == ["start", "半分_😀"], "2x half event after motion time 0.5")
-	if fast_event_times.size() > 1: near(fast_event_times[1], 0.51, "2x half event time")
-	steps(fast, 9)
+	if fast_event_times.size() > 1: near(fast_event_times[1], 0.52, "2x half event time")
+	steps(fast, 4)
 	await process_frame
+	near(fast_handle.get_elapsed_seconds(), 0.92, "2x clock before end event")
 	expect(fast_events == ["start", "半分_😀"], "2x end event waits for motion time")
 	steps(fast, 1)
 	await process_frame
@@ -152,6 +155,8 @@ func _run() -> void:
 	steps(fading, 4)
 	fade_angle = fading.get_parameter_value(&"ParamAngleX")
 	steps(fading, 4)
+	await process_frame
+	expect(fade_terminals == [CubismMotionHandle.STOPPED], "fade expiry does not repeat node terminal")
 	near(fading.get_parameter_value(&"ParamAngleX"), fade_angle, "fade expires")
 	fading.free()
 	var overlap := model()
