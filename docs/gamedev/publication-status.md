@@ -1,5 +1,23 @@
 # Source publication status
 
+## Public Redot development source
+
+The source-only Redot port is published on
+[`review/windows-integration`](https://github.com/dominicbytes/redot-cubism/tree/review/windows-integration)
+in `dominicbytes/redot-cubism`, with [draft PR #1](https://github.com/dominicbytes/redot-cubism/pull/1)
+targeting that same repository. No PR is being submitted to the Godot upstream.
+At `9c5ce939ee2af710c3a39b92c25352cf38e15809`, public source CI passed
+109 tests and its source/history/format checks
+([run](https://github.com/dominicbytes/redot-cubism/actions/runs/35280852692)).
+The private CI repository has passing hosted source checks; no licensed native
+workflow has been dispatched for that source revision. SDK files, private models
+and binaries are not published.
+See [current status](../current-status.md) for exact Linux and Windows runtime
+identities and remaining qualification gates. The default branch has not been
+changed to this development port; follow the [source setup](../quick-start.md#get-the-source).
+
+## Historical upload record
+
 > Historical upload record: the public commit and CI result below describe an
 > earlier sanitized checkpoint. Later Linux and Windows checks have separate
 > source identities; source-only packaging/history commits are not automatically

@@ -1,9 +1,10 @@
 # Security
 
 Treat model manifests and referenced paths as untrusted. Do not load arbitrary
-downloaded models in a privileged editor session. The planned importer rejects
+downloaded models in a privileged editor session. The importer rejects
 project escapes and script-bearing asset references before resource loading.
-Those controls are not implemented or qualified by the repository bootstrap.
+These controls are implemented and exercised by importer checks. That coverage
+does not replace a dedicated security review or full release qualification.
 
 For a suspected vulnerability, use GitHub private vulnerability reporting when
 enabled, or contact the repository owner privately before disclosing a working

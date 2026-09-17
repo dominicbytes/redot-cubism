@@ -1,9 +1,30 @@
 # Setup and first character
 
 Use a checkout containing this guide and the pinned Redot **26.2 single-precision**
-editor. This is a development port, not a qualified release. Linux x86_64 has
-runtime evidence; Windows x86_64 qualification is pending. Other architectures,
+editor. This is a development port, not a qualified release. Linux and Windows
+x86_64 have scoped runtime evidence; see [current status](current-status.md).
+Other architectures,
 Godot binaries and later SDK versions are not covered by these instructions.
+
+## Get the source
+
+The Redot port is on the development review branch; the repository's default
+branch still contains the older upstream code. Clone the port explicitly:
+
+```sh
+git clone --branch review/windows-integration https://github.com/dominicbytes/redot-cubism.git
+cd redot-cubism
+git checkout 35eb5b3e1461a2af1cf3d1548902f30955d62a70
+git submodule update --init godot-cpp
+```
+
+The checkout selects the fixed source snapshot described in the current test
+record. Later branch revisions have their own test scope; consult
+[current status](current-status.md). Obtain the SDK separately as described below.
+
+On Windows, first follow the [VS 2022 build guide](build/windows.md), then
+continue below at [Install and import](#install-and-import). On Linux, use the
+commands below. Both platforms use the same addon folder and model resources.
 
 ## Build the native addon on Linux
 
@@ -40,7 +61,7 @@ The resulting libraries are in `demo/addons/gd_cubism/bin`:
 `libgd_cubism.linux.debug.x86_64.so` and
 `libgd_cubism.linux.release.x86_64.so`. Both variants are needed for editor/debug
 use and release exports. Windows requires its own native build and DLLs; see
-[the VS 2022 input requirements](../DEPENDENCIES.md).
+[the Windows build guide](build/windows.md).
 
 ## Install and import
 
@@ -83,7 +104,7 @@ for per-line audio, motion-only cues and completion handling in your own game.
 ## Export
 
 Install the export templates matching the pinned editor, configure an existing
-Linux Desktop preset and its scene/resource selection, then use **Project →
+Linux Desktop or Windows Desktop preset and its scene/resource selection, then use **Project →
 Tools → Validate and Export Cubism**. Keep the full addon and imported resource
 references in the project. The checked export validates dependencies and tests
 the staged package before replacing the destination. Do not add broad JSON/MOC
@@ -92,5 +113,5 @@ must be retained through exported resource references or preset selection.
 
 Follow [checked exports](export-validation.md) for exact preset, output and CLI
 requirements. Distribution still needs the applicable notices and permissions
-in [licensing](licensing.md). A successful local example or package is not proof
-of Windows support or completed release qualification.
+in [licensing](licensing.md). A successful local example or package does not
+complete release qualification.
