@@ -103,6 +103,36 @@ class CheckedExportTest(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'link escapes'):
                     checked.copy_project_snapshot(project, snapshot, ())
 
+    def test_snapshot_preserves_imported_resources_only_from_godot_cache(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project, snapshot = root / 'project', root / 'snapshot'
+            imported = project / '.godot' / 'imported'
+            imported.mkdir(parents=True)
+            (imported / 'model.res').write_bytes(b'imported Cubism resource')
+            (project / 'model.model3.json').write_text('{}')
+            sidecar = ('[remap]\nimporter="redot.cubism.model"\n'
+                       'path="res://.godot/imported/model.res"\n\n'
+                       '[deps]\nsource_file="res://model.model3.json"\n'
+                       'dest_files=["res://.godot/imported/model.res"]\n')
+            (project / 'model.model3.json.import').write_text(sidecar)
+            editor = project / '.godot' / 'editor'
+            editor.mkdir()
+            (editor / 'layout.cfg').write_text('editor state')
+            shader_cache = project / '.godot' / 'shader_cache'
+            shader_cache.mkdir()
+            (shader_cache / 'cache.bin').write_bytes(b'cache')
+            (project / '.godot' / 'extension_list.cfg').write_text('temporary extension state')
+
+            checked.copy_project_snapshot(project, snapshot, ())
+
+            self.assertEqual((snapshot / '.godot' / 'imported' / 'model.res').read_bytes(), b'imported Cubism resource')
+            self.assertEqual((snapshot / 'model.model3.json.import').read_text(), sidecar)
+            self.assertEqual((snapshot / 'model.model3.json').read_text(), '{}')
+            self.assertFalse((snapshot / '.godot' / 'editor').exists())
+            self.assertFalse((snapshot / '.godot' / 'shader_cache').exists())
+            self.assertFalse((snapshot / '.godot' / 'extension_list.cfg').exists())
+
     def test_snapshot_excludes_previous_work_for_in_project_output(self):
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory).resolve() / 'project'
