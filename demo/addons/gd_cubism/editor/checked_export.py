@@ -107,7 +107,7 @@ def stage_identity_editor(editor, probe, target):
 
 
 def copy_project_snapshot(project, snapshot, excluded, output=None):
-    """Give child editors their own extension path without copying generated output."""
+    """Copy source and imported resources without editor state or build output."""
     excluded = {path.resolve() for path in excluded}
     count = 0
 
@@ -122,13 +122,13 @@ def copy_project_snapshot(project, snapshot, excluded, output=None):
             path = source / name
             generated = output is not None and source == output.parent and (
                 name.startswith('.' + output.name + '.cubism-export-') or name.startswith('.cubism-project-'))
-            if path in excluded or generated or (source == project and name in ('.git', '.godot')):
+            if path in excluded or generated or (source == project and name == '.git') or (source == project / '.godot' and name != 'imported'):
                 directories.remove(name)
             elif path.is_symlink() or (hasattr(path, 'is_junction') and path.is_junction()):
                 raise ValueError('Directory link in checked-export source: ' + str(path))
         for name in files:
             path = source / name
-            if path in excluded:
+            if path in excluded or source == project / '.godot':
                 continue
             resolved = path.resolve(strict=True) if path.is_symlink() else path
             if not resolved.is_relative_to(project):
