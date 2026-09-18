@@ -28,4 +28,33 @@ Rendered FPS is the reciprocal of each trial's **mean** frame interval. Frame p9
 
 An earlier benchmark attempt passed six workloads, then its offscreen child ended without a raw result. That runner did not retain the child's exit code, and no system crash or out-of-memory record was found. A focused offscreen rerun passed 300 samples with zero mask requests, followed by the three complete passing trials above. The first failure remains unexplained and is retained as a separate failed result.
 
-The remaining gates are Windows qualification and integration of the test-only correction, a reviewed dedicated Linux GPU benchmark baseline and threshold, protected licensed CI on the agreed final source, manual editor/physical-display coverage, and final release and rights review. Automated single-output VM checks do not establish physical GPU, mixed-display, drag/grid, or native-minimize behavior. No licensed model, SDK binary, private project path, or private test artifact is included here.
+The remaining gates are final cross-platform integration of the test-only correction, a reviewed dedicated Linux GPU benchmark baseline and threshold, protected licensed CI on the agreed final source, manual editor/physical-display coverage, and final release and rights review. Automated single-output VM checks do not establish physical GPU, mixed-display, drag/grid, or native-minimize behavior. No licensed model, SDK binary, private project path, or private test artifact is included here.
+
+## Parser robustness follow-up
+
+Clean source `3d1ed624c29afdd065d40eaaa9d877e97ccd1aba` includes the Windows
+import-option diagnostic repair: nontext keys produce textual paths and echoed
+option names are bounded to 4096 characters. Matching Linux debug and release
+libraries were built with the same pinned dependencies. Their SHA-256 values are
+`57fbb0e741c8bc345cf0f25ebc3a86afeab2992e47d005032ad688c7d3f2ebef` (debug) and
+`d28aba506de64ec709da44a42da37a1e9735acce18c7d647e329d80a2c667796` (release).
+
+Both variants passed the bounded 108-case parser campaign with two fresh-process
+replays per case: 432 worker executions total. Import/class preflights passed;
+no supervisor violations, unexpected engine diagnostics or replay differences
+occurred. Every case's canonical result matched both Windows `a6133ba` variants.
+The Linux supervisor used its unchanged 2 GiB per-worker address-space limit;
+this is not an aggregate process-tree memory cap or proprietary Core fuzzing.
+The seven Python corpus/contract/supervisor regressions also passed on Linux.
+
+Real-model importer checks passed all 23 headless stages per variant, including
+88 import-option assertions, restart, cache removal, runtime loading and
+source-absent exported model/texture/alpha checks. Stock compound-suffix
+`automatic_discovery` remained false. The three graphical dependency-change
+stages were outside this targeted run.
+
+This follow-up covers the changed parser/importer behavior. The full desktop,
+SDK, visual, sanitizer and benchmark results above retain their `55dd060`
+library identities. Pure `3d1ed62` still lacks the separately reviewed `6299432`
+checked-export test correction; no full desktop aggregate on pure `3d1ed62`
+or final release qualification is claimed.
