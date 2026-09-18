@@ -1,12 +1,31 @@
 # Source publication status
 
-## Public Redot development source
+## Latest development source on 2026-09-18
 
-The source-only Redot port is published on
+The latest tested source is `02e15cfdfb4a42df2b5ba4979f2c3d31d3b0b9ec`
+on [`fix/linux-checked-export-ui-pid`](https://github.com/dominicbytes/redot-cubism/tree/fix/linux-checked-export-ui-pid),
+with [draft PR #2](https://github.com/dominicbytes/redot-cubism/pull/2) within
+the user's fork. Both public source checks passed at that commit. The fork's
+`main` remains at upstream baseline `3aaa3c9001808732c40aa3fa07460a95125d9ccc`;
+no PR targets the original GDCubism project.
+
+Focused Linux native legacy/raw and managed debug/release exported audio/reentry
+checks passed on that source. Matching Windows debug/release native builds and
+changed-path runtime checks passed. The Windows Mono source probe and saved
+debug/release exports functioned, but the first plain run of **each** managed
+export reported an unresolved ObjectDB leak warning at exit. See the
+[Windows validation snapshot](../windows-validation-2026-09-18.md) and
+[current status](../current-status.md) for scope and older evidence attribution.
+Publication remains source-only: SDK files, model assets, binaries and private
+test artifacts are absent. A binary release is not qualified.
+
+## Earlier Windows integration checkpoint
+
+An earlier source-only Redot port snapshot was published on
 [`review/windows-integration`](https://github.com/dominicbytes/redot-cubism/tree/review/windows-integration)
 in `dominicbytes/redot-cubism`, with [draft PR #1](https://github.com/dominicbytes/redot-cubism/pull/1)
 targeting that same repository. No PR is being submitted to the Godot upstream.
-The latest native parser checkpoint is
+That branch's native parser checkpoint is
 `a6133baf7b45c20a6550a9b6949ac25885bb1267`: rebuilt Windows debug and
 release libraries passed 108 bounded parser cases twice each after correcting
 invalid import-option diagnostic types and lengths.
@@ -106,5 +125,6 @@ containing the workbook remains unsuitable for publication.
 The [current status](../current-status.md) separates the full Windows suite,
 the latest addon-asset retest, and older Linux results by source identity.
 Licensed native CI, a stable dedicated performance baseline, external-input
-Windows editor acceptance, current-source Linux qualification, and final
-package/legal review remain open. The port remains unqualified for release.
+Windows editor acceptance, full current-source cross-platform desktop
+qualification, and final package/legal review remain open. The port remains
+unqualified for release.
