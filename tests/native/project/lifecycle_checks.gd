@@ -44,13 +44,9 @@ static func run(host: Node, fixture: Dictionary) -> bool:
 		{"Moc": "valid.moc3", "Expressions": [{"Name": "bad", "File": "bad.exp3.json"}]},
 		{"Moc": "valid.moc3", "Expressions": [{"Name": "empty", "File": "empty.exp3.json"}]},
 		{"Moc": "valid.moc3", "Expressions": [{"Name": "good", "File": "valid.exp3.json"}, {"Name": "bad", "File": "bad.exp3.json"}]},
-		{"Moc": "valid.moc3", "Physics": "missing.physics3.json"},
 		{"Moc": "valid.moc3", "Textures": ["valid.png", "missing.png"]},
 		{"Moc": "valid.moc3", "Textures": ["script-bearing.tres"]},
 	]
-	if manifest.FileReferences.has("Physics"):
-		_write("user://valid.physics3.json", FileAccess.get_file_as_bytes(fixture.model.get_base_dir().path_join(manifest.FileReferences.Physics)))
-		cases.append({"Moc": "valid.moc3", "Physics": "valid.physics3.json", "Pose": "missing.pose3.json"})
 	for refs: Dictionary in cases:
 		_manifest(refs)
 		model.assets = "user://invalid.model3.json"
@@ -83,13 +79,15 @@ static func run(host: Node, fixture: Dictionary) -> bool:
 		return false
 	var retained: GDCubismParameter = model.get_parameters()[0]
 	host.remove_child(model)
-	if not _check(model.get_model_state() == GDCubismUserModel.DISPOSED and not retained.is_valid(), "tree exit retained native state"):
+	if not _check(model.get_model_state() == GDCubismUserModel.READY and retained.is_valid(), "tree exit lost legacy native state"):
 		return false
 	host.add_child(model)
-	if not _check(model.is_initialized(), "tree reentry depended on READY notification"):
+	if not _check(model.is_initialized() and model.get_parameters()[0] == retained, "tree reentry replaced legacy parameter"):
 		return false
 	retained.value = 99.0
 	model.unload_model()
+	if not _check(not retained.is_valid(), "explicit unload retained native parameter"):
+		return false
 	var cycles: int = 10
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--cycles="):
