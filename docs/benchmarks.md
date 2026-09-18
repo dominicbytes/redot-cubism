@@ -99,6 +99,14 @@ incomplete scenarios or mismatched library/engine identities fail the command.
 Reports and copied projects can contain
 licensed assets and private paths; keep them private unless separately reviewed.
 
+## Linux VM measurements recorded on 2026-09-18
+
+The [current Linux validation snapshot](linux-validation-2026-09-18.md) records
+three complete eight-workload trials using the frozen `55dd060` debug library,
+with 7,200 measured frames, FPS ranges and frame/CPU percentiles. The runs are
+`MEASURED_ONLY`; their variation does not establish a dedicated-runner baseline.
+An initial failed offscreen attempt remains separately recorded and unexplained.
+
 ## Linux VM measurements recorded on 2026-09-14
 
 The workload was exercised through the aggregate frontend using Redot 26.2,
