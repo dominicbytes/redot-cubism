@@ -6,12 +6,34 @@ The source-only Redot port is published on
 [`review/windows-integration`](https://github.com/dominicbytes/redot-cubism/tree/review/windows-integration)
 in `dominicbytes/redot-cubism`, with [draft PR #1](https://github.com/dominicbytes/redot-cubism/pull/1)
 targeting that same repository. No PR is being submitted to the Godot upstream.
-At `9c5ce939ee2af710c3a39b92c25352cf38e15809`, public source CI passed
-109 tests and its source/history/format checks
-([run](https://github.com/dominicbytes/redot-cubism/actions/runs/35280852692)).
-The private CI repository has passing hosted source checks; no licensed native
-workflow has been dispatched for that source revision. SDK files, private models
+The latest native parser checkpoint is
+`a6133baf7b45c20a6550a9b6949ac25885bb1267`: rebuilt Windows debug and
+release libraries passed 108 bounded parser cases twice each after correcting
+invalid import-option diagnostic types and lengths.
+The real-model importer retest also passed 23 stages per variant, including
+88 option assertions. See
+[current status](../current-status.md#windows-parser-robustness-checkpoint)
+for exact library identities and scope. This does not qualify a binary release
+or establish a Linux fuzz result.
+
+The preceding published qualification snapshot is
+`b338d9cd8527321bfa566ca827e3696a59a79dd3`.
+[Public push CI](https://github.com/dominicbytes/redot-cubism/actions/runs/35292818863)
+passed all 110 Python tests and its source/history/format checks. Draft PR CI
+also passed at its merge commit. The private source mirror at
+`00e3d521652df6e28ab8420ea5b0928f49303e55` passed hosted source CI. No
+licensed native job has executed for this snapshot. SDK files, private models
 and binaries are not published.
+The complete Windows debug/release ten-stage suites passed at earlier source
+`55dd0604d605586e79f65664d448f78d9a8dad36` with the frozen integrated
+DLLs. The `b338d9c` addon-icon change passed separate fresh whole-addon import,
+installed-host export/texture and source-absent exported lifecycle retests. Neither
+result is a binary-release qualification. On `b338d9c`, a separate SDK-free
+Windows ABI fixture passed 8/8 debug and 8/8 release checks. A private
+production-importer coexistence check passed four fresh-import/restart phases
+per variant with a deliberately installed lower-priority generic JSON importer;
+it does not establish stock automatic `.model3.json` discovery. These scoped
+checks also do not qualify a binary release.
 See [current status](../current-status.md) for exact Linux and Windows runtime
 identities and remaining qualification gates. The default branch has not been
 changed to this development port; follow the [source setup](../quick-start.md#get-the-source).
@@ -72,17 +94,17 @@ checks; source-identical lifecycle code passed 250 ASan cycles, handles and
 loading-removal tests. These are historical results for that checkpoint, not
 qualification of the later local implementation.
 
-Subsequent local work includes imported model resources, `CubismModel2D`, native
-motions/expressions, controller/audio cues, checked exports, editor tooling and
-renderer fixes. The [current documentation](../README.md) describes those APIs;
+At that historical checkpoint, subsequent local work added imported model
+resources, `CubismModel2D`, native motions/expressions, controller/audio cues,
+checked exports, editor tooling and renderer fixes. The
+[current documentation](../README.md) describes those APIs;
 [renderer measurements](pr-04-renderer-report.md) and [benchmarks](../benchmarks.md)
-record later coverage and its limits. Those additions require a fresh filtered
-publication; do not push the unfiltered local history containing the workbook.
+record later coverage and its limits. The sanitized Redot review branch has
+since published the verified source snapshot above; the unfiltered local history
+containing the workbook remains unsuitable for publication.
 
-Later Windows debug/release builds and scoped editor/export checks are recorded
-in [current status](../current-status.md); they do not complete the ten-stage
-desktop matrix. Live licensed CI, accepted Windows visual limits, dedicated
-performance thresholds, remaining editor checks and final package/legal review
-remain open. The port remains unqualified for release. This file records the
-known historical upload checkpoint; inspect the remote before publishing a new
-source review branch.
+The [current status](../current-status.md) separates the full Windows suite,
+the latest addon-asset retest, and older Linux results by source identity.
+Licensed native CI, a stable dedicated performance baseline, external-input
+Windows editor acceptance, current-source Linux qualification, and final
+package/legal review remain open. The port remains unqualified for release.

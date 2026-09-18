@@ -12,6 +12,7 @@ namespace {
 const char *MAXIMUM_FILES_SETTING = "cubism/import/maximum_file_count";
 constexpr int DEFAULT_MAXIMUM_FILES = 1024;
 constexpr int HARD_MAXIMUM_FILES = 4096;
+constexpr int MAX_DIAGNOSTIC_PATH_CHARS = 4096;
 }
 
 void register_cubism_import_settings() {
@@ -48,7 +49,9 @@ Dictionary validate_cubism_import_options(const Dictionary &input) {
     const Array keys = input.keys();
     for (int i = 0; i < keys.size(); ++i) {
         String message;
-        if (!options.has(keys[i])) message = "Unknown or unavailable import option.";
+        const bool text_key = keys[i].get_type() == Variant::STRING || keys[i].get_type() == Variant::STRING_NAME;
+        if (!text_key) message = "Expected a String or StringName import option key.";
+        else if (!options.has(keys[i])) message = "Unknown or unavailable import option.";
         else if (String(keys[i]) == "rendering/mask_quality") {
             const Variant value = input[keys[i]];
             if (value.get_type() != Variant::INT || int64_t(value) < 0 || int64_t(value) > 2)
@@ -60,7 +63,7 @@ Dictionary validate_cubism_import_options(const Dictionary &input) {
         else options[keys[i]] = input[keys[i]];
         if (!message.is_empty() && diagnostics.size() < 32) {
             Dictionary diagnostic;
-            diagnostic["path"] = keys[i];
+            diagnostic["path"] = text_key ? String(keys[i]).substr(0, MAX_DIAGNOSTIC_PATH_CHARS) : String("$");
             diagnostic["message"] = message;
             diagnostics.push_back(diagnostic);
         }
