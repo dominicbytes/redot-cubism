@@ -57,7 +57,17 @@ Launching the same official Mono GUI editor directly in headless mode allowed
 both exports to complete normally. This was a test-launcher correction; no
 plugin code changed during this Windows followup.
 
-The managed shutdown warning remains open. GL Compatibility is the proven
+A subsequent fresh-profile verbose run of the unchanged saved debug app
+reproduced the warning and an orphan `Voice` StringName, while the functional
+checks passed and the process exited 0. No leaked-class identity was printed.
+One focused probe then observed that the playback object was still alive after
+the original two cleanup frames and became invalid by frame seven. The object
+count dropped from 619 to 618 and shutdown had no ObjectDB warning. This
+supports asynchronous audio cleanup as a possible explanation for the probe
+warning; it does not prove the cause of all earlier warnings or measure
+long-session resource growth. No production code or frozen export changed.
+
+The earlier managed shutdown warnings remain unattributed. GL Compatibility is the proven
 renderer scope; these results do not qualify Forward+, other architectures,
 or a binary release. The tests do not establish redistribution rights for
 Cubism Core, SDK components or models, or approve a binary release. Proprietary

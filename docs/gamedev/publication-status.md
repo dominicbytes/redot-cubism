@@ -1,6 +1,17 @@
 # Source publication status
 
-## Latest development source on 2026-09-18
+## Cubism for Redot source
+
+The combined Windows and Linux port is on `main` in
+[dominicbytes/redot-cubism](https://github.com/dominicbytes/redot-cubism).
+The integration PRs target this Redot repository, not the original Godot
+project. See the [quick start](../quick-start.md) and
+[current status](../current-status.md) for installation and known limits.
+Source publication does not include SDK/Core binaries, model assets or a
+qualified binary release. Earlier branch and draft-PR states below are
+historical checkpoints.
+
+## Development checkpoint before integration on 2026-09-18
 
 The latest tested source is `02e15cfdfb4a42df2b5ba4979f2c3d31d3b0b9ec`
 on [`fix/linux-checked-export-ui-pid`](https://github.com/dominicbytes/redot-cubism/tree/fix/linux-checked-export-ui-pid),
@@ -54,7 +65,7 @@ per variant with a deliberately installed lower-priority generic JSON importer;
 it does not establish stock automatic `.model3.json` discovery. These scoped
 checks also do not qualify a binary release.
 See [current status](../current-status.md) for exact Linux and Windows runtime
-identities and remaining qualification gates. The default branch has not been
+identities and remaining qualification gates. At that checkpoint, the default branch had not been
 changed to this development port; follow the [source setup](../quick-start.md#get-the-source).
 
 ## Historical upload record

@@ -1,8 +1,8 @@
-# Redot Cubism documentation
+# Cubism for Redot documentation
 
 These guides describe the Redot 26.2 port in this checkout. The port is still in
-development: Linux has native, export and graphics evidence; Windows and the
-complete release gates remain unqualified. SDK/model assets are supplied separately.
+development: Linux and Windows have scoped native, export and graphics evidence;
+complete release qualification remains open. SDK/model assets are supplied separately.
 
 Start with [setup and first character](quick-start.md). Use the
 [dependency pins and build requirements](../DEPENDENCIES.md) for the native build.
