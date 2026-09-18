@@ -25,7 +25,7 @@ dotnet build "$PROJECT_DIR/demo.csproj" --configuration Debug --no-incremental
 ```
 
 Run the two scripts separately with an external wall-clock timeout (120 seconds
-is ample for the observed Windows source runs). Require exit code 0, the
+is ample for the observed Windows and Linux source runs). Require exit code 0, the
 `MOTION_PROBE_PASS:` and `EFFECTS_PROBE_PASS:` markers respectively, and no
 engine errors or unexplained warnings. The motion probe requires the add-on's
 `CUBISM_MOTION_CUSTOMDATA` build option, enabled by default in `SConstruct`.
@@ -43,8 +43,17 @@ passed. The motion probe passed 18 checks: smile `0→1→0`, angle range
 hit-area, breath, blink, and parameter checks: angle `+19.902/−19.895`, eye
 target `+0.746/−0.746`, one hit enter/exit, breath `0..0.5`, and eye openness
 `0..1`. Both probes also passed in saved Windows Mono debug and release
-exports, with exit code 0 and no engine errors or warnings. These results do
-not claim a Linux rerun or resolve the separate audio-probe shutdown warning.
+exports, with exit code 0 and no engine errors or warnings.
+
+On Linux Redot 26.2 Mono at source `cc108fc936f3bcf6b56ba639c44c064e78824cdf`,
+both probes passed in an isolated source project and saved debug and release
+exports: six runtime runs, each with exit code 0, its pass marker, and no
+runtime engine errors or warnings. Motion passed 18 checks, including smile
+`0→1→0`, angle range `−25.910..0.004`, and one Unicode event. Effects passed
+target, hit-area, breath, blink, and parameter checks. The editor import and
+exports completed but logged sandbox IDE socket permission diagnostics; those
+editor sessions are not claimed error-free. These probes generate no audio and
+do not resolve the separate audio-probe shutdown warning.
 
 The C# `StartMotion`/`StartMotionLoop` methods return `void` even though native
 methods return motion handles; queue entries are placeholder Resources. These
