@@ -87,6 +87,34 @@ func _run() -> void:
 	expect(vn.line_index == 0 and vn.active.get_error() == OK and not vn.active.is_finished(), "Next line starts voice and motion")
 	expect(vn.controller.get_node("Voice").playing and vn.controller.get_node("LipSync").get_envelope() > 0, "recorded audio drives lip envelope")
 	expect(vn.controller.get_motion_handle().get_motion_id() == &"Cue/0", "talk motion selected")
+	var cue: CubismMotionHandle = vn.controller.get_motion_handle()
+	var cue_time: float = cue.get_elapsed_seconds()
+	expect(cue_time > 0.05 and cue_time < 1.0 and not cue.is_finished(), "voiced talk motion is advancing")
+	var ids: PackedStringArray = vn.model.get_parameter_ids()
+	expect(ids.has("ParamHairFront") and ids.has("ParamMouthOpenY"), "Haru fixture exposes physics and mouth outputs")
+	var hair_on: float = vn.model.get_parameter_value(&"ParamHairFront")
+	var mouth_on: float = vn.model.get_parameter_value(&"ParamMouthOpenY")
+	var control := CubismModel2D.new()
+	control.playback_process_mode = CubismModel2D.MANUAL
+	control.enable_physics = false
+	root.add_child(control)
+	var control_ready := control.load_model(vn.character.model) == OK
+	expect(control_ready, "physics-off control loads the same imported model")
+	if control_ready:
+		var control_cue: CubismMotionHandle = control.play_motion(&"Cue/0", CubismMotionPriority.FORCE, false, 1)
+		var cue_ready := control_cue != null and control_cue.get_error() == OK
+		expect(cue_ready, "physics-off control starts the same talk motion")
+		if cue_ready:
+			control.advance(cue_time)
+			var hair_off: float = control.get_parameter_value(&"ParamHairFront")
+			var mouth_off: float = control.get_parameter_value(&"ParamMouthOpenY")
+			var hair_delta := absf(hair_on - hair_off)
+			var mouth_delta := mouth_on - mouth_off
+			expect(is_finite(hair_on) and is_finite(hair_off) and is_finite(mouth_on) and is_finite(mouth_off), "voiced effect samples are finite")
+			expect(hair_delta > 0.01, "authored Haru physics changes hair during a voiced talk cue")
+			expect(mouth_delta > 0.05, "voice envelope changes mouth beyond the motion-only control")
+			print("CUBISM_VN_EFFECT_CONTRAST ", JSON.stringify({"cue_seconds": cue_time, "hair_on": hair_on, "hair_off": hair_off, "hair_delta": hair_delta, "mouth_on": mouth_on, "mouth_off": mouth_off, "mouth_delta": mouth_delta}))
+	control.free()
 	vn.pause_button.pressed.emit()
 	var paused_time: float = vn.controller.get_model_time()
 	await wait_seconds(0.2)
