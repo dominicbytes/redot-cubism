@@ -17,8 +17,8 @@ static func run(host: Node, fixture: Dictionary) -> bool:
 	model.advance(1.0)
 	model.speed_scale = 2.0
 	model.advance(1.0 / 60.0)
-	if steps.size() != 2 or not is_equal_approx(steps[0], 0.1) or not is_equal_approx(steps[1], 1.0 / 30.0):
-		push_error("CUBISM_DELTA_FAIL: invalid, zero or excessive delta reached native effects: " + str(steps))
+	if steps.size() != 2 or not is_equal_approx(steps[0], 10.0) or not is_equal_approx(steps[1], 1.0 / 30.0):
+		push_error("CUBISM_DELTA_FAIL: invalid or zero delta reached native effects, or finite elapsed time was lost: " + str(steps))
 		return false
 	for parameter: GDCubismParameter in model.get_parameters():
 		if not is_finite(parameter.value):

@@ -54,11 +54,11 @@ func _run() -> void:
 			var label := str(setting[0]) + (" preferred" if preferred else " legacy")
 			model.set("speed_scale", 2.0)
 			model.call("advance", 0.25)
-			expect(steps.size() == 1 and is_equal_approx(steps[0], 0.5 if uncapped else 0.1), label + " manual scaled step")
+			expect(steps.size() == 1 and is_equal_approx(steps[0], 0.5 if not preferred or uncapped else 0.1), label + " manual scaled step")
 			steps.clear()
 			for delta: float in [NAN, INF, -INF, 0.0]: model.call("advance", delta)
 			model.call("advance", 1e300) # Finite double, unrepresentable by the SDK float.
-			expect(steps.is_empty() if uncapped else steps == [0.1], label + " invalid or oversized step")
+			expect(steps.is_empty() if not preferred or uncapped else steps == [0.1], label + " invalid or oversized step")
 			steps.clear()
 			model.call("advance", 0.01)
 			expect(steps.size() == 1 and is_equal_approx(steps[0], 0.02), label + " ordinary step")
@@ -66,7 +66,7 @@ func _run() -> void:
 			paused = true
 			model.call("advance", 0.25)
 			paused = false
-			expect(steps.is_empty(), label + " tree pause")
+			expect(steps.is_empty() if preferred else steps.size() == 1 and is_equal_approx(steps[0], 0.5), label + " tree pause")
 			if preferred:
 				model.set("paused", true)
 				model.call("advance", 0.25)
@@ -79,9 +79,9 @@ func _run() -> void:
 				model.call("advance", 0.25)
 				expect(steps.is_empty(), label + " manual call ignored in automatic mode")
 				for frame in 4: await process_frame
-				var within_cap := steps.all(func(value: float): return value > 0 and value <= 0.10000001)
-				var exercised_cap := steps.any(func(value: float): return is_equal_approx(value, 0.1))
-				expect(within_cap and exercised_cap, label + " automatic mode %d retains cap: %s" % [mode, steps])
+				var valid_steps := steps.all(func(value: float): return is_finite(value) and value > 0 and (value <= 0.10000001 if preferred else true))
+				var exercised_step := steps.any(func(value: float): return is_equal_approx(value, 0.1) if preferred else value > 0.1)
+				expect(valid_steps and exercised_step, label + " automatic mode %d elapsed time: %s" % [mode, steps])
 			model.free()
 	Engine.max_fps = old_fps
 	Engine.time_scale = old_scale

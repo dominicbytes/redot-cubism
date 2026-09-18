@@ -1,6 +1,6 @@
 # Notices
 
-Redot Cubism is an unofficial Redot integration derived from
+Cubism for Redot is an unofficial Redot integration derived from
 [GDCubism](https://github.com/MizunagiKB/gd_cubism), Copyright (c) 2023 MizunagiKB,
 under the MIT License. The original source headers, history, and
 [English license](LICENSE.en.adoc) and [Japanese license](LICENSE.adoc) are retained.
