@@ -2,7 +2,7 @@
 <class name="GDCubismUserModel" inherits="Node2D" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
 	<brief_description>Legacy Cubism model runtime and renderer.</brief_description>
 	<description>
-		Loads and renders a Live2D Cubism model. Required native processing continues when a GDScript subclass overrides regular process callbacks. The inherited Node pause policy still applies. Runtime nodes are disposed on tree exit and recreated on reentry.
+		Loads and renders a Live2D Cubism model. Required native processing continues when a GDScript subclass overrides regular process callbacks. Automatic processing follows the inherited Node pause policy. Standalone legacy models retain their native state across tree exit and reentry; explicit unload, asset replacement and deletion release that state.
 	</description>
 	<tutorials>
 	</tutorials>
@@ -27,7 +27,7 @@
 			<return type="void" />
 			<param index="0" name="delta" type="float" />
 			<description>
-				Advances a ready, unpaused model in MANUAL mode. Delta is in seconds. Zero and nonfinite values do not advance; negative values are ignored with a debug warning. The effective delta after speed scaling is capped at 0.1 seconds. Use multiple fixed steps for deterministic evaluation.
+				Advances a ready legacy model in MANUAL mode, including while off-tree or while tree processing is paused. Delta is in seconds. Zero and nonfinite values do not advance; negative values are ignored with a debug warning. The full scaled delta is used when representable as a finite SDK float. Use multiple fixed steps for deterministic evaluation.
 			</description>
 		</method>
 		<method name="csm_get_latest_moc_version">
