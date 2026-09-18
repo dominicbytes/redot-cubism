@@ -1,6 +1,21 @@
 # Current status and tested evidence
 
-## Latest verified checkpoint on 2026-09-18
+## Cubism for Redot on main
+
+The combined Windows and Linux source is available on `main` in
+[dominicbytes/redot-cubism](https://github.com/dominicbytes/redot-cubism).
+Use the [quick start](quick-start.md) to build and install it. The records below
+retain their tested revisions and historical PR state; source integration
+does not constitute a prebuilt binary release.
+
+The Windows managed shutdown investigation found a playback object still
+awaiting cleanup at the probe's two-frame quit point. It became invalid by
+frame seven in one bounded followup, which exited without the warning.
+This supports a probe-timing explanation but does not conclusively attribute
+the earlier warnings or measure long-session resource growth. No plugin code
+changed for that diagnostic; see [Windows validation](windows-validation-2026-09-18.md).
+
+## Tested checkpoint before integration on 2026-09-18
 
 The latest tested source is `02e15cfdfb4a42df2b5ba4979f2c3d31d3b0b9ec`,
 published on [`fix/linux-checked-export-ui-pid`](https://github.com/dominicbytes/redot-cubism/tree/fix/linux-checked-export-ui-pid)
