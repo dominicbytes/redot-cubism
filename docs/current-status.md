@@ -15,6 +15,21 @@ This supports a probe-timing explanation but does not conclusively attribute
 the earlier warnings or measure long-session resource growth. No plugin code
 changed for that diagnostic; see [Windows validation](windows-validation-2026-09-18.md).
 
+## C# wrapper behavior followup
+
+The [C# regression probes](../tests/csharp/README.md) exercise motion loops,
+one-shot completion, expression changes, Unicode motion events and unsubscribe,
+look-target movement, hit-area detection/signals and parameter access. They
+also exercise native breath/blink effects through the base C# effect wrapper.
+Both probes passed in the Windows Mono source project and saved debug/release
+apps, with no engine errors or warnings in the six final runs.
+
+The checks reproduced and repaired two wrapper binding defects: the hit-area
+`Monitoring` getter called the setter, and `EyesAngleX/Y` called nonexistent
+native methods. Public C# property names remain unchanged. These results do
+not establish a Linux rerun, complete typed-wrapper coverage or resolution of
+the earlier audio-probe shutdown warning. No native library code changed.
+
 ## Tested checkpoint before integration on 2026-09-18
 
 The latest tested source is `02e15cfdfb4a42df2b5ba4979f2c3d31d3b0b9ec`,

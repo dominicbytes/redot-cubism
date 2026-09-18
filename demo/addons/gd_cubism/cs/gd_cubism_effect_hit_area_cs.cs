@@ -18,7 +18,7 @@ public partial class GDCubismEffectHitAreaCS : GDCubismEffectCS
     public bool Monitoring
     {
         set { this.InternalObject.Call("set_monitoring", (bool)value); }
-        get { return (bool)this.InternalObject.Call("set_monitoring"); }
+        get { return (bool)this.InternalObject.Call("get_monitoring"); }
     }
 
     // -------------------------------------------------------------- Method(s)
