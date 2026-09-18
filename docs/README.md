@@ -1,5 +1,7 @@
 # Cubism for Redot documentation
 
+- [C# wrapper behavior probes and tested scope](../tests/csharp/README.md)
+
 These guides describe the Redot 26.2 port in this checkout. The port is still in
 development: Linux and Windows have scoped native, export and graphics evidence;
 complete release qualification remains open. SDK/model assets are supplied separately.
