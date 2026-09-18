@@ -135,7 +135,7 @@ func _run_case(envelope: Dictionary) -> Dictionary:
 			snapshot["text"] = result.get("text")
 			snapshot["byte_length"] = result.get("byte_length", 0)
 			snapshot["sha256"] = result.get("sha256", "")
-		else:
+		_:
 			return {"harness_error": "unknown target"}
 	if target == "read_utf8":
 		result["diagnostics"] = []

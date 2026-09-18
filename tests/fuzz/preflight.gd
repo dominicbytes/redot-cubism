@@ -8,5 +8,10 @@ func _initialize() -> void:
 			printerr("FUZZ_PREFLIGHT_MISSING_CLASS:", name)
 			quit(1)
 			return
+	var worker: Resource = load("res://fuzz_worker.gd")
+	if not worker is Script:
+		printerr("FUZZ_PREFLIGHT_WORKER_PARSE_FAILED")
+		quit(1)
+		return
 	print("FUZZ_PREFLIGHT_PASS")
 	quit(0)
