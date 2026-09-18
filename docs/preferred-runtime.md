@@ -116,13 +116,14 @@ speed range remain in force; this is not an arbitrary-time seeking API.
 
 For deterministic tests, set `CUBISM_TEST_UNCAPPED_MANUAL_STEP=1` before creating
 models. This explicit test flag permits a direct `advance()` call on a MANUAL
-`CubismModel2D` or `GDCubismUserModel` to exceed the normal 0.1-second scaled-step
+`CubismModel2D` to exceed its normal 0.1-second scaled-step
 cap. It is available in debug and release builds and is not serialized with a
 scene. Automatic idle/physics updates and controller-driven updates retain their
 normal cap even when the flag is set. Pause, zero speed and invalid-delta rules
 still apply; a scaled test step that cannot be represented as a finite SDK float
 is ignored. Use deliberate finite steps for tests; this flag is not a seek or
-real-time playback setting.
+real-time playback setting. Standalone legacy `GDCubismUserModel` already uses
+the full finite scaled delta without this flag; see [legacy compatibility](legacy-compatibility.md).
 
 Parameter writes are queued for the next successful update. The optional fourth
 argument to `set_parameter_value`, `add_parameter_value` and
