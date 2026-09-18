@@ -42,7 +42,8 @@ func _run() -> void:
 	assert(directory.visible)
 	directory.dir_selected.emit(OS.get_environment("CUBISM_UI_OUTPUT"))
 	directory.hide()
-	assert(int(controller.get("_pid")) >= 0)
+	var export_pid: int = int(controller.get("_pid"))
+	assert(export_pid >= 0)
 	while int(controller.get("_pid")) >= 0:
 		await get_tree().create_timer(0.5).timeout
 	var report_path: String = str(controller.get("_report"))
@@ -74,7 +75,8 @@ func _run() -> void:
 	warning_file.store_string(JSON.stringify({"status": "PASS", "output": status.output, "work": status.work, "cleanup_warning": warning}))
 	warning_file.close()
 	controller.set("_report", warning_path)
-	controller.set("_pid", 2147483647)
+	# Reuse a child whose completed state is cached by the engine on every platform.
+	controller.set("_pid", export_pid)
 	controller.call("_poll")
 	await get_tree().process_frame
 	if not label.text.contains(warning) or dialog.size.y >= 700:
