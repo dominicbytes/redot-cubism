@@ -3,9 +3,12 @@
 
 import io
 import json
+import os
 from pathlib import Path
+import signal
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -97,6 +100,55 @@ class ContractChecks(unittest.TestCase):
 
 
 class SupervisionChecks(unittest.TestCase):
+    @unittest.skipUnless(sys.platform.startswith("linux"), "requires Unix process groups and /proc")
+    def test_exited_leader_does_not_hold_log_open_through_descendant(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            identity = root / "grandchild.json"
+            script = root / "leader.py"
+            script.write_text(
+                "import json, os, signal, time\n"
+                "from pathlib import Path\n"
+                f"identity = Path({str(identity)!r})\n"
+                "pid = os.fork()\n"
+                "if pid == 0:\n"
+                "    signal.alarm(6)\n"
+                "    stat = Path(f'/proc/{os.getpid()}/stat').read_text()\n"
+                "    start = int(stat[stat.rfind(')') + 2:].split()[19])\n"
+                "    identity.write_text(json.dumps({'pid': os.getpid(), 'pgid': os.getpgid(0), 'start': start}))\n"
+                "    time.sleep(5)\n"
+                "    os._exit(0)\n"
+                "end = time.monotonic() + 2\n"
+                "while not identity.exists() and time.monotonic() < end:\n"
+                "    time.sleep(0.01)\n"
+                "os._exit(0 if identity.exists() else 2)\n", encoding="utf-8")
+
+            def live_child():
+                if not identity.exists():
+                    return False
+                recorded = json.loads(identity.read_text())
+                try:
+                    stat = Path(f"/proc/{recorded['pid']}/stat").read_text()
+                except FileNotFoundError:
+                    return False
+                fields = stat[stat.rfind(")") + 2:].split()
+                return int(fields[19]) == recorded["start"] and fields[0] != "Z"
+
+            try:
+                result = supervision.run_owned([sys.executable, str(script)], cwd=root,
+                                               env=os.environ.copy(), log_path=root / "child.log", timeout=3)
+                self.assertEqual(result["exit_code"], 0)
+                self.assertIsNone(result["violation"])
+                self.assertLess(result["elapsed_seconds"], 3)
+                self.assertEqual(json.loads(identity.read_text())["pgid"], result["pid"])
+                end = time.monotonic() + 1
+                while live_child() and time.monotonic() < end:
+                    time.sleep(0.01)
+                self.assertFalse(live_child(), "same-group grandchild survived leader exit")
+            finally:
+                if live_child():
+                    os.kill(json.loads(identity.read_text())["pid"], signal.SIGKILL)
+
     def test_ready_gate_is_created_only_after_owner_attach(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
