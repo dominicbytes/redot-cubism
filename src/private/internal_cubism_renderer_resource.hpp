@@ -16,6 +16,7 @@
 #include <godot_cpp/classes/texture2d.hpp>
 
 #include <gd_cubism_effect.hpp>
+#include "cubism_viewport_compositor.hpp"
 
 
 // ------------------------------------------------------------------ define(s)
@@ -49,6 +50,7 @@ public:
 
 public:
     GDCubismUserModel *_owner_viewport;
+    CubismViewportCompositor compositor;
 
     TypedArray<Node> managed_nodes;
     Array ary_texture;
@@ -61,6 +63,7 @@ public:
     Vector2i vct_canvas_size;
     float CALCULATED_PPUNIT_C;
     Vector2 CALCULATED_ORIGIN_C;
+    Transform2D layout_transform;
 };
 
 

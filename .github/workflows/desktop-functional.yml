@@ -1,0 +1,55 @@
+name: Licensed desktop functional tests
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_sha:
+        description: Full commit SHA reviewed for execution with private SDK inputs
+        required: true
+        type: string
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+  PYTHONIOENCODING: utf-8
+jobs:
+  private-repository:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require private repository and explicit commit
+        shell: python
+        env:
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+        run: |
+          import os, re
+          if os.environ['REPOSITORY_PRIVATE'] != 'true':
+              raise SystemExit('Licensed jobs require a private repository; no runner was selected.')
+          if not re.fullmatch('[0-9a-f]{40}', os.environ['REVIEWED_SHA']):
+              raise SystemExit('Supply the full reviewed commit SHA.')
+  functional:
+    needs: private-repository
+    environment: licensed-desktop
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [Linux, Windows]
+    runs-on: [self-hosted, cubism-licensed, '${{ matrix.platform }}']
+    timeout-minutes: 180
+    concurrency:
+      group: cubism-licensed-${{ matrix.platform }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.reviewed_sha }}
+          persist-credentials: false
+      - name: Build and qualify both variants
+        shell: python
+        run: |
+          import os, pathlib, subprocess, sys
+          work = os.environ.get('CUBISM_WORK_ROOT')
+          if not work:
+              raise SystemExit('Missing private runner environment variable: CUBISM_WORK_ROOT')
+          output = pathlib.Path(work).resolve() / os.environ['GITHUB_RUN_ID'] / os.environ['GITHUB_RUN_ATTEMPT']
+          subprocess.run([sys.executable, 'tools/run_tests.py', '--suite', 'licensed-desktop',
+                          '--output', str(output)], check=True)

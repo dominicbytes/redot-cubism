@@ -1,7 +1,15 @@
 [configuration]
 
 entry_symbol = "gd_cubism_library_init"
-compatibility_minimum = 4.3
+compatibility_minimum = "26.2"
+disable_godot_checks = true
+reloadable = false
+
+[icons]
+
+CubismModelResource = "res://addons/gd_cubism/res/icons/cubism_model_resource.svg"
+GDCubismUserModel = "res://addons/gd_cubism/res/icons/cubism_model_resource.svg"
+CubismModel2D = "res://addons/gd_cubism/res/icons/cubism_model_resource.svg"
 
 [libraries]
 

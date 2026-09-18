@@ -24,7 +24,7 @@
 InternalCubismRendererResource::InternalCubismRendererResource(GDCubismUserModel *owner_viewport)
     : _owner_viewport(owner_viewport)
 {
-    ResourceLoader* res_loader = memnew(ResourceLoader);
+    ResourceLoader* res_loader = ResourceLoader::get_singleton();
 
     this->ary_shader.resize(GD_CUBISM_SHADER_MAX);
 
@@ -41,7 +41,6 @@ InternalCubismRendererResource::InternalCubismRendererResource(GDCubismUserModel
     this->ary_shader[GD_CUBISM_SHADER_MASK_MUL] = res_loader->load("res://addons/gd_cubism/res/shader/2d_cubism_mask_mul.gdshader");
     this->ary_shader[GD_CUBISM_SHADER_MASK_MUL_INV] = res_loader->load("res://addons/gd_cubism/res/shader/2d_cubism_mask_mul_inv.gdshader");
 
-    memdelete(res_loader);
 }
 
 
@@ -53,13 +52,15 @@ InternalCubismRendererResource::~InternalCubismRendererResource() {
 
 
 void InternalCubismRendererResource::clear() {
-    for (int i = 0; i < this->managed_nodes.size(); i++) {
-        Node *c = Object::cast_to<Node>(this->managed_nodes[i]);
-        c->get_parent()->remove_child(c);
-        c->queue_free();
-    }
-
+    compositor.clear();
+    const Array nodes = this->managed_nodes.duplicate();
     this->managed_nodes.clear();
+    for (int i = 0; i < nodes.size(); i++) {
+        Node *c = Object::cast_to<Node>(nodes[i]);
+        if (c == nullptr) continue;
+        if (c->get_parent() != nullptr) c->get_parent()->remove_child(c);
+        memdelete(c);
+    }
 
     this->ary_texture.clear();
     this->dict_mesh.clear();
@@ -80,15 +81,15 @@ ShaderMaterial* InternalCubismRendererResource::request_shader_material(const Cs
     GDCubismShader e = GD_CUBISM_SHADER_NORM_MIX;
     if (model->GetDrawableMaskCounts()[index] == 0)
     {
-        switch (model->GetDrawableBlendMode(index))
+        switch (model->GetDrawableBlendModeType(index).GetColorBlendType())
         {
-        case CubismRenderer::CubismBlendMode_Additive:
+        case Live2D::Cubism::Core::csmColorBlendType_AddCompatible:
             e = GD_CUBISM_SHADER_NORM_ADD;
             break;
-        case CubismRenderer::CubismBlendMode_Normal:
+        case Live2D::Cubism::Core::csmColorBlendType_Normal:
             e = GD_CUBISM_SHADER_NORM_MIX;
             break;
-        case CubismRenderer::CubismBlendMode_Multiplicative:
+        case Live2D::Cubism::Core::csmColorBlendType_MultiplyCompatible:
             e = GD_CUBISM_SHADER_NORM_MUL;
             break;
         default:
@@ -98,15 +99,15 @@ ShaderMaterial* InternalCubismRendererResource::request_shader_material(const Cs
     }
     else if (model->GetDrawableInvertedMask(index) == false)
     {
-        switch (model->GetDrawableBlendMode(index))
+        switch (model->GetDrawableBlendModeType(index).GetColorBlendType())
         {
-        case CubismRenderer::CubismBlendMode_Additive:
+        case Live2D::Cubism::Core::csmColorBlendType_AddCompatible:
             e = GD_CUBISM_SHADER_MASK_ADD;
             break;
-        case CubismRenderer::CubismBlendMode_Normal:
+        case Live2D::Cubism::Core::csmColorBlendType_Normal:
             e = GD_CUBISM_SHADER_MASK_MIX;
             break;
-        case CubismRenderer::CubismBlendMode_Multiplicative:
+        case Live2D::Cubism::Core::csmColorBlendType_MultiplyCompatible:
             e = GD_CUBISM_SHADER_MASK_MUL;
             break;
         default:
@@ -116,15 +117,15 @@ ShaderMaterial* InternalCubismRendererResource::request_shader_material(const Cs
     }
     else
     {
-        switch (model->GetDrawableBlendMode(index))
+        switch (model->GetDrawableBlendModeType(index).GetColorBlendType())
         {
-        case CubismRenderer::CubismBlendMode_Additive:
+        case Live2D::Cubism::Core::csmColorBlendType_AddCompatible:
             e = GD_CUBISM_SHADER_MASK_ADD_INV;
             break;
-        case CubismRenderer::CubismBlendMode_Normal:
+        case Live2D::Cubism::Core::csmColorBlendType_Normal:
             e = GD_CUBISM_SHADER_MASK_MIX_INV;
             break;
-        case CubismRenderer::CubismBlendMode_Multiplicative:
+        case Live2D::Cubism::Core::csmColorBlendType_MultiplyCompatible:
             e = GD_CUBISM_SHADER_MASK_MUL_INV;
             break;
         default:

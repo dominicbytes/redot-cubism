@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="GDCubismMotionEntry" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
-	<brief_description>
-	</brief_description>
-	<description>
-	</description>
+	<brief_description>Legacy native motion resource.</brief_description>
+	<description>Compatibility resource used by the legacy native motion implementation. It exposes no editable playback data. Use [CubismMotionDescriptor] for imported motion metadata and [CubismMotionHandle] for preferred runtime playback results.</description>
 	<tutorials>
 	</tutorials>
 </class>

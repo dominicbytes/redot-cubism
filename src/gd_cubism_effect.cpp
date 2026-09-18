@@ -40,18 +40,22 @@ void GDCubismEffect::_cubism_process(InternalCubismUserModel* model, const doubl
 void GDCubismEffect::_cubism_epilogue(InternalCubismUserModel* model, const double delta) {}
 
 
-void GDCubismEffect::_enter_tree() {
+void GDCubismEffect::_notification(int p_what) {
     GDCubismUserModel* node = Object::cast_to<GDCubismUserModel>(this->get_parent());
-    if(node != nullptr) {
-        node->_on_append_child_act(this);
-    }
-}
-
-
-void GDCubismEffect::_exit_tree() {
-    GDCubismUserModel* node = Object::cast_to<GDCubismUserModel>(this->get_parent());
-    if(node != nullptr) {
-        node->_on_remove_child_act(this);
+    if (node == nullptr) return;
+    switch (p_what) {
+        case NOTIFICATION_ENTER_TREE:
+            node->_on_append_child_act(this);
+            break;
+        case NOTIFICATION_EXIT_TREE:
+            node->_on_remove_child_act(this);
+            break;
+        case NOTIFICATION_PREDELETE:
+            if (node->is_native_busy()) {
+                cancel_free();
+                queue_free();
+            }
+            break;
     }
 }
 

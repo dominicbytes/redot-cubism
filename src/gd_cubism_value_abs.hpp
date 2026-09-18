@@ -45,13 +45,14 @@ protected:
         ClassDB::bind_method(D_METHOD("set_value"), &GDCubismValueAbs::set_value);
         ClassDB::bind_method(D_METHOD("get_value"), &GDCubismValueAbs::get_value);
         ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "value"), "set_value", "get_value");
+        ClassDB::bind_method(D_METHOD("is_valid"), &GDCubismValueAbs::is_valid);
     }
 
 protected:
     String id;
-    float value;
-    float *raw_value;
-    bool changed;
+    float value = 0.0f;
+    float *raw_value = nullptr;
+    bool changed = false;
     const ValueType _value_type = UNKONWN;
 
 private:
@@ -65,16 +66,18 @@ public:
     String get_id() const { return this->id; }
     void set_value(const float value) { this->value = value; this->changed = true; }
     float get_value() const { return this->value; }
+    bool is_valid() const { return raw_value != nullptr; }
+    void invalidate() { raw_value = nullptr; changed = false; }
 
     void set_raw_value() {
-        if(this->changed == true) {
+        if(this->changed == true && raw_value != nullptr) {
             *this->raw_value = this->value;
             this->changed = false;
         }        
     }
 
     void get_raw_value() {
-        this->value = *this->raw_value;
+        if (raw_value != nullptr) this->value = *this->raw_value;
     }
 };
 

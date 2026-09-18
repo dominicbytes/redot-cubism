@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismEffect" inherits="Node" version="26.2">
+	<brief_description>A custom parameter effect evaluated in the preferred model pipeline.</brief_description>
+	<description>
+		Place directly under a [CubismModel2D] and connect [signal effect_process]. Enabled effects run after lip sync and legacy custom processing, before EFFECT-layer writes and physics. Lower priorities run first; equal priorities use case-sensitive node-name order. Give procedurally created siblings explicit stable names when their priorities tie.
+		Membership, names, priorities and enabled flags are captured at the start of each model update. Changes affect the next update. Removed, reparented, queued-for-deletion or process-disabled effects are skipped before their callback. Model pause and speed govern the callback clock. There is no independent _process clock.
+		This node's parameter methods write immediately only during its own synchronous callback. They return ERR_UNAVAILABLE otherwise, including after an await, reparent, model reload/unload or queued deletion. The model's own parameter methods still queue writes for the next step. Later effects, layers, physics or pose may replace an effect's result. Existing [GDCubismEffectCustom] lifecycle signals retain their legacy behavior under [GDCubismUserModel].
+	</description>
+	<methods>
+		<method name="set_parameter_value"><return type="int" enum="Error" /><param index="0" name="id" type="StringName" /><param index="1" name="value" type="float" /><param index="2" name="weight" type="float" default="1.0" /><description>During this effect's callback, blend current*(1-weight)+value*weight. Requires finite values and weight in [0,1]. Unknown IDs return ERR_DOES_NOT_EXIST; invalid values return ERR_INVALID_PARAMETER. Results are clamped to the native parameter range.</description></method>
+		<method name="add_parameter_value"><return type="int" enum="Error" /><param index="0" name="id" type="StringName" /><param index="1" name="value" type="float" /><param index="2" name="weight" type="float" default="1.0" /><description>Blend current+value*weight using the same callback scope and validation as set_parameter_value.</description></method>
+		<method name="multiply_parameter_value"><return type="int" enum="Error" /><param index="0" name="id" type="StringName" /><param index="1" name="value" type="float" /><param index="2" name="weight" type="float" default="1.0" /><description>Blend current*(1+(value-1)*weight) using the same callback scope and validation as set_parameter_value.</description></method>
+	</methods>
+	<signals>
+		<signal name="effect_process"><param index="0" name="model" type="CubismModel2D" /><param index="1" name="delta" type="float" /><description>Synchronous custom-effect stage. Read the model's current stage values and write through this effect. Do not await inside the callback; write access expires when it returns. Use queue_free for removal from callbacks.</description></signal>
+	</signals>
+	<members>
+		<member name="enabled" type="bool" setter="set_enabled" getter="get_enabled" default="true">Whether to include this effect in the next model step.</member>
+		<member name="effect_priority" type="int" setter="set_effect_priority" getter="get_effect_priority" default="0">Lower values run first. Ties use node names, not sibling insertion order.</member>
+	</members>
+</class>

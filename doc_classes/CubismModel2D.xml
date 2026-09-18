@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismModel2D" inherits="Node2D" version="4.3">
+	<brief_description>Resource-based Cubism runtime node with independent animation and rendering state.</brief_description>
+	<description>
+		Owns one internal model runtime and its renderer. Assign an imported [CubismModelResource] to [member model]. The internal runtime is not saved as a scene child.
+		Provides lifecycle, processing, queued parameter control, native motion/expression playback, opt-in autoplay, seeded blink, native breath and smoothed look targeting. Use [CubismCharacterController] to coordinate recorded voice and motion cues. Rendering properties select direct or fallback composition and control mask quality.
+		Parameter writes apply once on the next update in the selected [enum ParameterLayer], defaulting to after physics and pose. The batch is captured before evaluation; callback writes wait for the next step. Getters return evaluated values. Unload, reload, and tree exit discard pending writes. Use [method Node.queue_free] for deletion from signal callbacks.
+	</description>
+	<methods>
+		<method name="get_parameter_value" qualifiers="const"><return type="float" /><param index="0" name="id" type="StringName" /><description>Return the last evaluated parameter value, or zero for an unavailable parameter. Queued writes do not change this value immediately.</description></method>
+		<method name="set_parameter_value"><return type="int" enum="Error" /><param index="0" name="id" type="StringName" /><param index="1" name="value" type="float" /><param index="2" name="weight" type="float" default="1.0" /><param index="3" name="layer" type="int" enum="CubismModel2D.ParameterLayer" default="6" /><description>Queue current*(1-weight)+value*weight at the selected layer. Finite values and weights in [0,1] are required. Unknown parameters, invalid layers and exhausted shared queue capacity return an Error without mutation. Within each layer, operations retain call order. The layer order takes precedence over submission order between layers.</description></method>
+		<method name="add_parameter_value"><return type="int" enum="Error" /><param index="0" name="id" type="StringName" /><param index="1" name="value" type="float" /><param index="2" name="weight" type="float" default="1.0" /><param index="3" name="layer" type="int" enum="CubismModel2D.ParameterLayer" default="6" /><description>Queue current+value*weight. Validation, ordering and lifetime follow [method set_parameter_value]. Each blend result is clamped to the model parameter range.</description></method>
+		<method name="multiply_parameter_value"><return type="int" enum="Error" /><param index="0" name="id" type="StringName" /><param index="1" name="value" type="float" /><param index="2" name="weight" type="float" default="1.0" /><param index="3" name="layer" type="int" enum="CubismModel2D.ParameterLayer" default="6" /><description>Queue current*(1+(value-1)*weight). Validation, ordering and lifetime follow [method set_parameter_value]. Each blend result is clamped to the model parameter range.</description></method>
+		<method name="get_hit_area_names" qualifiers="const"><return type="PackedStringArray" /><description>Unique hit names in manifest order, or empty without a loaded model. Duplicate names combine their drawables into one logical area.</description></method>
+		<method name="hit_test" qualifiers="const"><return type="bool" /><param index="0" name="hit_area" type="StringName" /><param index="1" name="local_point" type="Vector2" /><description>Test a node-local pixel point against the named area's current deformed drawable bounds using SDK IsHit. Geometry only: visibility, opacity, triangles and texture alpha do not affect this query. Unknown names, missing or empty drawables, nonfinite points and unloaded models return false. Does not change hover state.</description></method>
+		<method name="set_hit_test_target"><return type="void" /><param index="0" name="local_point" type="Vector2" /><description>Track one pointer target in node-local pixels. The application supplies mouse, touch or controller positions; use to_local(global_point) for world positions. Deferred hit_area_entered/exited signals reflect changes and animation updates. Repeated calls before delivery coalesce to the latest target. Invalid coordinates emit runtime_warning and retain the previous target.</description></method>
+		<method name="clear_hit_test_target"><return type="void" /><description>Stop tracking and defer exits for entered areas. Call when the pointer leaves the interaction surface or ends. Reload, unload and tree exit also discard the target. Hidden or process-disabled nodes emit exits; showing or enabling reevaluates a retained target. Model pause freezes geometry but allows target changes.</description></method>
+		<method name="set_look_target"><return type="void" /><param index="0" name="local_target" type="Vector2" /><param index="1" name="weight" type="float" default="1.0" /><description>Set a target in node-local pixels. Imported layout is undone, then each half-canvas extent maps to full SDK direction, clamped to [-1,1]. Use to_local(global_point) for a world target. Native SDK smoothing adds standard head/body/eye movement after breath and before physics/pose/manual overrides. Weight must be finite and in [0,1]. Invalid arguments or an unloaded model emit runtime_warning and preserve the previous target.</description></method>
+		<method name="clear_look_target"><return type="void" /><description>Discard the transient target and reset smoothing. Influence disappears on the next evaluation. Safe without a loaded model. Reload and tree exit also discard targets.</description></method>
+		<method name="set_expression"><return type="int" enum="Error" /><param index="0" name="expression_id" type="StringName" /><param index="1" name="fade_seconds" type="float" default="-1.0" /><description>Play a separately owned native expression, preserving R5 blending. -1 uses source fades; a nonnegative override sets fade-in and fade-out for this play. Fade time follows model speed and pause, starting on the first evaluation. Successful changes queue expression_changed.</description></method>
+		<method name="clear_expression"><return type="void" /><param index="0" name="fade_seconds" type="float" default="-1.0" /><description>Fade expression influence back to the current primary-motion pose, then reset the expression manager. -1 uses the last expression's fade-out; zero removes influence on the next evaluation. Queues expression_changed with an empty ID. Invalid arguments emit runtime_warning.</description></method>
+		<method name="get_expression_ids" qualifiers="const"><return type="PackedStringArray" /><description>Return loaded expression IDs, or an empty list without a ready model.</description></method>
+		<method name="play_motion"><return type="CubismMotionHandle" /><param index="0" name="motion_id" type="StringName" /><param index="1" name="priority" type="int" enum="CubismMotionPriority.Priority" default="2" /><param index="2" name="loop" type="bool" default="false" /><param index="3" name="speed" type="float" default="1.0" /><description>Start a native motion with independent playback state. Does not start audio. Check the returned handle's terminal state before awaiting its finished signal. Finite speed must be in (0,256].</description></method>
+		<method name="play_motion_from_group"><return type="CubismMotionHandle" /><param index="0" name="group" type="StringName" /><param index="1" name="index" type="int" /><param index="2" name="priority" type="int" enum="CubismMotionPriority.Priority" default="2" /><param index="3" name="loop" type="bool" default="false" /><param index="4" name="speed" type="float" default="1.0" /><description>Resolve a group and ordered index, then play its stable motion ID.</description></method>
+		<method name="get_motion_ids" qualifiers="const"><return type="PackedStringArray" /><description>Return the loaded motion catalog's stable IDs.</description></method>
+		<method name="stop_motion"><return type="void" /><param index="0" name="fade_out_seconds" type="float" default="-1.0" /><description>Terminate the active handle as STOPPED. Zero removes influence immediately. Positive durations fade in model time; -1 uses the native default in motion time. The native pose can keep fading after the handle becomes terminal.</description></method>
+		<method name="load_model"><return type="int" enum="Error" /><param index="0" name="resource" type="CubismModelResource" /><description>Load a resource and return a Redot error code. A null resource clears the selection. Lifecycle signals are deferred.</description></method>
+		<method name="unload_model"><return type="void" /><description>Dispose the runtime, retaining the public selection for an explicit reload.</description></method>
+		<method name="reload_model"><return type="int" enum="Error" /><description>Reload the selected resource and discard pending writes.</description></method>
+		<method name="advance"><return type="void" /><param index="0" name="delta" type="float" /><description>Advance only in manual playback mode while the node can process and is not paused.</description></method>
+		<method name="get_canvas_info" qualifiers="const">
+			<return type="Dictionary" />
+			<description>Return native canvas metadata: [code]size_in_pixels[/code] and [code]origin_in_pixels[/code] as Vector2, and [code]pixels_per_unit[/code] as float. Returns an empty dictionary without a ready model.</description>
+		</method>
+		<method name="get_last_error" qualifiers="const">
+			<return type="String" />
+			<description>Return the last model-loading error message. Renderer configuration errors are exposed separately through [member rendering_error].</description>
+		</method>
+		<method name="get_model_state" qualifiers="const">
+			<return type="int" enum="CubismModel2D.ModelState" />
+			<description>Return the current model lifecycle state.</description>
+		</method>
+		<method name="get_parameter_ids" qualifiers="const">
+			<return type="PackedStringArray" />
+			<description>Return native parameter IDs in model order, or an empty array without a ready model.</description>
+		</method>
+		<method name="get_part_ids" qualifiers="const">
+			<return type="PackedStringArray" />
+			<description>Return native part IDs in model order, or an empty array without a ready model.</description>
+		</method>
+		<method name="has_parameter" qualifiers="const">
+			<return type="bool" />
+			<param index="0" name="id" type="StringName" />
+			<description>Whether a ready model contains [param id].</description>
+		</method>
+		<method name="is_ready" qualifiers="const">
+			<return type="bool" />
+			<description>Whether the model has reached [constant READY].</description>
+		</method>
+		<method name="set_part_opacity">
+			<return type="int" enum="Error" />
+			<param index="0" name="id" type="StringName" />
+			<param index="1" name="opacity" type="float" />
+			<description>Queue a part-opacity override for the next model evaluation, after physics and pose. Finite opacity is clamped to [0,1]. Returns ERR_INVALID_PARAMETER for nonfinite input, ERR_UNCONFIGURED without a ready model, ERR_DOES_NOT_EXIST for an unknown part, or a queue-capacity error. Pending writes are discarded on unload, reload and tree exit.</description>
+		</method>
+	</methods>
+	<signals>
+		<signal name="hit_area_entered"><param index="0" name="hit_area" type="StringName" /><description>Deferred transition into a tracked logical area. All overlapping areas are reported in manifest order. Exits precede enters. Use queue_free for deletion from callbacks.</description></signal>
+		<signal name="hit_area_exited"><param index="0" name="hit_area" type="StringName" /><description>Deferred transition out of a previously entered area, including target clear and model unload. Destruction does not promise further callbacks.</description></signal>
+		<signal name="expression_changed">
+			<param index="0" name="expression_id" type="StringName" />
+			<description>Deferred notification of a successful expression change. An empty ID means expression influence was requested to clear; a fade may still be running.</description>
+		</signal>
+		<signal name="model_failed">
+			<param index="0" name="error_code" type="int" />
+			<param index="1" name="message" type="String" />
+			<description>Deferred model-loading failure with an error code and diagnostic message.</description>
+		</signal>
+		<signal name="model_load_started">
+			<param index="0" name="resource" type="CubismModelResource" />
+			<description>Deferred notification that loading the selected resource started.</description>
+		</signal>
+		<signal name="model_ready">
+			<param index="0" name="resource" type="CubismModelResource" />
+			<description>Deferred notification that the selected resource loaded successfully.</description>
+		</signal>
+		<signal name="motion_event">
+			<param index="0" name="handle" type="CubismMotionHandle" />
+			<param index="1" name="event_value" type="String" />
+			<description>Deferred native motion event. The value is application data and is never executed as code by the plugin.</description>
+		</signal>
+		<signal name="motion_finished">
+			<param index="0" name="handle" type="CubismMotionHandle" />
+			<param index="1" name="motion_id" type="StringName" />
+			<param index="2" name="reason" type="int" />
+			<description>Deferred completion notification for a motion handle, with a [enum CubismMotionHandle.FinishReason]. Outgoing native influence may continue fading after completion.</description>
+		</signal>
+		<signal name="motion_looped">
+			<param index="0" name="handle" type="CubismMotionHandle" />
+			<param index="1" name="loop_count" type="int" />
+			<description>Deferred loop-boundary notification with the handle and cumulative loop count.</description>
+		</signal>
+		<signal name="motion_started">
+			<param index="0" name="handle" type="CubismMotionHandle" />
+			<param index="1" name="motion_id" type="StringName" />
+			<description>Deferred notification of an accepted motion play.</description>
+		</signal>
+		<signal name="runtime_warning">
+			<param index="0" name="code" type="int" />
+			<param index="1" name="message" type="String" />
+			<description>Deferred diagnostic for a rejected runtime operation or unsupported rendering configuration.</description>
+		</signal>
+	</signals>
+	<constants>
+		<constant name="DIRECT" value="0" enum="RenderingMode">Render native drawable meshes directly. Default; no full-model target.</constant>
+		<constant name="SUBVIEWPORT_FALLBACK" value="1" enum="RenderingMode">Explicit ordered offscreen composition. See rendering_mode for supported target limits.</constant>
+		<constant name="OFFSCREEN_ALWAYS" value="0" enum="OffscreenUpdateMode">Keep mask viewports drawing outside the owning viewport.</constant>
+		<constant name="OFFSCREEN_REDUCED" value="1" enum="OffscreenUpdateMode">Outside the owning viewport, request one mask redraw at most every 100 ms of monotonic real time, when the model evaluates. Does not slow animation or audio.</constant>
+		<constant name="OFFSCREEN_PAUSED" value="2" enum="OffscreenUpdateMode">Pause mask drawing outside the owning viewport. Animation and audio continue. Default.</constant>
+		<constant name="MASK_LOW" value="0" enum="MaskQuality">Limit each mask texture dimension to 512 pixels.</constant>
+		<constant name="MASK_MEDIUM" value="1" enum="MaskQuality">Limit each mask texture dimension to 1024 pixels.</constant>
+		<constant name="MASK_HIGH" value="2" enum="MaskQuality">Limit each mask texture dimension to 2048 pixels. Opt in when needed.</constant>
+		<constant name="MASK_CUSTOM" value="3" enum="MaskQuality">Use custom_mask_limit.</constant>
+		<constant name="MASK_MODEL" value="4" enum="MaskQuality">Inherit rendering/mask_quality from the imported model. Default. Older resources without that setting use Medium.</constant>
+		<constant name="LAYER_BASE" value="0" enum="ParameterLayer">After loading saved parameters, before motion. Its result can enter the saved primary state.</constant>
+		<constant name="LAYER_MOTION" value="1" enum="ParameterLayer">After motion, before saving primary parameters and applying expression. Its result can persist in the saved primary state.</constant>
+		<constant name="LAYER_EXPRESSION" value="2" enum="ParameterLayer">After expression, before procedural and custom effects.</constant>
+		<constant name="LAYER_EFFECT" value="3" enum="ParameterLayer">After blink, breath, look, lip and custom effects; before physics.</constant>
+		<constant name="LAYER_PHYSICS" value="4" enum="ParameterLayer">After physics, before pose.</constant>
+		<constant name="LAYER_POSE" value="5" enum="ParameterLayer">After pose, before final overrides.</constant>
+		<constant name="LAYER_POST_EFFECT" value="6" enum="ParameterLayer">Final parameter overrides before Core drawable update. Default layer; does not alter the saved primary parameters.</constant>
+		<constant name="IDLE" value="0" enum="PlaybackProcessMode">Advance automatically during idle processing.</constant>
+		<constant name="PHYSICS" value="1" enum="PlaybackProcessMode">Advance automatically during physics processing.</constant>
+		<constant name="MANUAL" value="2" enum="PlaybackProcessMode">Advance explicitly with [method advance].</constant>
+		<constant name="UNLOADED" value="0" enum="ModelState">No live model is loaded.</constant>
+		<constant name="LOADING" value="1" enum="ModelState">The selected model is being loaded.</constant>
+		<constant name="READY" value="2" enum="ModelState">The model is loaded and available for runtime operations.</constant>
+		<constant name="ERROR" value="3" enum="ModelState">Model loading failed. Inspect [method get_last_error].</constant>
+		<constant name="DISPOSING" value="4" enum="ModelState">The live runtime is being released.</constant>
+		<constant name="DISPOSED" value="5" enum="ModelState">The node is being destroyed and its runtime has been released.</constant>
+	</constants>
+	<members>
+		<member name="rendering_mode" type="int" setter="set_rendering_mode" getter="get_rendering_mode" enum="CubismModel2D.RenderingMode" default="0">Explicit renderer choice, saved with the node. SubViewport Fallback preserves drawable blend order with an atlas and backdrop compositor. Requires GL Compatibility, SDR, a parent render target larger than 40 pixels on both axes, at most 512 drawable meshes, and an atlas no larger than 4096 pixels per axis or 8388608 total texels. Unsupported configurations draw no character, set rendering_error and emit runtime_warning once per changed error; the requested mode remains selected. Resize or select Direct to recover. Fallback refreshes pixel mapping each rendered frame, including while paused/manual, without advancing animation. Its transient resources are freed on unload or return to Direct. It is not a performance optimization.</member>
+		<member name="rendering_error" type="String" getter="get_rendering_error">Read-only fallback configuration error from the last rendering update. Empty after successful configuration, unload or return to Direct. Not stored in scenes. Does not change model loading state.</member>
+		<member name="premultiplied_alpha" type="bool" getter="get_premultiplied_alpha" default="false">Read-only texture encoding of the loaded model; false when unloaded. Configure rendering/premultiplied_alpha during import, then reimport and reload the node. The resource carries the saved choice and matching texture pixels. A mismatched resource is rejected.</member>
+		<member name="debug_draw_bounds" type="bool" setter="set_debug_draw_bounds" getter="get_debug_draw_bounds" default="false">Draw a cyan hairline rectangle around combined current drawable geometry, including invisible drawables with triangle indices. Uses evaluated Cubism vertices and imported layout. Does not change simulation. Saved with the node; available in editor, debug and release builds.</member>
+		<member name="debug_draw_hit_areas" type="bool" setter="set_debug_draw_hit_areas" getter="get_debug_draw_hit_areas" default="false">Draw magenta hairline rectangles for distinct declared hit drawables, including invisible or non-rendered hit geometry. Missing or empty drawables are skipped. Follows current deformation and imported layout. These are the geometry bounds used by hit_test, not triangle or texture-alpha outlines. Saved with the node.</member>
+		<member name="offscreen_update_mode" type="int" setter="set_offscreen_update_mode" getter="get_offscreen_update_mode" enum="CubismModel2D.OffscreenUpdateMode" default="2">Policy for mask compositions wholly outside the owning viewport. Visible masks draw every frame; hidden nodes and singular transforms always disable mask drawing. Applied at model evaluation, retained on reload and saved with the node. Does not pause animation, physics, cues or voice. Invalid values emit runtime_warning and retain the previous policy.</member>
+		<member name="mask_quality" type="int" setter="set_mask_quality" getter="get_mask_quality" enum="CubismModel2D.MaskQuality" default="4">Maximum per-composition mask texture dimensions. Defaults to the imported model setting; explicit Low/Medium/High/Custom choices override it and survive reload. Reload the node after reimporting changed model options. Matches viewport pixel density using the largest stretch of the model/camera/canvas/viewport transform, including nonuniform scaling and shear. Geometry scales uniformly, dimensions round outward, and small projected masks are not enlarged to fill the limit. Changes apply on the next model evaluation. Invalid enum values emit runtime_warning and retain the previous quality.</member>
+		<member name="custom_mask_limit" type="int" setter="set_custom_mask_limit" getter="get_custom_mask_limit" default="1024">Custom maximum dimension in pixels, clamped to [2,4096]. Used only with MASK_CUSTOM. Both settings are saved with the node. This limits each mask separately, not total model memory.</member>
+		<member name="enable_lip_sync" type="bool" setter="set_enable_lip_sync" getter="get_enable_lip_sync" default="true">Apply an attached CubismLipSync component. With no component this has no effect. Disabling releases influence and freezes its envelope. Model pause also freezes the component.</member>
+		<member name="enable_look_target" type="bool" setter="set_enable_look_target" getter="get_enable_look_target" default="true">Apply a target only after set_look_target is called. Disabling releases influence and freezes smoothing. The flag is saved, but targets are transient.</member>
+		<member name="deterministic_seed" type="int" setter="set_deterministic_seed" getter="get_deterministic_seed" default="0">Instance-owned blink RNG seed. Setting it resets blink timing, without changing process-global random state or resetting breath.</member>
+		<member name="enable_eye_blink" type="bool" setter="set_enable_eye_blink" getter="get_enable_eye_blink" default="false">Apply seeded procedural blink to manifest eye IDs only on frames without primary-motion updates. Suppression and disabling pause its clock. Runs after expression and before physics/pose/manual overrides.</member>
+		<member name="enable_breath" type="bool" setter="set_enable_breath" getter="get_enable_breath" default="false">Apply the native SDK breath profile to existing standard parameters. Disabling pauses its clock. Reload resets its phase.</member>
+		<member name="autoplay" type="bool" setter="set_autoplay" getter="get_autoplay" default="false">Start configured defaults once after a loaded model enters the tree, and again on reload/reentry. Explicit commands issued before startup take precedence. Changes after startup configure the next load/entry.</member>
+		<member name="default_motion" type="StringName" setter="set_default_motion" getter="get_default_motion">Autoplay motion ID. Uses idle priority and the loaded descriptor's loop flag. Empty skips motion playback; audio is not started.</member>
+		<member name="default_expression" type="StringName" setter="set_default_expression" getter="get_default_expression">Autoplay expression ID, using its source fades. Empty skips expression playback.</member>
+		<member name="model" type="CubismModelResource" setter="set_model" getter="get_model">Imported model selection.</member>
+		<member name="playback_process_mode" type="int" setter="set_playback_process_mode" getter="get_playback_process_mode" enum="CubismModel2D.PlaybackProcessMode" default="0">Select native idle, physics, or manual playback. Does not replace inherited scene-tree process mode.</member>
+		<member name="paused" type="bool" setter="set_paused" getter="get_paused" default="false">Suspend evaluation without consuming queued writes.</member>
+		<member name="enable_physics" type="bool" setter="set_enable_physics" getter="get_enable_physics" default="true">Evaluate imported physics after effects and before pose. Has no effect when the model has no physics data.</member>
+		<member name="enable_pose" type="bool" setter="set_enable_pose" getter="get_enable_pose" default="true">Evaluate imported pose after physics and before final manual overrides. Has no effect when the model has no pose data.</member>
+		<member name="speed_scale" type="float" setter="set_speed_scale" getter="get_speed_scale" default="1.0">Scale model time, including motion and effects. Finite values clamp to [0,256]; nonfinite assignments preserve the previous value. Zero freezes model time. A character controller temporarily uses normal speed while it owns the model clock.</member>
+	</members>
+</class>

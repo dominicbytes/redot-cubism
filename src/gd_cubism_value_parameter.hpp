@@ -39,11 +39,11 @@ public:
     };
 
 private:
-    GDCubismParameter::Type type;
-    float minimum_value;
-    float maximum_value;
-    float default_value;
-    bool hold;
+    GDCubismParameter::Type type = NORMAL;
+    float minimum_value = 0.0f;
+    float maximum_value = 0.0f;
+    float default_value = 0.0f;
+    bool hold = false;
 
 protected:
     static void _bind_methods() {
