@@ -125,6 +125,8 @@ def validate_snapshot(case, snapshot):
             if not isinstance(item, dict) or not isinstance(item.get("path"), str) or not isinstance(item.get("message"), str):
                 problems.append("diagnostic path/message must be text")
                 break
+            if case["target"] == "options" and len(item["path"]) > 4096:
+                problems.append("import-option diagnostic path exceeds 4096 characters")
         if len(encoded(diagnostics).encode("utf-8")) > DIAGNOSTIC_BYTES_LIMIT:
             problems.append("encoded diagnostics exceed 1 MiB")
     worker_bytes = snapshot.get("diagnostic_bytes")

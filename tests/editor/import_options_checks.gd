@@ -63,6 +63,21 @@ func _run() -> void:
 	for unsupported: Dictionary in [{"motions/convert_to_redot_animation": true}, {&"motions/convert_to_redot_animation": true}, {"expressions/improt": false}]:
 		var result := CubismModelFactory.build_with_options(source, unsupported)
 		expect(not result.ok and result.model == null, "reject unavailable option")
+	for invalid_key: Variant in [42, true]:
+		var invalid_options := {}
+		invalid_options[invalid_key] = true
+		var result := CubismModelFactory.build_with_options(source, invalid_options)
+		expect(not result.ok and result.model == null and result.diagnostics.size() == 1, "reject nontext option key")
+		if result.diagnostics.size() == 1:
+			expect(typeof(result.diagnostics[0].path) == TYPE_STRING and result.diagnostics[0].path == "$" and result.diagnostics[0].message == "Expected a String or StringName import option key.", "nontext key uses textual diagnostic")
+	var long_name := "x".repeat(8192)
+	for long_key: Variant in [long_name, StringName(long_name)]:
+		var invalid_options := {}
+		invalid_options[long_key] = true
+		var result := CubismModelFactory.build_with_options(source, invalid_options)
+		expect(not result.ok and result.model == null and result.diagnostics.size() == 1, "reject long unknown option key")
+		if result.diagnostics.size() == 1:
+			expect(typeof(result.diagnostics[0].path) == TYPE_STRING and result.diagnostics[0].path.length() <= 4096, "bound long option diagnostic path")
 	var defaults := CubismModelFactory.build_with_options(source, {})
 	expect(defaults.ok and defaults.model.get_mask_quality() == 1, "default imported medium mask quality")
 	expect(defaults.ok and not defaults.model.get_premultiplied_alpha(), "default straight alpha")
