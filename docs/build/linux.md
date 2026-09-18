@@ -56,6 +56,21 @@ dotnet restore demo.csproj --configfile NuGet.Config -p:Configuration=Debug
 dotnet build demo.csproj --configuration Debug --no-restore
 ```
 
+A fresh C# export also publishes for the target runtime (for example,
+`linux-x64`). That restore needs the matching .NET runtime packs in addition
+to Redot's shipped packages. Add the official NuGet source inside the same
+`<packageSources>` section before exporting, or use a local feed containing
+those runtime packs:
+
+```xml
+<add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+```
+
+Use the matching **Mono export templates**; non-Mono templates cannot run the
+managed assembly. The Redot-only feed above is sufficient for the demonstrated
+editor Debug build but a fresh managed export cannot restore the runtime packs
+from it alone.
+
 Open `demo/project.godot` with that Mono editor. The project's main scene uses
 GDScript; to run a retained C# example, open its scene under
 `demo/addons/gd_cubism/example`, replace the root node's attached `.gd` script
