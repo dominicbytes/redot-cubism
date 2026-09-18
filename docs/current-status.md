@@ -9,19 +9,25 @@ Redot repository, not the original Godot project. Publication is source-only:
 there is no qualified binary release, and the SDK and private test models are
 not bundled. The release decision remains **not qualified**.
 
-Public source CI at `9c5ce939ee2af710c3a39b92c25352cf38e15809` passed
-109 Python tests, source/history scans, formatting and diff checks
-([run 35280852692](https://github.com/dominicbytes/redot-cubism/actions/runs/35280852692)).
-The private source-only CI mirror also passed its hosted source checks. No
-licensed native workflow has been dispatched for that source revision: repository creation and
-passing source CI do not establish native release qualification.
+The latest verified qualification snapshot covered here is
+`b338d9cd8527321bfa566ca827e3696a59a79dd3` on
+`review/windows-integration`. Its [public push CI](https://github.com/dominicbytes/redot-cubism/actions/runs/35292818863)
+passed all 110 Python tests and source/history/format checks; draft PR CI also
+passed at its merge commit. The private source mirror passed hosted source CI at
+`00e3d521652df6e28ab8420ea5b0928f49303e55`. No licensed native job has
+executed for this snapshot. Passing source CI does not establish native release
+qualification.
 
 ## Windows builds and scoped checks
 
 Clean integrated source `bc0c6ed82262ca573524c5223085ed596543cd55`
 produced Windows x86_64 debug/release DLLs with VS 2022, MSVC 19.44.35221
 (VCTools 14.44.35207). Both use the pinned editor, bindings and SDK documented
-in [dependencies](../DEPENDENCIES.md). On those exact DLLs:
+in [dependencies](../DEPENDENCIES.md). At clean source
+`55dd0604d605586e79f65664d448f78d9a8dad36`, the complete Windows debug
+and release desktop suites each passed all ten stages with those frozen DLLs.
+That evidence belongs to `55dd060`, not to the later source snapshot. On those
+same DLLs, earlier split-stage evidence recorded:
 
 - Graphical native/runtime checks passed 59/59 per variant and importer checks
   26/26. The complete debug Model2D sequence passed 45/45; the original release
@@ -35,12 +41,29 @@ in [dependencies](../DEPENDENCIES.md). On those exact DLLs:
   The repair retains `.godot/imported` in isolated snapshots so copied import
   remaps can resolve their generated resources; editor state remains excluded.
 
-These are separate stage results with explicitly identified scripts and DLLs,
-not a single full ten-stage run on the latest source. An earlier release overlay
-test crashed with `0xC0000005`; selective repeats and a fresh complete Model2D
-sequence passed, but the intermittent failure's cause remains unresolved. The
-editor capture timeout and missing imported-resource export failures were
+The later `b338d9c` change only bundles an existing icon for a legacy addon
+example and adds its scene dependency regression. Independent retesting copied
+the whole addon into five fresh Windows projects: imports passed 5/5, a clean
+installed-host all-resources export and source-absent texture load passed 2/2,
+and source-absent exported lifecycle checks passed 20/20 across debug/release
+and legacy/primary paths. This targeted retest does not reattribute the full
+`55dd060` desktop suites to `b338d9c`. An earlier release overlay test crashed
+with `0xC0000005`; the original intermittent failure's cause remains unproven.
+The editor capture timeout and missing imported-resource export failures were
 reproduced and repaired; their original failing reports are retained.
+
+At `b338d9c`, the separate [SDK-free ABI fixture](../tests/abi/README.md)
+built with pinned Windows inputs and passed 8/8 import, restart, export
+and source-absent exported-runtime checks in each debug/release variant. Its
+importer is synthetic and does not exercise a licensed Cubism model. A private
+production-importer coexistence check installed the complete `b338d9c` addon
+and frozen integrated DLLs alongside a test-only generic JSON importer at
+priority `0.5`, below the Cubism importer's `2.0`. Fresh import and restart
+checks passed 4/4 per variant: the real Haru `.model3.json` selected
+`CubismModelResource`, ordinary JSON selected the generic importer, a backup
+suffix remained unimported, and the model's positive UID stayed stable across
+restart. These conditional results do not change stock Redot's compound-suffix
+discovery limitation without a generic JSON importer.
 
 The overlay capture harness at `35eb5b3e1461a2af1cf3d1548902f30955d62a70`
 now waits for process frames and explicitly draws before reading pixels.
@@ -56,13 +79,16 @@ Earlier source `13d45b96e4b79552c443f1c1e02aa4ed3288603b` passed
 independently reviewed, fixture-specific limits (16 runs, eight visual families).
 This is scoped GL Compatibility evidence on the recorded Windows adapter, not
 a new visual run on the integrated DLLs. Lifecycle scenarios also passed on that
-earlier source. Eight benchmark scenarios were measured, but have no accepted
-dedicated-runner baseline and therefore no performance qualification verdict.
+earlier source. Eight benchmark scenarios were measured. Nine original-build
+calibration runs across three sets remained inconsistent, with no accepted
+baseline or candidate comparison and therefore no performance qualification
+verdict.
 
 The Git symlink source-package fixture was repaired at
-`234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a`; its Windows Python suite
-passed 104 tests with four platform skips. This does not remove the separate
-native filesystem-link test requirement, which needs Windows symlink privilege.
+`234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a`. The separate Windows
+filesystem-link prerequisite was subsequently run with the required privilege:
+all 18 real-link cases and JSON-read validation passed. The latest published
+source suite passed 110/110 in public CI, as recorded above.
 
 ## Fresh Linux build and load checks
 
@@ -77,8 +103,8 @@ failures remain recorded, without a proven root cause.
 
 ## Remaining release gates
 
-- Complete native desktop qualification, including Windows filesystem-link tests
-  and external pointer/keyboard editor acceptance at the required UI scale.
+- Complete current-source cross-platform native qualification and Windows
+  external pointer/keyboard editor acceptance at the required UI scale.
 - Resolve or disposition the intermittent Windows overlay and Linux early-exit
   failures with adequate evidence.
 - Execute licensed native CI on both platforms and verify required status
