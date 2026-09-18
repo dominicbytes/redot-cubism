@@ -92,8 +92,16 @@ python tools/run_importer_tests.py --model /path/to/Haru.model3.json \
 ```
 
 The report records `automatic_discovery` separately
-from explicit import checks. Ordinary JSON and backup files must remain unclaimed.
-Coexistence with a generic JSON importer and automatic UID discovery are pending.
+from explicit import checks. The Cubism importer must not claim ordinary JSON
+or backup-suffix files. A separate pinned Windows check installed the complete
+`b338d9c` addon and a test-only generic JSON importer at priority `0.5`, below
+the production importer's `2.0`. In fresh debug/release projects, the production
+importer handled real Haru `.model3.json`, ordinary JSON went to the generic
+importer, and the backup suffix produced no import sidecar. Loaded resources
+had the expected types, and a positive model UID remained stable after editor
+restart (4/4 phases per variant). The stock project without a generic importer
+still does not discover the compound-suffix file or UID automatically.
+
 The template check loads and animates the resource from the isolated test project; it does
 not claim full-model selective PCK export. Dialog callbacks are exercised in a headless
 editor. Rendered dialog validation with the new mask-quality selector, the full
@@ -104,5 +112,7 @@ in [dependency tracking](dependency-tracking.md). The editor refreshes them afte
 source changes; **Project → Tools → Validate Cubism Models** requests a scan.
 Assign the result to `CubismModel2D.model` for the [preferred runtime](preferred-runtime.md),
 or to `GDCubismUserModel.model` for [legacy-compatible playback](resource-runtime.md). The
-[checked export workflow](export-validation.md) has Linux integration coverage;
-Windows and the complete release gates remain pending.
+[checked export workflow](export-validation.md) has Linux integration coverage
+and scoped Windows checks on the earlier full-suite source and later installed
+addon snapshot; see [current status](current-status.md) for exact source
+identities and remaining release gates.
