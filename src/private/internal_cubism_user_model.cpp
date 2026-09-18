@@ -101,7 +101,11 @@ static PackedByteArray sdk_json_buffer(const String &text) {
     return String::utf8(output.data(), output.size()).to_utf8_buffer();
 }
 
-bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &buffer, bool json) {
+bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &buffer, bool json, bool optional_raw) {
+    if (optional_raw && !resource_mode && !FileAccess::file_exists(path)) {
+        buffer.clear();
+        return true;
+    }
     Ref<FileAccess> file = FileAccess::open(path, FileAccess::READ);
     if (file.is_null()) return fail_load(path, "Cannot open the declared Cubism file.", ERR_FILE_CANT_OPEN);
     const uint64_t length = file->get_length();
@@ -110,7 +114,10 @@ bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &b
     }
     buffer = file->get_buffer(length);
     if (buffer.size() != int64_t(length) || file->get_length() != length) return fail_load(path, "Cubism file changed while reading.");
-    if (buffer.is_empty()) return fail_load(path, "The declared Cubism file is empty.", ERR_FILE_CORRUPT);
+    if (buffer.is_empty()) {
+        if (optional_raw && !resource_mode) return true;
+        return fail_load(path, "The declared Cubism file is empty.", ERR_FILE_CORRUPT);
+    }
     if (resource_mode) {
         processed_bytes += length;
         Ref<HashingContext> hash;
@@ -323,10 +330,6 @@ bool InternalCubismUserModel::model_load_resource()
 
         String gd_filename; gd_filename.parse_utf8(this->_model_setting->GetTextureFileName(index));
         String texture_pathname = this->_model_pathname.get_base_dir().path_join(gd_filename);
-        const String extension = texture_pathname.get_extension().to_lower();
-        if (extension != "png" && extension != "jpg" && extension != "jpeg" && extension != "webp") {
-            return fail_load(texture_pathname, "Cubism textures must be PNG, JPEG or WebP images.", ERR_FILE_UNRECOGNIZED);
-        }
         if (texture_pathname.begins_with("res://") ? !res_loader->exists(texture_pathname, "Texture2D") : !FileAccess::file_exists(texture_pathname)) {
             return fail_load(texture_pathname, "The declared Cubism texture is missing.", ERR_FILE_NOT_FOUND);
         }
@@ -778,7 +781,8 @@ bool InternalCubismUserModel::physics_load() {
     const String physics_pathname = resolve_file(this->_model_setting->GetPhysicsFileName());
 
     PackedByteArray buffer;
-    if (!read_buffer(physics_pathname, buffer)) return false;
+    if (!read_buffer(physics_pathname, buffer, true, true)) return false;
+    if (buffer.is_empty()) return true;
     this->LoadPhysics(buffer.ptr(), buffer.size());
     return _physics != nullptr || fail_load(physics_pathname, "Cubism could not create physics.");
 }
@@ -790,7 +794,8 @@ bool InternalCubismUserModel::pose_load() {
     const String pose_pathname = resolve_file(this->_model_setting->GetPoseFileName());
 
     PackedByteArray buffer;
-    if (!read_buffer(pose_pathname, buffer)) return false;
+    if (!read_buffer(pose_pathname, buffer, true, true)) return false;
+    if (buffer.is_empty()) return true;
     this->LoadPose(buffer.ptr(), buffer.size());
     return _pose != nullptr || fail_load(pose_pathname, "Cubism could not create the pose.");
 }
@@ -802,7 +807,8 @@ bool InternalCubismUserModel::userdata_load() {
     const String userdata_pathname = resolve_file(this->_model_setting->GetUserDataFile());
 
     PackedByteArray buffer;
-    if (!read_buffer(userdata_pathname, buffer)) return false;
+    if (!read_buffer(userdata_pathname, buffer, true, true)) return false;
+    if (buffer.is_empty()) return true;
     this->LoadUserData(buffer.ptr(), buffer.size());
     return _modelUserData != nullptr || fail_load(userdata_pathname, "Cubism could not create user data.");
 }
