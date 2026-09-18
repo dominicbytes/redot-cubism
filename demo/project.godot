@@ -15,6 +15,10 @@ run/main_scene="res://addons/gd_cubism/examples/character_workflows/visual_novel
 config/features=PackedStringArray("26.2", "GL Compatibility")
 config/icon="res://icon.svg"
 
+[dotnet]
+
+project/assembly_name="demo"
+
 [display]
 
 window/size/viewport_width=1280
