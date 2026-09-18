@@ -300,12 +300,15 @@ void GDCubismUserModel::_notification(int p_what) {
             if ((!this->is_initialized() || pending_unload) && (!assets.is_empty() || model_resource.is_valid())) {
                 this->load_model(assets, model_resource);
             }
+            update_mask_visibility();
             this->set_process_callback(this->playback_process_mode);
             break;
         case NOTIFICATION_EXIT_TREE:
             this->set_process_internal(false);
             this->set_physics_process_internal(false);
-            this->clear();
+            if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
+                if (preferred->runtime == this) this->clear();
+            }
             break;
         case NOTIFICATION_INTERNAL_PROCESS:
             if (this->is_initialized() && this->playback_process_mode == IDLE) {
@@ -626,11 +629,12 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
         return;
     }
     const double scaled_delta = delta * this->speed_scale;
-    if (uncapped_manual_step && (!std::isfinite(scaled_delta) || scaled_delta > std::numeric_limits<Csm::csmFloat32>::max())) return;
-    const double step = uncapped_manual_step ? scaled_delta : MIN(scaled_delta, 0.1);
-    if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
-        if (preferred->runtime == this) preferred->begin_custom_effects();
-    }
+    auto *preferred = Object::cast_to<CubismModel2D>(get_parent());
+    const bool preferred_runtime = preferred != nullptr && preferred->runtime == this;
+    const bool uncapped = uncapped_manual_step || !preferred_runtime;
+    if (uncapped && (!std::isfinite(scaled_delta) || scaled_delta > std::numeric_limits<Csm::csmFloat32>::max())) return;
+    const double step = uncapped ? scaled_delta : MIN(scaled_delta, 0.1);
+    if (preferred_runtime) preferred->begin_custom_effects();
     // Freeze the batch before any native/custom callback. Writes submitted
     // during evaluation belong to the next step, regardless of their layer.
     for (size_t layer = 0; layer < parameter_writes.size(); ++layer) {
@@ -703,7 +707,9 @@ void GDCubismUserModel::advance(const double delta) {
 void GDCubismUserModel::advance_internal(double delta, bool manual_request) {
     ERR_FAIL_COND(this->is_initialized() == false);
     if(this->playback_process_mode != MANUAL) return;
-    if(!is_inside_tree() || !can_process()) return;
+    if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
+        if (preferred->runtime == this && (!is_inside_tree() || !can_process())) return;
+    }
 
     this->_update(delta, manual_request && test_uncapped_manual_step);
 }

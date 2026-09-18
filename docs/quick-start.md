@@ -8,19 +8,19 @@ Godot binaries and later SDK versions are not covered by these instructions.
 
 ## Get the source
 
-The Redot port is on the development review branch; the repository's default
-branch still contains the older upstream code. Clone the port explicitly:
+Clone the combined Windows and Linux Redot port from `main`:
 
 ```sh
-git clone --branch review/windows-integration https://github.com/dominicbytes/redot-cubism.git
+git clone https://github.com/dominicbytes/redot-cubism.git
 cd redot-cubism
-git checkout 35eb5b3e1461a2af1cf3d1548902f30955d62a70
 git submodule update --init godot-cpp
 ```
 
-The checkout selects the fixed source snapshot described in the current test
-record. Later branch revisions have their own test scope; consult
-[current status](current-status.md). Obtain the SDK separately as described below.
+The checkout includes the Linux parity repairs and Windows follow-up. Tests
+are attributed to exact source revisions in [current status](current-status.md)
+and the [Windows validation snapshot](windows-validation-2026-09-18.md),
+including the managed-export shutdown warning. Obtain the SDK separately as
+described below.
 
 On Windows, first follow the [VS 2022 build guide](build/windows.md), then
 continue below at [Install and import](#install-and-import). On Linux, use the

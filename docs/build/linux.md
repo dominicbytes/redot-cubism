@@ -30,3 +30,51 @@ the binding checkout on a suitable local filesystem. Preserve private test
 reports before reclaiming build space. See [dependency details](../../DEPENDENCIES.md)
 for exact hashes and [sanitizers](../sanitizers.md) for the separate instrumented
 build; sanitizer success does not replace graphical testing.
+
+## Build the retained C# demo
+
+Use the official **Redot 26.2 Mono** editor and a .NET 8 SDK. The demo project
+targets `Redot.NET.Sdk/26.2.0` and `net8.0`; `demo/project.godot` sets its
+assembly name to `demo` so Redot loads the resulting `demo.dll`.
+
+After building the native addon above, unpack the matching official Mono editor
+and set `REDOT_MONO_ROOT` to the directory containing `GodotSharp`. Restore from
+the Redot packages shipped with that editor. Put `NuGet.Config` beside the demo
+project so the MSBuild SDK resolver finds the package before restore:
+
+```sh
+export REDOT_MONO_ROOT=/path/to/redot-26.2-linux-mono
+cat > demo/NuGet.Config <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<configuration><packageSources>
+  <clear />
+  <add key="redot-26.2.0" value="$REDOT_MONO_ROOT/GodotSharp/Tools/nupkgs" />
+</packageSources></configuration>
+EOF
+cd demo
+dotnet restore demo.csproj --configfile NuGet.Config -p:Configuration=Debug
+dotnet build demo.csproj --configuration Debug --no-restore
+```
+
+A fresh C# export also publishes for the target runtime (for example,
+`linux-x64`). That restore needs the matching .NET runtime packs in addition
+to Redot's shipped packages. Add the official NuGet source inside the same
+`<packageSources>` section before exporting, or use a local feed containing
+those runtime packs:
+
+```xml
+<add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+```
+
+Use the matching **Mono export templates**; non-Mono templates cannot run the
+managed assembly. The Redot-only feed above is sufficient for the demonstrated
+editor Debug build but a fresh managed export cannot restore the runtime packs
+from it alone.
+
+Open `demo/project.godot` with that Mono editor. The project's main scene uses
+GDScript; to run a retained C# example, open its scene under
+`demo/addons/gd_cubism/example`, replace the root node's attached `.gd` script
+with the matching `.cs` script, and run that scene. The ordinary Redot editor
+cannot load the managed assembly. A successful build only verifies compilation;
+the audio effect example also needs a `Voice` bus with a spectrum analyzer and
+a mouth parameter matching its exported `param_mouth_name`.

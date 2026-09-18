@@ -93,8 +93,8 @@ static func run(host: Node, fixture: Dictionary) -> bool:
 		for frame: int in 10:
 			await tree.process_frame
 		tree.paused = false
-		if _moved(before, model):
-			push_error("CUBISM_PROCESS_FAIL: paused tree advanced the model")
+		if _moved(before, model) != (mode == GDCubismUserModel.MANUAL):
+			push_error("CUBISM_PROCESS_FAIL: paused processing or explicit manual advance")
 			return false
 		model.queue_free()
 		await tree.process_frame

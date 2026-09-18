@@ -1,5 +1,44 @@
 # Current status and tested evidence
 
+## Cubism for Redot on main
+
+The combined Windows and Linux source is available on `main` in
+[dominicbytes/redot-cubism](https://github.com/dominicbytes/redot-cubism).
+Use the [quick start](quick-start.md) to build and install it. The records below
+retain their tested revisions and historical PR state; source integration
+does not constitute a prebuilt binary release.
+
+The Windows managed shutdown investigation found a playback object still
+awaiting cleanup at the probe's two-frame quit point. It became invalid by
+frame seven in one bounded followup, which exited without the warning.
+This supports a probe-timing explanation but does not conclusively attribute
+the earlier warnings or measure long-session resource growth. No plugin code
+changed for that diagnostic; see [Windows validation](windows-validation-2026-09-18.md).
+
+## Tested checkpoint before integration on 2026-09-18
+
+The latest tested source is `02e15cfdfb4a42df2b5ba4979f2c3d31d3b0b9ec`,
+published on [`fix/linux-checked-export-ui-pid`](https://github.com/dominicbytes/redot-cubism/tree/fix/linux-checked-export-ui-pid)
+in [draft PR #2](https://github.com/dominicbytes/redot-cubism/pull/2) within
+the user's fork. The fork's `main` remains at upstream baseline
+`3aaa3c9001808732c40aa3fa07460a95125d9ccc`.
+This is source publication, not a qualified binary release. Both public source
+checks on PR #2 passed at the tested commit; licensed desktop CI and final
+release gates remain separate.
+
+On that source, focused Linux native legacy/raw checks and managed debug and
+release exported audio/reentry checks passed. Matching Windows debug and
+release native builds passed the changed legacy/raw paths and visible GL
+Compatibility reentry checks. The Windows Mono source probe and both managed
+exports exercised audio-driven mouth values before and after model reentry.
+The first plain run of **each** Windows managed export also reported an
+ObjectDB leak warning at exit. Later clean runs and a plugin-free control did
+not identify its cause, so warning-free managed shutdown remains unqualified.
+See the [Windows validation snapshot](windows-validation-2026-09-18.md) for
+the new Windows evidence. The [Linux validation snapshot](linux-validation-2026-09-18.md)
+records earlier full suites with their source identities. Older desktop suites
+below retain their original source and binary attribution.
+
 ## Development status on 2026-09-17
 
 The Linux and Windows source is public in
@@ -127,10 +166,32 @@ verdict.
 The Git symlink source-package fixture was repaired at
 `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a`. The separate Windows
 filesystem-link prerequisite was subsequently run with the required privilege:
-all 18 real-link cases and JSON-read validation passed. The latest published
+all 18 real-link cases and JSON-read validation passed. The earlier `b338d9c`
 source suite passed 110/110 in public CI, as recorded above.
 
-## Fresh Linux build and load checks
+## Linux validation snapshots
+
+The [2026-09-18 Linux snapshot](linux-validation-2026-09-18.md) records fresh
+`55dd060` debug/release builds, completed desktop coverage with the `6299432`
+test-only correction, 384 SDK comparisons, 92 visual cases, and 250 sanitizer
+lifecycle cycles. Debug coverage is composite; its original aggregate remains
+failed. Release passed one complete ten-stage run. The later `b338d9c` icon
+change passed a focused installed-addon asset check with the frozen libraries.
+
+Three complete VM benchmark trials passed all eight workloads (7,200 measured
+frames), with qualification `MEASURED_ONLY`. An earlier offscreen attempt ended
+without a result; its focused rerun and the three full trials passed, but the
+initial exit remains unexplained. The linked snapshot preserves source/library
+identities, measurement ranges, limitations and pending release gates.
+
+A later targeted follow-up on clean `3d1ed62` rebuilt both Linux variants for
+the import-option diagnostic fix. Each passed 108 parser cases with two replays
+and all 23 real-model importer stages, including 88 option assertions. Canonical
+parser results matched both Windows variants. See the linked snapshot for the
+new library hashes and the boundary between this targeted run and older full
+suite evidence.
+
+### Earlier build and load checks
 
 Source `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` was built in both
 variants with GCC/G++ 12.2.0, GNU ld 2.40, Python 3.14.7 and SCons 4.11.1.

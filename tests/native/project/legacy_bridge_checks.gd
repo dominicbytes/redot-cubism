@@ -74,7 +74,7 @@ func _run() -> void:
 			if not expect(image.save_png(capture_dir.path_join("legacy-" + str(index) + ".png")) == OK, "capture written"):
 				return
 		host.remove_child(scene)
-		if not expect(not model.is_initialized(), "tree exit unloads"):
+		if not expect(model.is_initialized(), "tree exit preserves legacy model"):
 			return
 		host.add_child(scene)
 		if not expect(model.is_initialized() and model.get("_legacy_model") == resource, "tree reentry retains bridge"):

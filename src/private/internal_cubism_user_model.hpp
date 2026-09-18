@@ -84,7 +84,7 @@ private:
     TypedArray<Texture2D> imported_textures;
     String resolve_file(const char *filename) const;
     bool fail_load(const String &path, const String &message, Error code = ERR_INVALID_DATA);
-    bool read_buffer(const String &path, PackedByteArray &buffer, bool json = true);
+    bool read_buffer(const String &path, PackedByteArray &buffer, bool json = true, bool optional_raw = false);
 
 public:
     bool get_premultiplied_alpha() const { return resource_premultiplied_alpha; }
