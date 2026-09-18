@@ -79,6 +79,13 @@ without a result; its focused rerun and the three full trials passed, but the
 initial exit remains unexplained. The linked snapshot preserves source/library
 identities, measurement ranges, limitations and pending release gates.
 
+A later targeted follow-up on clean `3d1ed62` rebuilt both Linux variants for
+the import-option diagnostic fix. Each passed 108 parser cases with two replays
+and all 23 real-model importer stages, including 88 option assertions. Canonical
+parser results matched both Windows variants. See the linked snapshot for the
+new library hashes and the boundary between this targeted run and older full
+suite evidence.
+
 ### Earlier build and load checks
 
 Source `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` was built in both
