@@ -53,14 +53,14 @@ public partial class GDCubismEffectTargetPointCS : GDCubismEffectCS
 
     public String EyesAngleX
     {
-        set { this.InternalObject.Call("set_eyes_angle_x", (String)value); }
-        get { return (String)this.InternalObject.Call("get_eyes_angle_x"); }
+        set { this.InternalObject.Call("set_eyes_ball_x", (String)value); }
+        get { return (String)this.InternalObject.Call("get_eyes_ball_x"); }
     }
 
     public String EyesAngleY
     {
-        set { this.InternalObject.Call("set_eyes_angle_y", (String)value); }
-        get { return (String)this.InternalObject.Call("get_eyes_angle_y"); }
+        set { this.InternalObject.Call("set_eyes_ball_y", (String)value); }
+        get { return (String)this.InternalObject.Call("get_eyes_ball_y"); }
     }
 
     public float EyesRange
