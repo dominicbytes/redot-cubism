@@ -6,7 +6,17 @@ The source-only Redot port is published on
 [`review/windows-integration`](https://github.com/dominicbytes/redot-cubism/tree/review/windows-integration)
 in `dominicbytes/redot-cubism`, with [draft PR #1](https://github.com/dominicbytes/redot-cubism/pull/1)
 targeting that same repository. No PR is being submitted to the Godot upstream.
-The latest verified qualification snapshot covered here is
+The latest native parser checkpoint is
+`a6133baf7b45c20a6550a9b6949ac25885bb1267`: rebuilt Windows debug and
+release libraries passed 108 bounded parser cases twice each after correcting
+invalid import-option diagnostic types and lengths.
+The real-model importer retest also passed 23 stages per variant, including
+88 option assertions. See
+[current status](../current-status.md#windows-parser-robustness-checkpoint)
+for exact library identities and scope. This does not qualify a binary release
+or establish a Linux fuzz result.
+
+The preceding published qualification snapshot is
 `b338d9cd8527321bfa566ca827e3696a59a79dd3`.
 [Public push CI](https://github.com/dominicbytes/redot-cubism/actions/runs/35292818863)
 passed all 110 Python tests and its source/history/format checks. Draft PR CI

@@ -9,7 +9,7 @@ Redot repository, not the original Godot project. Publication is source-only:
 there is no qualified binary release, and the SDK and private test models are
 not bundled. The release decision remains **not qualified**.
 
-The latest verified qualification snapshot covered here is
+The preceding published qualification snapshot is
 `b338d9cd8527321bfa566ca827e3696a59a79dd3` on
 `review/windows-integration`. Its [public push CI](https://github.com/dominicbytes/redot-cubism/actions/runs/35292818863)
 passed all 110 Python tests and source/history/format checks; draft PR CI also
@@ -17,6 +17,39 @@ passed at its merge commit. The private source mirror passed hosted source CI at
 `00e3d521652df6e28ab8420ea5b0928f49303e55`. No licensed native job has
 executed for this snapshot. Passing source CI does not establish native release
 qualification.
+
+## Windows parser robustness checkpoint
+
+Clean source `a6133baf7b45c20a6550a9b6949ac25885bb1267` fixes two
+reproduced import-option diagnostic defects: nontext keys now produce a text
+path, and echoed option names are limited to 4096 characters. Valid short
+String/StringName option names retain their behavior. The only production
+file changed from the preceding snapshot is `src/cubism_import_options.cpp`.
+
+Fresh Windows x86_64 debug and release builds used the same pinned VS 2022,
+Redot API, bindings and SDK. The debug DLL SHA-256 is
+`6fd521d19da3dee9bd68af94936c55c465717908848dd86e25704e406942e983`;
+release is `8780a937517cb589858f43891e13ef25513e903554715cb42acb8fd16bc218fe`.
+Both builds report this exact source commit and `addon_dirty=false`.
+
+The [bounded parser fuzz gate](parser-fuzzing.md) passed 108 cases twice per
+variant, for 432 fresh worker executions. It covers the six planned input
+targets, explicit parser boundaries, malformed UTF-8 and a 2 MiB option key.
+There were no crashes, timeouts, memory/output-limit violations, unexplained
+engine diagnostics, or same-input replay differences in this fixed-seed
+campaign. The original failing runs are retained privately. These checks
+supply no MOC/model input to proprietary Core; the linked library still
+initializes Core at startup. This is scoped Windows evidence, not exhaustive
+fuzzing, a Linux result, or binary release qualification.
+
+The real-model Windows importer retest also passed all 23 stages in each
+variant with these rebuilt DLLs and matching export templates. Its import-option
+stage passed 88 assertions, including the eight new diagnostic regressions;
+restart, cache removal, runtime and exported-resource checks passed with clean
+logs outside the deliberately marked invalid-input checks. An initial sandbox
+attempt failed to access the Windows certificate store and is retained
+separately; the accepted runs used the normal Windows user context. The
+three graphical dependency-change stages were outside this headless retest.
 
 ## Windows builds and scoped checks
 
@@ -64,6 +97,13 @@ checks passed 4/4 per variant: the real Haru `.model3.json` selected
 suffix remained unimported, and the model's positive UID stayed stable across
 restart. These conditional results do not change stock Redot's compound-suffix
 discovery limitation without a generic JSON importer.
+
+A later fresh visual run used `b338d9c` visual scripts/shaders and the frozen
+`bc0c6ed` debug/release DLLs. All 92 comparisons across 16 family/variant runs
+passed against unchanged reviewed SDK references and RGB/alpha limits on
+Windows RTX 5060 Ti / GL Compatibility. This renders transferred SDK states;
+it does not qualify native effect evaluation, external editor input, Linux,
+or the later `a6133ba` DLLs.
 
 The overlay capture harness at `35eb5b3e1461a2af1cf3d1548902f30955d62a70`
 now waits for process frames and explicitly draws before reading pixels.

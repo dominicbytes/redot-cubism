@@ -28,6 +28,7 @@ The PR reports below are retained as historical stage records:
 - [Provisional editor model import](docs/editor-import.md)
 - [Editor workflow regression](docs/editor-testing.md)
 - [Desktop functional test sequence](docs/desktop-testing.md)
+- [Bounded parser fuzz gate](docs/parser-fuzzing.md)
 - [SDK motion-state comparison](docs/sdk-motion-testing.md)
 - [Imported resource runtime loading](docs/resource-runtime.md)
 - [VN and RPG character examples](demo/addons/gd_cubism/examples/character_workflows/README.md)
