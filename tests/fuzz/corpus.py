@@ -208,7 +208,7 @@ def _json_at_byte_limit(length):
 
 
 def boundary_cases(seed=DEFAULT_SEED):
-    """Eleven explicit boundaries beyond the <=64 KiB mutation corpus."""
+    """Twelve explicit boundaries beyond the <=64 KiB mutation corpus."""
     result = []
 
     def add(name, payload=None, expect_ok=None, binary_hex=None):
@@ -244,5 +244,8 @@ def boundary_cases(seed=DEFAULT_SEED):
         value["FileReferences"]["Motions"] = groups
         add(f"references-{references}", value, okay)
     add("malformed-utf8-read", expect_ok=False, binary_hex='7b2278223a22c3227d')
-    assert len(result) == 11
+    result.append({"id": "boundary-option-key-2097152", "target": "options",
+                   "category": "boundary", "seed": seed, "expect_ok": False,
+                   "expect_stage": "options", "entries": [["string", "x" * (2 * 1024 * 1024), True]]})
+    assert len(result) == 12
     return result

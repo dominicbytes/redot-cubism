@@ -39,9 +39,10 @@ two public ABI JSON fixtures and minimal valid parser controls, then seeded
 UTF-8 insert/replace mutations, truncations, deep JSON, numeric extremes,
 duplicate keys, Unicode normalization, path separators/traversal, repeated
 dependencies, and unusual/long typed option keys. Every target has 16 cases.
-Eleven explicit boundaries add JSON at 4 MiB ±1 byte, strings at 4096/4097
+Twelve explicit boundaries add JSON at 4 MiB ±1 byte, strings at 4096/4097
 characters, depth 32/33, nodes 65536/65537, references 4096/4097, and a
-malformed UTF-8 file read. The 4096-reference path is reachable through
+malformed UTF-8 file read, plus a 2 MiB unknown import-option key. The
+4096-reference path is reachable through
 repeated manifest motions; this run does not separately exercise the project
 import file-count setting.
 
@@ -51,7 +52,8 @@ dependency values, and raw structured diagnostics. It checks text
 `path`/`message` fields before canonicalization. The parent checks known-valid
 and known-rejected controls, sorted unique dependencies, physical containment
 for accepted paths, option rejection stage and absence of a loaded model,
-diagnostic bounds, and identical canonical results. A failure stops the
+diagnostic count/bytes and the 4096-character import-option path bound, and
+identical canonical results. A failure stops the
 campaign after its second bounded replay. The exact case, logs, contract and
 result hashes remain in `fuzz-report.json`; `failure-case.json` can be replayed
 and minimized before any product fix.

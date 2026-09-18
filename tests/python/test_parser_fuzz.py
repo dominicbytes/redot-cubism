@@ -35,7 +35,7 @@ class CorpusChecks(unittest.TestCase):
 
     def test_explicit_boundaries_are_exact(self):
         selected = boundary_cases()
-        self.assertEqual(len(selected), 11)
+        self.assertEqual(len(selected), 12)
         self.assertEqual([len(case["payload"].encode("utf-8")) for case in selected[:2]],
                          [4 * 1024 * 1024 - 1, 4 * 1024 * 1024 + 1])
         self.assertEqual([len(json.loads(case["payload"])["Future"]) for case in selected[2:4]], [4096, 4097])
@@ -50,7 +50,9 @@ class CorpusChecks(unittest.TestCase):
             files = json.loads(case["payload"])["FileReferences"]
             counts.append(1 + len(files["Textures"]) + sum(len(group) for group in files["Motions"].values()))
         self.assertEqual(counts, [4096, 4097])
-        self.assertEqual(bytes.fromhex(selected[-1]["binary_hex"]), b'{"x":"\xc3"}')
+        self.assertEqual(bytes.fromhex(selected[-2]["binary_hex"]), b'{"x":"\xc3"}')
+        self.assertEqual(selected[-1]["target"], "options")
+        self.assertEqual(len(selected[-1]["entries"][0][1]), 2 * 1024 * 1024)
 
     def test_public_fixtures_and_minimal_positive_controls(self):
         selected = cases()
@@ -75,6 +77,12 @@ class ContractChecks(unittest.TestCase):
         snapshot["diagnostics"] = [{"path": "x" * (1024 * 1024), "message": "bad"}]
         snapshot["diagnostic_bytes"] = 1024 * 1024 + 1
         self.assertTrue(any("1 MiB" in problem for problem in validate_snapshot(case, snapshot)))
+        snapshot["diagnostics"] = [{"path": "x" * 4097, "message": "bad"}]
+        snapshot["diagnostic_bytes"] = 4126
+        self.assertTrue(any("4096 characters" in problem for problem in validate_snapshot(case, snapshot)))
+        snapshot["target"] = "manifest"
+        snapshot["contract_errors"] = []
+        self.assertEqual(validate_snapshot({"target": "manifest"}, snapshot), [])
 
     def test_dependency_and_stage_invariants(self):
         manifest = {"target": "dedup", "ok": True, "manifest": {"Version": 3},
