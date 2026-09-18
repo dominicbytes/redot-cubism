@@ -3,6 +3,7 @@
 
 import ctypes
 from ctypes import wintypes
+from contextlib import ExitStack
 import os
 from pathlib import Path
 import signal
@@ -179,8 +180,18 @@ def run_owned(command, *, cwd, env, log_path, result_path=None, ready_path=None,
     pipe_overflow = threading.Event()
     pipe_errors = []
     start = time.monotonic()
+    def finish_owned():
+        try:
+            if process is not None and (os.name != "nt" or process.poll() is None):
+                owner.stop(process)
+        finally:
+            if pipe_thread is not None:
+                pipe_thread.join(timeout=5)
+
     try:
-        with open(log_path, "wb") as log:
+        with ExitStack() as stack:
+            log = stack.enter_context(open(log_path, "wb"))
+            stack.callback(finish_owned)  # Stop descendants and drain before closing the log.
             process = subprocess.Popen(
                 command, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0,
                 creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
@@ -202,7 +213,7 @@ def run_owned(command, *, cwd, env, log_path, result_path=None, ready_path=None,
                             pipe_overflow.set()
                             break
                     log.flush()
-                except OSError as exc:
+                except (OSError, ValueError) as exc:
                     pipe_errors.append(repr(exc))
                 finally:
                     process.stdout.close()
@@ -236,6 +247,8 @@ def run_owned(command, *, cwd, env, log_path, result_path=None, ready_path=None,
                 time.sleep(0.02)
             peak = max(peak, owner.peak_bytes(process))
             code = process.wait(timeout=5)
+            if os.name != "nt":
+                owner.stop(process)  # A leader may exit while descendants still own stdout.
             pipe_thread.join(timeout=5)
             if pipe_thread.is_alive() or pipe_errors:
                 violation = violation or "log_reader_failure"
@@ -243,11 +256,7 @@ def run_owned(command, *, cwd, env, log_path, result_path=None, ready_path=None,
                 violation = violation or "log_limit"
             peak_job = owner.peak_job_bytes()
     finally:
-        try:
-            if process is not None and (os.name != "nt" or process.poll() is None):
-                owner.stop(process)
-        finally:
-            owner.close()  # KILL_ON_JOB_CLOSE even if stop/wait raised.
+        owner.close()  # KILL_ON_JOB_CLOSE even if stop/wait raised.
     return {"exit_code": code, "violation": violation, "elapsed_seconds": round(time.monotonic() - start, 3),
             "peak_working_set_bytes": peak, "peak_job_memory_bytes": peak_job,
             "limits": owner.actual_limits, "job_assigned": owner.assigned, "pid": process.pid}
