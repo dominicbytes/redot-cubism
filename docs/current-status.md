@@ -64,7 +64,22 @@ The Git symlink source-package fixture was repaired at
 passed 104 tests with four platform skips. This does not remove the separate
 native filesystem-link test requirement, which needs Windows symlink privilege.
 
-## Fresh Linux build and load checks
+## Linux validation snapshots
+
+The [2026-09-18 Linux snapshot](linux-validation-2026-09-18.md) records fresh
+`55dd060` debug/release builds, completed desktop coverage with the `6299432`
+test-only correction, 384 SDK comparisons, 92 visual cases, and 250 sanitizer
+lifecycle cycles. Debug coverage is composite; its original aggregate remains
+failed. Release passed one complete ten-stage run. The later `b338d9c` icon
+change passed a focused installed-addon asset check with the frozen libraries.
+
+Three complete VM benchmark trials passed all eight workloads (7,200 measured
+frames), with qualification `MEASURED_ONLY`. An earlier offscreen attempt ended
+without a result; its focused rerun and the three full trials passed, but the
+initial exit remains unexplained. The linked snapshot preserves source/library
+identities, measurement ranges, limitations and pending release gates.
+
+### Earlier build and load checks
 
 Source `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` was built in both
 variants with GCC/G++ 12.2.0, GNU ld 2.40, Python 3.14.7 and SCons 4.11.1.
