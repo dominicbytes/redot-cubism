@@ -10,6 +10,11 @@
 #include <godot_cpp/classes/input_event.hpp>
 #include <godot_cpp/classes/button.hpp>
 #include <godot_cpp/classes/spin_box.hpp>
+#include "cubism_model_importer.hpp"
+#include "cubism_model_inspector.hpp"
+#include "cubism_export_plugin.hpp"
+#include "cubism_dependency_tracker.hpp"
+#include <godot_cpp/classes/editor_file_dialog.hpp>
 
 // ------------------------------------------------------------------ define(s)
 // --------------------------------------------------------------- namespace(s)
@@ -25,16 +30,30 @@ class GDCubismPlugin : public EditorPlugin {
     GDCLASS(GDCubismPlugin, EditorPlugin);
 
 private:
+    Ref<CubismModelImporter> model_importer;
+    Ref<CubismModelInspector> model_inspector;
+    Ref<CubismExportPlugin> export_plugin;
+    CubismDependencyTracker *dependency_tracker = nullptr;
+    EditorFileDialog *cubism_source_dialog = nullptr;
+    EditorFileDialog *cubism_save_dialog = nullptr;
+    Node *checked_export_ui = nullptr;
+    String cubism_source_path;
+    bool legacy_source_import = false;
+    void show_cubism_import_dialog();
+    void show_legacy_cubism_import_dialog();
+    void select_cubism_source(const String &path);
+    void save_cubism_resource(const String &path);
+    void show_checked_export();
     const Color selected_border_color = Color(239.0 / 255.0, 120.0 / 255.0, 62.0 / 255.0, 1.0);
 
-    GDCubismUserModel *selected_model;
+    GDCubismUserModel *selected_model = nullptr;
     Rect2 selected_rect;
-    bool drag;
+    bool drag = false;
     Vector2 drag_position;
     Vector2 base_position;
 
-    Button *p_snapmode_button;
-    SpinBox *p_snapsize_spinbox;
+    Button *p_snapmode_button = nullptr;
+    SpinBox *p_snapsize_spinbox = nullptr;
     
 protected:
     static void _bind_methods() {}

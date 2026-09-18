@@ -10,10 +10,14 @@ config_version=5
 
 [application]
 
-config/name="demo"
-run/main_scene="res://addons/gd_cubism/example/viewer.tscn"
-config/features=PackedStringArray("4.3", "Forward Plus")
+config/name="Redot Cubism examples"
+run/main_scene="res://addons/gd_cubism/examples/character_workflows/visual_novel.tscn"
+config/features=PackedStringArray("26.2", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[dotnet]
+
+project/assembly_name="demo"
 
 [display]
 
@@ -25,3 +29,7 @@ window/per_pixel_transparency/allowed=true
 [physics]
 
 common/physics_ticks_per_second=120
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"

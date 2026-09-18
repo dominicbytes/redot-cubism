@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 Redot Cubism contributors
+import json
+import os
+from pathlib import Path
+import subprocess
+
+root = Path(Dir("#").abspath)
+output = Path(os.environ.get("CUBISM_ABI_OUTPUT", root / ".local-build/abi")).resolve()
+output.mkdir(parents=True, exist_ok=True)
+SConsignFile(str(output / ".sconsign.dblite"))
+cpp_root = Path(os.environ.get("REDOT_CPP_ROOT", root / "godot-cpp")).resolve()
+pins = json.loads((root / "DEPENDENCIES.json").read_text())
+actual = subprocess.check_output(["git", "-C", str(cpp_root), "rev-parse", "HEAD"], text=True).strip()
+if actual != pins["redot_cpp"]["commit"]:
+    raise ValueError("REDOT_CPP_ROOT must match the pinned redot-cpp commit")
+if ARGUMENTS.get("precision", "single") != "single":
+    raise ValueError("The initial ABI spike requires precision=single")
+if not ARGUMENTS.get("custom_api_file"):
+    raise ValueError("Set custom_api_file to the verified Redot editor API dump")
+ARGUMENTS["build_profile"] = str(root / "tests/abi/build_profile.json")
+env = SConscript(str(cpp_root / "SConstruct"))
+objects = env.SharedObject(str(output / ("probe" + env["suffix"])), str(root / "tests/abi/probe.cpp"))
+library = env.SharedLibrary(str(output / ("libcubism_abi" + env["suffix"] + env["SHLIBSUFFIX"])), objects)
+Default(library)

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismMotionEvent" inherits="Resource">
+	<brief_description>A timestamped imported motion event value.</brief_description>
+	<description>Data-only resource stored by [CubismMotionDescriptor]. Values, including Unicode strings, are not executed. Native motion playback owns event timing and deferred delivery; editing this shared resource is not a way to inject an event into an active motion. Setters emit [signal Resource.changed].</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="time_seconds" type="float" setter="set_time_seconds" getter="get_time_seconds" default="0.0">Source event time in motion seconds.</member>
+		<member name="value" type="String" setter="set_value" getter="get_value" default="&quot;&quot;">Event payload string delivered as data by native playback.</member>
+	</members>
+</class>

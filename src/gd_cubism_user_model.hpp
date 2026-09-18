@@ -19,6 +19,14 @@
 
 #include <gd_cubism_effect.hpp>
 #include <gd_cubism_motion_entry.hpp>
+#include <cubism_model_resource.hpp>
+#include "cubism_mask_policy.hpp"
+#include <vector>
+#include <array>
+#include <memory>
+class CubismAnimator;
+class CubismProceduralEffects;
+class CubismModel2D;
 
 
 // ------------------------------------------------------------------ define(s)
@@ -39,7 +47,7 @@ public:
 public:
     anim_expression() {}
     anim_expression(const Csm::csmChar* c_expression_id)
-        : expression_id(String(c_expression_id)) {}
+        : expression_id(String::utf8(c_expression_id)) {}
 
     String to_string() const {
         return String(this->expression_id);
@@ -55,7 +63,7 @@ public:
 public:
     anim_motion() {}
     anim_motion(const Csm::csmChar* c_group, const int32_t c_no)
-        : group(String(c_group))
+        : group(String::utf8(c_group))
         , no(c_no) {}
 
     String to_string() const {
@@ -70,10 +78,13 @@ public:
 
 class GDCubismUserModel : public Node2D {
     GDCLASS(GDCubismUserModel, Node2D);
+    friend class InternalCubismUserModel;
 
 public:
     GDCubismUserModel();
     ~GDCubismUserModel();
+    static void shutdown_models();
+    static Dictionary get_debug_statistics();
 
 public:
     enum moc3FileFormatVersion {
@@ -103,6 +114,15 @@ public:
         MANUAL = 2
     };
 
+    enum ModelState {
+        UNLOADED,
+        LOADING,
+        READY,
+        LOAD_ERROR,
+        DISPOSING,
+        DISPOSED
+    };
+
     String assets;
     InternalCubismUserModel *internal_model;
     bool enable_load_expressions;
@@ -110,6 +130,9 @@ public:
 
     float speed_scale;
     int32_t mask_viewport_size;
+    CubismMaskOffscreenPolicy mask_offscreen_policy = CubismMaskOffscreenPolicy::PAUSED;
+    bool use_subviewport_fallback = false;
+    String get_rendering_error() const;
     
     ParameterMode parameter_mode;
     bool physics_evaluate;
@@ -134,9 +157,69 @@ protected:
     static void _bind_methods();
     void _notification(int p_what);
 
+public:
+    // Internal pipeline stages; the preferred API exposes ParameterLayer.
+    enum WriteLayer { WRITE_BASE, WRITE_MOTION, WRITE_EXPRESSION, WRITE_EFFECT, WRITE_PHYSICS, WRITE_POSE, WRITE_POST_EFFECT, WRITE_LAYER_COUNT };
+
 private:
-    void load_model(const String asset_path);
-    void clear();
+    bool test_uncapped_manual_step = false;
+    void advance_internal(double delta, bool manual_request);
+    std::unique_ptr<CubismAnimator> preferred_animator;
+    std::unique_ptr<CubismProceduralEffects> preferred_effects;
+    struct ParameterWrite { int index; double value; double weight; int operation; };
+    friend class CubismModel2D;
+    void apply_parameter_write(const ParameterWrite &write);
+    std::array<std::vector<ParameterWrite>, WRITE_LAYER_COUNT> parameter_writes;
+    std::array<size_t, WRITE_LAYER_COUNT> step_parameter_writes = {};
+    size_t queued_parameter_writes = 0;
+    void apply_parameter_writes(WriteLayer layer);
+    struct PendingSignal {
+        StringName name;
+        Variant payload;
+        bool has_payload;
+        uint64_t generation;
+    };
+    ModelState model_state = UNLOADED;
+    Dictionary last_error;
+    uint64_t generation = 0;
+    bool native_busy = false;
+    bool disposing = false;
+    bool destroying = false;
+    bool pending_load = false;
+    bool pending_unload = false;
+    GDCubismMotionQueueEntryHandle::FinishReason pending_clear_reason = GDCubismMotionQueueEntryHandle::UNLOADED;
+    bool dispatch_scheduled = false;
+    String pending_asset;
+    Ref<CubismModelResource> model_resource;
+    Ref<CubismModelResource> pending_resource;
+    std::vector<PendingSignal> pending_signals;
+    std::vector<Ref<GDCubismMotionQueueEntryHandle>> motion_handles;
+    void load_model(const String asset_path, Ref<CubismModelResource> resource = Ref<CubismModelResource>());
+    void clear(GDCubismMotionQueueEntryHandle::FinishReason reason = GDCubismMotionQueueEntryHandle::UNLOADED);
+    void finish_motion_handles(GDCubismMotionQueueEntryHandle::FinishReason reason);
+    void update_motion_handles();
+    void apply_pending_operation();
+    void update_mask_visibility();
+    void queue_model_signal(const StringName &name, const Variant &payload = Variant(), bool has_payload = false);
+    void dispatch_model_signals();
+
+public:
+    void set_model(const Ref<CubismModelResource> &resource);
+    void enable_preferred_animation();
+    CubismAnimator *get_animator() const { return preferred_animator.get(); }
+    CubismProceduralEffects *get_procedural_effects() const { return preferred_effects.get(); }
+    // Internal preferred-API bridge; legacy parameter setters remain unchanged.
+    Error queue_parameter_write(int index, double value, double weight, int operation, WriteLayer layer = WRITE_POST_EFFECT);
+    double evaluated_parameter(int index) const;
+    void unload_selected_model();
+    Ref<CubismModelResource> get_model() const { return assets.is_empty() ? model_resource : Ref<CubismModelResource>(); }
+    void set_legacy_model(const Ref<CubismModelResource> &resource);
+    Ref<CubismModelResource> get_legacy_model() const { return assets.is_empty() ? Ref<CubismModelResource>() : model_resource; }
+    ModelState get_model_state() const { return model_state; }
+    Dictionary get_last_error() const { return last_error.duplicate(); }
+    bool is_native_busy() const { return native_busy || disposing; }
+    bool is_destroying() const { return destroying; }
+    void unload_model();
 
 public:
     Dictionary csm_get_version();
@@ -218,10 +301,7 @@ public:
     void set_shader_mask_mul_inv(Ref<Shader> shader) { this->set_shader(GD_CUBISM_SHADER_MASK_MUL_INV, shader); }
     Ref<Shader> get_shader_mask_mul_inv() const { return this->get_shader(GD_CUBISM_SHADER_MASK_MUL_INV); }    
 
-    // for Signal
-    static void on_motion_finished(Csm::ACubismMotion* motion);
-
-    void _update(const double delta);
+    void _update(double delta, bool uncapped_manual_step = false);
 
     void advance(const double delta);
 
@@ -240,12 +320,6 @@ public:
     void set_mask_viewport_size(const int32_t size) { this->mask_viewport_size = size; }
     int32_t get_mask_viewport_size() const { return this->mask_viewport_size; }
 
-    void _ready() override;
-    void _enter_tree() override;
-    void _exit_tree() override;
-    void _process(double delta) override;
-    void _physics_process(double delta) override;
-
     void _on_append_child_act(GDCubismEffect* node);
     void _on_remove_child_act(GDCubismEffect* node);
 };
@@ -254,6 +328,7 @@ VARIANT_ENUM_CAST(GDCubismUserModel::moc3FileFormatVersion);
 VARIANT_ENUM_CAST(GDCubismUserModel::Priority);
 VARIANT_ENUM_CAST(GDCubismUserModel::ParameterMode);
 VARIANT_ENUM_CAST(GDCubismUserModel::MotionProcessCallback);
+VARIANT_ENUM_CAST(GDCubismUserModel::ModelState);
 
 
 // ------------------------------------------------------------------ method(s)

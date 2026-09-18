@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismExpressionParameter" inherits="Resource">
+	<brief_description>One imported expression parameter blend operation.</brief_description>
+	<description>Stores a parameter ID, finite value and operation within a [CubismExpressionDescriptor]. It has no live SDK handle. Setters emit [signal Resource.changed]; parser/runtime validation is still required before applying data.</description>
+	<tutorials>
+	</tutorials>
+	<members>
+		<member name="id" type="StringName" setter="set_id" getter="get_id" default="&amp;&quot;&quot;">Target Cubism parameter ID.</member>
+		<member name="operation" type="int" setter="set_operation" getter="get_operation" enum="CubismExpressionParameter.Operation" default="0">Blend operation: [constant ADD], [constant MULTIPLY] or [constant OVERWRITE].</member>
+		<member name="value" type="float" setter="set_value" getter="get_value" default="0.0">Imported numeric value for the selected blend operation.</member>
+	</members>
+	<constants>
+		<constant name="ADD" value="0" enum="Operation">Add the value through the SDK expression blend.</constant>
+		<constant name="MULTIPLY" value="1" enum="Operation">Multiply through the SDK expression blend.</constant>
+		<constant name="OVERWRITE" value="2" enum="Operation">Blend toward the supplied value as an overwrite expression entry.</constant>
+	</constants>
+</class>

@@ -1,5 +1,5 @@
 site:
-  title: GDCubism
+  title: GDCubism upstream archive
   url: https://mizunagikb.github.io/gd_cubism/
   start_page: gd_cubism::ja/index.adoc
 content:
@@ -11,7 +11,8 @@ ui:
   bundle:
     url: https://github.com/MizunagiKB/gd_cubism_ui/releases/download/v1.0.0/ui-bundle.zip
 output:
-  dir: docs
+  # Resolve from this playbook; never generate over the maintained port guides.
+  dir: ./../.local-build/upstream-docs
 antora:
   extensions:
     - require: "@antora/lunr-extension"

@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: restricted-files
+        name: Restricted SDK and model files
+        entry: python tools/check_restricted_files.py
+        language: system
+        pass_filenames: false
+        always_run: true

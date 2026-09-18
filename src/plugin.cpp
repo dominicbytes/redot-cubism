@@ -5,10 +5,15 @@
 #include <godot_cpp/classes/editor_plugin.hpp>
 #include <godot_cpp/classes/editor_selection.hpp>
 #include <godot_cpp/classes/editor_settings.hpp>
+#include <godot_cpp/classes/editor_file_system.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
+#include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <godot_cpp/classes/geometry2d.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
 #include <godot_cpp/classes/input_event_mouse_motion.hpp>
 #include <godot_cpp/classes/node2d.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/scene_tree.hpp>
 #include <godot_cpp/classes/sub_viewport.hpp>
 
@@ -85,6 +90,61 @@ bool GDCubismPlugin::update_selected_info() {
 
 
 void GDCubismPlugin::_enter_tree() {
+    model_importer.instantiate();
+    add_import_plugin(model_importer);
+    export_plugin.instantiate();
+    add_export_plugin(export_plugin);
+    model_inspector.instantiate();
+    add_inspector_plugin(model_inspector);
+    dependency_tracker = memnew(CubismDependencyTracker);
+    dependency_tracker->set_name("CubismDependencies");
+    add_child(dependency_tracker);
+    add_tool_menu_item("Validate Cubism Models", callable_mp(dependency_tracker, &CubismDependencyTracker::request_scan));
+    cubism_source_dialog = memnew(EditorFileDialog);
+    cubism_source_dialog->set_access(EditorFileDialog::ACCESS_RESOURCES);
+    cubism_source_dialog->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_FILE);
+    cubism_source_dialog->set_title("Import Cubism Model");
+    PackedStringArray source_filters;
+    source_filters.push_back("*.model3.json ; Cubism Model");
+    cubism_source_dialog->set_filters(source_filters);
+    get_editor_interface()->get_base_control()->add_child(cubism_source_dialog);
+    cubism_source_dialog->connect("file_selected", callable_mp(this, &GDCubismPlugin::select_cubism_source));
+    cubism_save_dialog = memnew(EditorFileDialog);
+    cubism_save_dialog->set_access(EditorFileDialog::ACCESS_RESOURCES);
+    cubism_save_dialog->set_file_mode(EditorFileDialog::FILE_MODE_SAVE_FILE);
+    cubism_save_dialog->set_title("Save Imported Cubism Resource");
+    cubism_save_dialog->add_option("Strict optional files", PackedStringArray(), 0);
+    cubism_save_dialog->add_option("Import manifest motions", PackedStringArray(), 1);
+    cubism_save_dialog->add_option("Import expressions", PackedStringArray(), 1);
+    PackedStringArray mask_qualities;
+    mask_qualities.push_back("Low");
+    mask_qualities.push_back("Medium");
+    mask_qualities.push_back("High");
+    cubism_save_dialog->add_option("Mask quality", mask_qualities, 1);
+    cubism_save_dialog->add_option("Premultiplied alpha", PackedStringArray(), 0);
+    PackedStringArray save_filters;
+    save_filters.push_back("*.res ; Cubism Resource");
+    cubism_save_dialog->set_filters(save_filters);
+    get_editor_interface()->get_base_control()->add_child(cubism_save_dialog);
+    cubism_save_dialog->connect("file_selected", callable_mp(this, &GDCubismPlugin::save_cubism_resource));
+    add_tool_menu_item("Import Cubism Model", callable_mp(this, &GDCubismPlugin::show_cubism_import_dialog));
+    add_tool_menu_item("Prepare Legacy Cubism Model", callable_mp(this, &GDCubismPlugin::show_legacy_cubism_import_dialog));
+    add_tool_menu_item("Validate and Export Cubism", callable_mp(this, &GDCubismPlugin::show_checked_export));
+
+    // Use the normal editor main loop for CLI validation. A custom SceneTree
+    // passed through --editor --script does not clean up Redot's editor objects.
+    const PackedStringArray arguments = OS::get_singleton()->get_cmdline_user_args();
+    if (arguments.has("--cubism-preflight")) {
+        const Ref<Resource> script = ResourceLoader::get_singleton()->load("res://addons/gd_cubism/editor/export_preflight_cli.gd");
+        if (script.is_null()) {
+            UtilityFunctions::push_error("Cannot load Cubism export preflight driver.");
+            get_tree()->quit(2);
+        } else {
+            Node *driver = memnew(Node);
+            driver->set_script(script);
+            add_child(driver);
+        }
+    }
 
     this->drag = false;
 
@@ -107,6 +167,26 @@ void GDCubismPlugin::_enter_tree() {
 
 
 void GDCubismPlugin::_exit_tree() {
+    remove_tool_menu_item("Prepare Legacy Cubism Model");
+    remove_export_plugin(export_plugin);
+    export_plugin.unref();
+    remove_inspector_plugin(model_inspector);
+    model_inspector.unref();
+    remove_tool_menu_item("Validate Cubism Models");
+    memdelete(dependency_tracker);
+    dependency_tracker = nullptr;
+    remove_tool_menu_item("Import Cubism Model");
+    remove_tool_menu_item("Validate and Export Cubism");
+    if (checked_export_ui != nullptr) {
+        memdelete(checked_export_ui);
+        checked_export_ui = nullptr;
+    }
+    memdelete(cubism_source_dialog);
+    cubism_source_dialog = nullptr;
+    memdelete(cubism_save_dialog);
+    cubism_save_dialog = nullptr;
+    remove_import_plugin(model_importer);
+    model_importer.unref();
 
     if (this->p_snapsize_spinbox != nullptr) {
         this->remove_control_from_container(CONTAINER_CANVAS_EDITOR_MENU, this->p_snapsize_spinbox);
@@ -121,13 +201,80 @@ void GDCubismPlugin::_exit_tree() {
     }
 }
 
+void GDCubismPlugin::show_cubism_import_dialog() {
+    legacy_source_import = false;
+    cubism_source_dialog->set_title("Import Cubism Model");
+    cubism_source_path = String();
+    cubism_source_dialog->popup_file_dialog();
+}
+
+void GDCubismPlugin::show_legacy_cubism_import_dialog() {
+    legacy_source_import = true;
+    cubism_source_path = String();
+    cubism_source_dialog->set_title("Prepare Legacy Cubism Model");
+    cubism_source_dialog->popup_file_dialog();
+}
+
+void GDCubismPlugin::show_checked_export() {
+    if (checked_export_ui == nullptr) {
+        const Ref<Resource> script = ResourceLoader::get_singleton()->load("res://addons/gd_cubism/editor/export_dialog.gd");
+        if (script.is_null()) { UtilityFunctions::push_error("Cannot load Cubism checked export dialog."); return; }
+        checked_export_ui = memnew(Node);
+        checked_export_ui->set_script(script);
+        add_child(checked_export_ui);
+    }
+    checked_export_ui->call("show_export_dialog");
+}
+
+void GDCubismPlugin::select_cubism_source(const String &path) {
+    if (legacy_source_import) {
+        const Error error = CubismModelImporter::import_source(path);
+        if (error != OK) {
+            UtilityFunctions::push_error("Cannot prepare legacy Cubism source (", error, "): ", path);
+            return;
+        }
+        get_editor_interface()->edit_resource(ResourceLoader::get_singleton()->load(path, "CubismModelResource"));
+        return;
+    }
+    cubism_source_path = path;
+    cubism_save_dialog->set_current_file(path.get_file().trim_suffix(".model3.json") + String(".res"));
+    cubism_save_dialog->popup_file_dialog();
+}
+
+void GDCubismPlugin::save_cubism_resource(const String &path) {
+    const Dictionary selected = cubism_save_dialog->get_selected_options();
+    Dictionary options;
+    options["validation/strict_optional_files"] = selected.get("Strict optional files", false);
+    options["motions/import_manifest_motions"] = selected.get("Import manifest motions", true);
+    options["expressions/import"] = selected.get("Import expressions", true);
+    options["rendering/mask_quality"] = selected.get("Mask quality", 1);
+    options["rendering/premultiplied_alpha"] = selected.get("Premultiplied alpha", false);
+    dependency_tracker->track(cubism_source_path, path, options);
+    const Error error = CubismModelImporter::import_model_with_options(cubism_source_path, path, options);
+    if (error != OK) {
+        UtilityFunctions::push_error("Cubism resource import failed with error ", error, ": ", cubism_source_path);
+        return;
+    }
+    get_editor_interface()->get_resource_filesystem()->update_file(path);
+    get_editor_interface()->edit_resource(ResourceLoader::get_singleton()->load(path, "CubismModelResource"));
+}
+
 
 void GDCubismPlugin::_input(const Ref<InputEvent> &p_event) {
 
     InputEventMouseButton* p_evt_mouse_button = Object::cast_to<InputEventMouseButton>(p_event.ptr());
 
     if (p_evt_mouse_button != nullptr) {
-        const SubViewport *editor_viewport = this->get_editor_interface()->get_editor_viewport_2d();
+        EditorInterface *editor = get_editor_interface();
+        SceneTree *tree = get_tree();
+        if (editor == nullptr || tree == nullptr) return;
+        Node *scene_root = tree->get_edited_scene_root();
+        const SubViewport *editor_viewport = editor->get_editor_viewport_2d();
+        EditorSelection *selection = editor->get_selection();
+        if (scene_root == nullptr || editor_viewport == nullptr || selection == nullptr) {
+            drag = false;
+            return;
+        }
         const Rect2 viewport_rect(Point2(0.0, 0.0), editor_viewport->get_size());
 
         // Check in Viewport2D
@@ -137,7 +284,7 @@ void GDCubismPlugin::_input(const Ref<InputEvent> &p_event) {
 
         if (p_evt_mouse_button->get_button_index() == MOUSE_BUTTON_LEFT) {
             if (p_evt_mouse_button->is_pressed() == true) {
-                TypedArray<Node> ary_node = get_tree()->get_edited_scene_root()->get_children();
+                TypedArray<Node> ary_node = scene_root->get_children();
 
                 for(int64_t i = 0; i < ary_node.size(); i++) {
                     GDCubismUserModel *model = Object::cast_to<GDCubismUserModel>(ary_node[i]);
@@ -152,7 +299,7 @@ void GDCubismPlugin::_input(const Ref<InputEvent> &p_event) {
             
                     if (Geometry2D::get_singleton()->is_point_in_polygon(mouse_pos, ary_vtx) == false) continue;
 
-                    if (get_editor_interface()->get_selection()->get_selected_nodes().size() > 1) continue;
+                    if (selection->get_selected_nodes().size() > 1) continue;
 
                     this->drag = true;
                     this->drag_position = mouse_pos;

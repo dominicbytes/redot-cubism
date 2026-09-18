@@ -25,9 +25,9 @@ using namespace Live2D::Cubism::Framework::Rendering;
 // ------------------------------------------------------------------ static(s)
 // ----------------------------------------------------------- class:forward(s)
 // ------------------------------------------------------------------- class(s)
-CubismRenderer* CubismRenderer::Create() {
+CubismRenderer* CubismRenderer::Create(Csm::csmUint32 width, Csm::csmUint32 height) {
     #ifdef GD_CUBISM_USE_RENDERER_2D
-    return CSM_NEW InternalCubismRenderer2D();
+    return CSM_NEW InternalCubismRenderer2D(width, height);
     #else
     return CSM_NEW InternalCubismRenderer3D();
     #endif // GD_CUBISM_USE_RENDERER_2D

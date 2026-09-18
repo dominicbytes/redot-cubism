@@ -4,6 +4,7 @@
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/classes/editor_plugin_registration.hpp>
 #include <godot_cpp/classes/resource_loader.hpp>
+#include <godot_cpp/variant/utility_functions.hpp>
 #include <gdextension_interface.h>
 
 #include <CubismFramework.hpp>
@@ -23,6 +24,18 @@
 #include <gd_cubism_user_model.hpp>
 #include <register_types.hpp>
 #include <plugin.hpp>
+#include <cubism_build_info.hpp>
+#include <cubism_manifest_parser.hpp>
+#include <cubism_model_resource.hpp>
+#include <cubism_model_2d.hpp>
+#include <cubism_effect.hpp>
+#include <cubism_lip_sync.hpp>
+#include <cubism_character_controller.hpp>
+#include <cubism_model_factory.hpp>
+#include <cubism_descriptors.hpp>
+#include <cubism_import_options.hpp>
+#include <cubism_export_validator.hpp>
+#include <cubism_build_info.gen.h>
 
 // --------------------------------------------------------------- namespace(s)
 using namespace godot;
@@ -39,12 +52,25 @@ static Ref<GDCubismMotionLoader> motionLoader;
 // ------------------------------------------------------------------ method(s)
 void output(const char *message) {
     #ifdef DEBUG_ENABLED
-    WARN_PRINT(message);
+    const String text = String::utf8(message).strip_edges();
+    if (text.begins_with("[CSM][E]")) {
+        ERR_PRINT(text);
+    } else if (text.begins_with("[CSM][W]")) {
+        WARN_PRINT(text);
+    } else {
+        UtilityFunctions::print(text);
+    }
     #endif // DEBUG_ENABLED
 }
 
 void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     if (p_level == MODULE_INITIALIZATION_LEVEL_EDITOR) {
+        ClassDB::register_class<CubismModelImporter>();
+        ClassDB::register_class<CubismExportValidator>();
+        ClassDB::register_internal_class<CubismExportPlugin>();
+        ClassDB::register_class<CubismDependencyTracker>();
+        ClassDB::register_internal_class<CubismModelSummary>();
+        ClassDB::register_internal_class<CubismModelInspector>();
         ClassDB::register_class<GDCubismPlugin>();
         EditorPlugins::add_by_type<GDCubismPlugin>();
     }
@@ -60,8 +86,22 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     option.LoggingLevel = Csm::CubismFramework::Option::LogLevel::LogLevel_Off;
     #endif // DEBUG_ENABLED
 
-    Csm::CubismFramework::StartUp(&allocator, &option);
+    ERR_FAIL_COND_MSG(Live2D::Cubism::Core::csmGetVersion() != CUBISM_EXPECTED_CORE_VERSION,
+        "Cubism Core version does not match the pinned SDK used for this addon build.");
+    ERR_FAIL_COND_MSG(!Csm::CubismFramework::StartUp(&allocator, &option), "Cubism Framework startup failed.");
     Csm::CubismFramework::Initialize();
+
+    GDREGISTER_CLASS(CubismBuildInfo);
+    GDREGISTER_CLASS(CubismManifestParser);
+    GDREGISTER_CLASS(CubismMotionEvent);
+    GDREGISTER_CLASS(CubismExpressionParameter);
+    GDREGISTER_CLASS(CubismMotionDescriptor);
+    GDREGISTER_CLASS(CubismExpressionDescriptor);
+    GDREGISTER_CLASS(CubismModelResource);
+    GDREGISTER_VIRTUAL_CLASS(CubismMotionPriority);
+    GDREGISTER_CLASS(CubismMotionHandle);
+    GDREGISTER_CLASS(CubismModelFactory);
+    register_cubism_import_settings();
 
     GDREGISTER_VIRTUAL_CLASS(GDCubismEffect);
     GDREGISTER_CLASS(GDCubismEffectBreath);
@@ -78,6 +118,12 @@ void initialize_gd_cubism_module(ModuleInitializationLevel p_level) {
     ClassDB::register_class<GDCubismMotionQueueEntryHandle>();
     ClassDB::register_class<GDCubismMotionEntry>();
     ClassDB::register_class<GDCubismUserModel>();
+    ClassDB::register_class<CubismModel2D>();
+    ClassDB::register_class<CubismEffect>();
+    ClassDB::register_class<CubismLipSyncProfile>();
+    ClassDB::register_class<CubismLipSync>();
+    ClassDB::register_class<CubismSpeechHandle>();
+    ClassDB::register_class<CubismCharacterController>();
 
     motionLoader.instantiate();
 
@@ -96,7 +142,7 @@ void uninitialize_gd_cubism_module(ModuleInitializationLevel p_level) {
 
     ResourceLoader::get_singleton()->remove_resource_format_loader(motionLoader);
     motionLoader.unref();
-    
+    GDCubismUserModel::shutdown_models();
     Csm::CubismFramework::Dispose();
 }
 

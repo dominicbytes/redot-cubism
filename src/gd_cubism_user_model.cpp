@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2023 MizunagiKB <mizukb@live.jp>
 // ----------------------------------------------------------------- include(s)
+#include "cubism_debug_statistics.hpp"
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/object.hpp>
 #include <godot_cpp/classes/file_access.hpp>
+#include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/ref.hpp>
+#include <godot_cpp/classes/resource_loader.hpp>
 #include <godot_cpp/classes/sprite2d.hpp>
 #include <godot_cpp/classes/window.hpp>
 
@@ -18,6 +21,12 @@
 #include <gd_cubism_value_parameter.hpp>
 #include <gd_cubism_value_part_opacity.hpp>
 #include <gd_cubism_user_model.hpp>
+#include <cubism_animator.hpp>
+#include <cubism_procedural_effects.hpp>
+#include <cubism_model_2d.hpp>
+#include <cmath>
+#include <limits>
+#include <set>
 
 
 // ------------------------------------------------------------------ define(s)
@@ -28,6 +37,8 @@ using namespace godot;
 // -------------------------------------------------------------------- enum(s)
 // ------------------------------------------------------------------- const(s)
 // ------------------------------------------------------------------ static(s)
+static std::set<GDCubismUserModel *> live_models;
+static bool framework_shutting_down = false;
 // ----------------------------------------------------------- class:forward(s)
 // ------------------------------------------------------------------- class(s)
 GDCubismUserModel::GDCubismUserModel()
@@ -44,14 +55,92 @@ GDCubismUserModel::GDCubismUserModel()
     , cubism_effect_dirty(false)
     , mask_viewport_size(0) {
 
+    test_uncapped_manual_step = OS::get_singleton()->get_environment("CUBISM_TEST_UNCAPPED_MANUAL_STEP") == "1";
     this->ary_shader.resize(GD_CUBISM_SHADER_MAX);
+    live_models.insert(this);
 }
 
 
-GDCubismUserModel::~GDCubismUserModel() {}
+GDCubismUserModel::~GDCubismUserModel() {
+    destroying = true;
+    clear(GDCubismMotionQueueEntryHandle::MODEL_DESTROYED);
+    live_models.erase(this);
+}
+
+void GDCubismUserModel::enable_preferred_animation() {
+    preferred_animator = std::make_unique<CubismAnimator>();
+    preferred_effects = std::make_unique<CubismProceduralEffects>();
+}
+
+void GDCubismUserModel::shutdown_models() {
+    // Also cover models created outside the SceneTree. No user callbacks run
+    // while the extension tears down its process-wide Framework state.
+    framework_shutting_down = true;
+    for (GDCubismUserModel *model : live_models) {
+        model->destroying = true;
+        model->clear(GDCubismMotionQueueEntryHandle::MODEL_DESTROYED);
+    }
+}
+
+Dictionary GDCubismUserModel::get_debug_statistics() {
+#ifdef DEBUG_ENABLED
+    Dictionary result = cubism_debug_frame_statistics();
+    int64_t models = 0, drawables = 0, masks = 0, handles = 0, atlases = 0;
+    std::set<uint64_t> meshes, materials;
+    for (const auto *model : live_models) {
+        if (model->is_initialized()) ++models;
+        handles += model->motion_handles.size();
+        if (model->preferred_animator) handles += model->preferred_animator->get_owned_handle_count();
+        if (!model->internal_model) continue;
+        const auto &resources = model->internal_model->_renderer_resource;
+        masks += resources.dict_mask.size();
+        TypedArray<Node> nodes = resources.managed_nodes.duplicate();
+        const int original_count = nodes.size();
+        resources.compositor.append_debug_nodes(nodes);
+        for (int i = 0; i < nodes.size(); ++i) {
+            Node *node = Object::cast_to<Node>(nodes[i]);
+            if (i >= original_count && Object::cast_to<SubViewport>(node)) ++atlases;
+            if (auto *drawable = Object::cast_to<MeshInstance2D>(node)) {
+                ++drawables;
+                const Ref<Mesh> mesh = drawable->get_mesh();
+                const Ref<Material> material = drawable->get_material();
+                if (mesh.is_valid()) meshes.insert(mesh->get_instance_id());
+                if (material.is_valid()) materials.insert(material->get_instance_id());
+            }
+        }
+    }
+    result["loaded_models"] = models;
+    result["live_drawable_nodes"] = drawables;
+    result["live_mesh_resources"] = static_cast<int64_t>(meshes.size());
+    result["live_material_resources"] = static_cast<int64_t>(materials.size());
+    result["live_mask_viewports"] = masks;
+    result["live_compositor_viewports"] = atlases;
+    result["live_motion_handles"] = handles;
+    return result;
+#else
+    Dictionary result;
+    result["enabled"] = false;
+    return result;
+#endif
+}
 
 
 void GDCubismUserModel::_bind_methods() {
+
+    ClassDB::bind_method(D_METHOD("get_model_state"), &GDCubismUserModel::get_model_state);
+    ClassDB::bind_method(D_METHOD("get_last_error"), &GDCubismUserModel::get_last_error);
+    ClassDB::bind_method(D_METHOD("unload_model"), &GDCubismUserModel::unload_model);
+    ClassDB::bind_method(D_METHOD("is_initialized"), &GDCubismUserModel::is_initialized);
+    ClassDB::bind_method(D_METHOD("_dispatch_model_signals"), &GDCubismUserModel::dispatch_model_signals);
+    ClassDB::bind_method(D_METHOD("_apply_pending_operation"), &GDCubismUserModel::apply_pending_operation);
+    ADD_SIGNAL(MethodInfo("model_ready"));
+    ADD_SIGNAL(MethodInfo("model_failed", PropertyInfo(Variant::DICTIONARY, "error")));
+    BIND_ENUM_CONSTANT(UNLOADED);
+    BIND_ENUM_CONSTANT(LOADING);
+    BIND_ENUM_CONSTANT(READY);
+    BIND_ENUM_CONSTANT(LOAD_ERROR);
+    BIND_ENUM_CONSTANT(DISPOSING);
+    BIND_ENUM_CONSTANT(DISPOSED);
 
     // csm
     ClassDB::bind_method(D_METHOD("csm_get_version"), &GDCubismUserModel::csm_get_version);
@@ -62,6 +151,14 @@ void GDCubismUserModel::_bind_methods() {
     ClassDB::bind_method(D_METHOD("set_assets", "assets"), &GDCubismUserModel::set_assets);
     ClassDB::bind_method(D_METHOD("get_assets"), &GDCubismUserModel::get_assets);
     ADD_PROPERTY(PropertyInfo(Variant::STRING, "assets", PROPERTY_HINT_FILE, "*.model3.json"), "set_assets", "get_assets");
+    ClassDB::bind_method(D_METHOD("set_model", "resource"), &GDCubismUserModel::set_model);
+    ClassDB::bind_method(D_METHOD("get_model"), &GDCubismUserModel::get_model);
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "model", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource"), "set_model", "get_model");
+    ClassDB::bind_method(D_METHOD("_set_legacy_model", "resource"), &GDCubismUserModel::set_legacy_model);
+    ClassDB::bind_method(D_METHOD("_get_legacy_model"), &GDCubismUserModel::get_legacy_model);
+    // Keep the original assets API while giving saved legacy scenes a real
+    // imported-resource edge for dependency discovery and selective export.
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "_legacy_model", PROPERTY_HINT_RESOURCE_TYPE, "CubismModelResource", PROPERTY_USAGE_STORAGE), "_set_legacy_model", "_get_legacy_model");
 
     // Enable Load Expressions
     ClassDB::bind_method(D_METHOD("set_load_expressions", "enable"), &GDCubismUserModel::set_load_expressions);
@@ -193,9 +290,50 @@ void GDCubismUserModel::_bind_methods() {
 
 
 void GDCubismUserModel::_notification(int p_what) {
-    if (p_what == NOTIFICATION_PREDELETE) {
-        this->clear();
-        this->ary_shader.clear();
+    switch (p_what) {
+        case NOTIFICATION_READY:
+            if ((!this->assets.is_empty() || model_resource.is_valid()) && !this->is_initialized()) {
+                this->load_model(this->assets, model_resource);
+            }
+            break;
+        case NOTIFICATION_ENTER_TREE:
+            if ((!this->is_initialized() || pending_unload) && (!assets.is_empty() || model_resource.is_valid())) {
+                this->load_model(assets, model_resource);
+            }
+            update_mask_visibility();
+            this->set_process_callback(this->playback_process_mode);
+            break;
+        case NOTIFICATION_EXIT_TREE:
+            this->set_process_internal(false);
+            this->set_physics_process_internal(false);
+            if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
+                if (preferred->runtime == this) this->clear();
+            }
+            break;
+        case NOTIFICATION_INTERNAL_PROCESS:
+            if (this->is_initialized() && this->playback_process_mode == IDLE) {
+                this->_update(this->get_process_delta_time());
+            }
+            break;
+        case NOTIFICATION_INTERNAL_PHYSICS_PROCESS:
+            if (this->is_initialized() && this->playback_process_mode == PHYSICS) {
+                this->_update(this->get_physics_process_delta_time());
+            }
+            break;
+        case NOTIFICATION_VISIBILITY_CHANGED:
+            update_mask_visibility();
+            break;
+        case NOTIFICATION_PREDELETE:
+            if (is_native_busy()) {
+                // A legacy custom effect may request deletion from an SDK callback.
+                cancel_free();
+                queue_free();
+                break;
+            }
+            destroying = true;
+            this->clear(GDCubismMotionQueueEntryHandle::MODEL_DESTROYED);
+            this->ary_shader.clear();
+            break;
     }
 }
 
@@ -225,14 +363,29 @@ GDCubismUserModel::moc3FileFormatVersion GDCubismUserModel::csm_get_moc_version(
 
 
 void GDCubismUserModel::set_assets(const String assets) {
-    if (!assets.ends_with(".model3.json")) {
-        WARN_PRINT("GDCubismUserModel must point to a Live2D model3.json file");
-    }
-    if (!FileAccess::file_exists(assets)) {
-        WARN_PRINT("Live2D file does not exist, will be unable to initialize model.");
-    }
+    model_resource.unref();
     this->assets = assets;
-    this->load_model(assets);
+    auto *loader = ResourceLoader::get_singleton();
+    if (assets.begins_with("res://") && assets.ends_with(".model3.json") && loader->exists(assets, "CubismModelResource")) {
+        const Ref<CubismModelResource> imported = loader->load(assets, "CubismModelResource");
+        if (imported.is_valid() && imported->get_source_model_path() == assets) model_resource = imported;
+    }
+    this->load_model(assets, model_resource);
+}
+
+void GDCubismUserModel::set_legacy_model(const Ref<CubismModelResource> &resource) {
+    // Serialized scene properties may arrive in either order. The assets path
+    // remains authoritative; never apply a bridge for a different source.
+    if (assets.is_empty() || resource.is_null() || resource->get_source_model_path() != assets) return;
+    if (resource == model_resource) return;
+    model_resource = resource;
+    load_model(assets, resource);
+}
+
+void GDCubismUserModel::set_model(const Ref<CubismModelResource> &resource) {
+    model_resource = resource;
+    assets = String();
+    load_model(String(), resource);
 }
 
 String GDCubismUserModel::get_assets() const {
@@ -265,7 +418,7 @@ Dictionary GDCubismUserModel::get_canvas_info() const {
 
 bool GDCubismUserModel::is_initialized() const {
     if(this->internal_model == nullptr) return false;
-    return this->internal_model->IsInitialized();
+    return model_state == READY && this->internal_model->IsInitialized();
 }
 
 void GDCubismUserModel::set_parameter_mode(const ParameterMode value) {
@@ -279,7 +432,10 @@ GDCubismUserModel::ParameterMode GDCubismUserModel::get_parameter_mode() const {
 
 
 void GDCubismUserModel::set_process_callback(const MotionProcessCallback value) {
+    ERR_FAIL_COND_MSG(value < PHYSICS || value > MANUAL, "Unknown Cubism playback process mode.");
     this->playback_process_mode = value;
+    this->set_process_internal(value == IDLE);
+    this->set_physics_process_internal(value == PHYSICS);
 }
 
 
@@ -289,6 +445,7 @@ GDCubismUserModel::MotionProcessCallback GDCubismUserModel::get_process_callback
 
 
 void GDCubismUserModel::set_speed_scale(const float speed) {
+    if (!std::isfinite(speed)) return;
     this->speed_scale = CLAMP<float, float, float>(speed, 0.0, 256.0);
 }
 
@@ -332,11 +489,14 @@ Ref<GDCubismMotionQueueEntryHandle> GDCubismUserModel::start_motion_loop(const S
         no,
         priority,
         loop,
-        loop_fade_in,
-        this
+        loop_fade_in
     );
-
-
+    if (queue_handle->_handle != Csm::InvalidMotionQueueEntryHandleValue) {
+        finish_motion_handles(GDCubismMotionQueueEntryHandle::INTERRUPTED);
+        queue_handle->_error = GDCubismMotionQueueEntryHandle::OK;
+        queue_handle->_reason = GDCubismMotionQueueEntryHandle::PLAYING;
+        motion_handles.push_back(queue_handle);
+    }
     return queue_handle;
 }
 
@@ -351,7 +511,6 @@ Array GDCubismUserModel::get_cubism_motion_queue_entries() const {
     for(Csm::csmVector<Csm::CubismMotionQueueEntry*>::iterator i = entry_vector_ptr->Begin(); i != entry_vector_ptr->End(); i++) {
         Ref<GDCubismMotionEntry> e;
         e.instantiate();
-        e->_entry = *i;
         ary_motion_entry.append(e);
     }
 
@@ -363,6 +522,7 @@ void GDCubismUserModel::stop_motion() {
     if(this->is_initialized() == false) return;
 
     this->internal_model->motion_stop();
+    finish_motion_handles(GDCubismMotionQueueEntryHandle::STOPPED);
 }
 
 
@@ -440,21 +600,55 @@ Dictionary GDCubismUserModel::get_meshes() const {
 }
 
 
-void GDCubismUserModel::on_motion_finished(Csm::ACubismMotion* motion) {
-    #ifdef CUBISM_MOTION_CUSTOMDATA
-    GDCubismUserModel* m = static_cast<GDCubismUserModel*>(motion->GetFinishedMotionCustomData());
-    if(m != nullptr) {
-        m->emit_signal(SIGNAL_MOTION_FINISHED);
+void GDCubismUserModel::finish_motion_handles(GDCubismMotionQueueEntryHandle::FinishReason reason) {
+    for (const auto &handle : motion_handles) handle->finish(reason, !framework_shutting_down);
+    motion_handles.clear();
+}
+
+void GDCubismUserModel::update_motion_handles() {
+    for (auto i = motion_handles.begin(); i != motion_handles.end();) {
+        if (internal_model->_motionManager->IsFinished((*i)->_handle)) {
+            (*i)->finish(GDCubismMotionQueueEntryHandle::COMPLETED);
+            queue_model_signal(SIGNAL_MOTION_FINISHED);
+            i = motion_handles.erase(i);
+        } else {
+            ++i;
+        }
     }
-    #endif // CUBISM_MOTION_CUSTOMDATA
 }
 
 
-void GDCubismUserModel::_update(const double delta) {
+void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
 
-    this->internal_model->pro_update(delta * this->speed_scale);
+    if (native_busy || disposing || !is_initialized()) return;
+    if (!std::isfinite(delta) || delta == 0.0 || speed_scale == 0.0f) return;
+    if (delta < 0.0) {
+        #ifdef DEBUG_ENABLED
+        WARN_PRINT("Negative Cubism delta ignored.");
+        #endif
+        return;
+    }
+    const double scaled_delta = delta * this->speed_scale;
+    auto *preferred = Object::cast_to<CubismModel2D>(get_parent());
+    const bool preferred_runtime = preferred != nullptr && preferred->runtime == this;
+    const bool uncapped = uncapped_manual_step || !preferred_runtime;
+    if (uncapped && (!std::isfinite(scaled_delta) || scaled_delta > std::numeric_limits<Csm::csmFloat32>::max())) return;
+    const double step = uncapped ? scaled_delta : MIN(scaled_delta, 0.1);
+    if (preferred_runtime) preferred->begin_custom_effects();
+    // Freeze the batch before any native/custom callback. Writes submitted
+    // during evaluation belong to the next step, regardless of their layer.
+    for (size_t layer = 0; layer < parameter_writes.size(); ++layer) {
+        step_parameter_writes[layer] = parameter_writes[layer].size();
+    }
+    native_busy = true;
 
-    this->internal_model->efx_update(delta * this->speed_scale);
+    #ifdef DEBUG_ENABLED
+    CubismDebugTimer model_timer(CubismDebugPhase::MODEL);
+    #endif
+    this->internal_model->pro_update(step);
+    update_motion_handles();
+
+    this->internal_model->efx_update(step);
 
     for(Csm::csmInt32 index = 0; index < this->ary_parameter.size(); index++ ) {
         Ref<GDCubismParameter> param = this->ary_parameter[index];
@@ -477,12 +671,23 @@ void GDCubismUserModel::_update(const double delta) {
         }
     }
 
-    this->internal_model->epi_update(delta * this->speed_scale);
+    this->internal_model->epi_update(step);
+    // Pose and queued part writes run in the epilogue. Preserve any new write
+    // queued by an epilogue callback for the next update.
+    for(Csm::csmInt32 index = 0; index < this->ary_part_opacity.size(); index++) {
+        Ref<GDCubismPartOpacity> part = this->ary_part_opacity[index];
+        if(part.is_valid() && !part->changed) {
+            part->get_raw_value();
+        }
+    }
+    #ifdef DEBUG_ENABLED
+    model_timer.stop();
+    #endif
 
     // https://github.com/godotengine/godot/issues/90030
     // https://github.com/godotengine/godot/issues/90017
     #ifdef COUNTERMEASURES_90017_90030
-        if(get_window()->is_visible() == true) {
+        if(get_window() != nullptr && get_window()->is_visible() == true) {
             if(get_window()->get_mode() != Window::Mode::MODE_MINIMIZED) {
                 this->internal_model->update_node();
             }
@@ -490,14 +695,23 @@ void GDCubismUserModel::_update(const double delta) {
     #else
     this->internal_model->update_node();
     #endif // COUNTERMEASURES_90017_90030
+    native_busy = false;
+    apply_pending_operation();
 }
 
 
 void GDCubismUserModel::advance(const double delta) {
+    advance_internal(delta, true);
+}
+
+void GDCubismUserModel::advance_internal(double delta, bool manual_request) {
     ERR_FAIL_COND(this->is_initialized() == false);
     if(this->playback_process_mode != MANUAL) return;
+    if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
+        if (preferred->runtime == this && (!is_inside_tree() || !can_process())) return;
+    }
 
-    this->_update(delta);
+    this->_update(delta, manual_request && test_uncapped_manual_step);
 }
 
 
@@ -756,33 +970,190 @@ void GDCubismUserModel::_get_property_list(List<godot::PropertyInfo> *p_list) {
     }
 }
 
-void GDCubismUserModel::clear() {
-    if(this->internal_model == nullptr) {
+void GDCubismUserModel::clear(GDCubismMotionQueueEntryHandle::FinishReason reason) {
+    for (auto &writes : parameter_writes) writes.clear();
+    step_parameter_writes.fill(0);
+    queued_parameter_writes = 0;
+    if (disposing) return;
+    if (native_busy) {
+        pending_unload = true;
+        pending_clear_reason = reason;
+        pending_load = false;
+        pending_resource.unref();
         return;
     }
-
-    this->internal_model->clear();
-    CSM_DELETE(this->internal_model);
+    disposing = true;
+    if (preferred_effects) preferred_effects->clear();
+    if (preferred_animator) {
+        CubismMotionHandle::FinishReason terminal = CubismMotionHandle::UNLOADED;
+        if (reason == GDCubismMotionQueueEntryHandle::RELOADED) terminal = CubismMotionHandle::RELOADED;
+        if (reason == GDCubismMotionQueueEntryHandle::MODEL_DESTROYED) terminal = CubismMotionHandle::MODEL_DISPOSED;
+        preferred_animator->clear(terminal);
+    }
+    model_state = DISPOSING;
+    ++generation;
+    pending_signals.clear();
+    finish_motion_handles(reason);
+    for (int i = 0; i < ary_parameter.size(); ++i) {
+        Ref<GDCubismParameter> parameter = ary_parameter[i];
+        parameter->invalidate();
+    }
+    for (int i = 0; i < ary_part_opacity.size(); ++i) {
+        Ref<GDCubismPartOpacity> part = ary_part_opacity[i];
+        part->invalidate();
+    }
+    ary_parameter.clear();
+    ary_part_opacity.clear();
+    dict_anim_expression.Clear();
+    dict_anim_motion.Clear();
+    curr_anim_expression_key = String();
+    curr_anim_motion_key = String();
+    InternalCubismUserModel *old_model = this->internal_model;
     this->internal_model = nullptr;
+    CSM_DELETE(old_model);
+    disposing = false;
+    model_state = DISPOSED;
+    if (pending_load && !destroying) call_deferred("_apply_pending_operation");
 }
 
-void GDCubismUserModel::load_model(const String assets) {
-    this->clear();
+Error GDCubismUserModel::queue_parameter_write(int index, double value, double weight, int operation, WriteLayer layer) {
+    if (layer < WRITE_BASE || layer >= WRITE_LAYER_COUNT) return ERR_INVALID_PARAMETER;
+    if (queued_parameter_writes >= 100000) return ERR_OUT_OF_MEMORY;
+    parameter_writes[layer].push_back({index, value, weight, operation});
+    ++queued_parameter_writes;
+    return OK;
+}
 
-    if (assets.is_empty()) {
+double GDCubismUserModel::evaluated_parameter(int index) const {
+    return internal_model->GetModel()->GetParameterValue(index);
+}
+
+void GDCubismUserModel::apply_parameter_writes(WriteLayer layer) {
+    auto &writes = parameter_writes[layer];
+    const size_t count = step_parameter_writes[layer];
+    for (size_t index = 0; index < count; ++index) {
+        apply_parameter_write(writes[index]);
+    }
+    queued_parameter_writes -= count;
+    writes.erase(writes.begin(), writes.begin() + count);
+    step_parameter_writes[layer] = 0;
+}
+
+void GDCubismUserModel::apply_parameter_write(const ParameterWrite &write) {
+    Csm::CubismModel *model = internal_model->GetModel();
+    if (write.operation == 3) {
+        model->SetPartOpacity(write.index, float(write.value));
+        return;
+    }
+    const double current = model->GetParameterValue(write.index);
+    double value = write.value;
+    if (write.operation == 0) value = current * (1.0 - write.weight) + value * write.weight;
+    else if (write.operation == 1) value = current + value * write.weight;
+    else value = current * (1.0 + (value - 1.0) * write.weight);
+    value = CLAMP(value, double(model->GetParameterMinimumValue(write.index)), double(model->GetParameterMaximumValue(write.index)));
+    model->SetParameterValue(write.index, float(value));
+}
+
+void GDCubismUserModel::unload_model() {
+    clear();
+    last_error.clear();
+}
+
+void GDCubismUserModel::unload_selected_model() {
+    assets = String();
+    model_resource.unref();
+    unload_model();
+}
+
+void GDCubismUserModel::update_mask_visibility() {
+    if (!is_initialized()) return;
+    if (!is_visible_in_tree()) internal_model->_renderer_resource.compositor.set_visible(false);
+    const SubViewport::UpdateMode mode = is_visible_in_tree()
+        ? SubViewport::UPDATE_ALWAYS : SubViewport::UPDATE_DISABLED;
+    const Array masks = internal_model->_renderer_resource.dict_mask.values();
+    for (int i = 0; i < masks.size(); ++i) {
+        SubViewport *mask = Object::cast_to<SubViewport>(masks[i]);
+        mask->set_update_mode(mode);
+    }
+}
+
+String GDCubismUserModel::get_rendering_error() const {
+    return internal_model ? internal_model->_renderer_resource.compositor.get_error() : String();
+}
+
+void GDCubismUserModel::apply_pending_operation() {
+    if (destroying || is_queued_for_deletion() || is_native_busy()) return;
+    if (pending_load) {
+        const String path = pending_asset;
+        const Ref<CubismModelResource> resource = pending_resource;
+        pending_resource.unref();
+        pending_load = false;
+        pending_unload = false;
+        load_model(path, resource);
+    } else if (pending_unload) {
+        pending_unload = false;
+        clear(pending_clear_reason);
+    }
+}
+
+void GDCubismUserModel::queue_model_signal(const StringName &name, const Variant &payload, bool has_payload) {
+    if (destroying || disposing) return;
+    pending_signals.push_back({name, payload, has_payload, generation});
+    if (!dispatch_scheduled) {
+        dispatch_scheduled = true;
+        call_deferred("_dispatch_model_signals");
+    }
+}
+
+void GDCubismUserModel::dispatch_model_signals() {
+    dispatch_scheduled = false;
+    std::vector<PendingSignal> signals;
+    signals.swap(pending_signals);
+    const uint64_t id = get_instance_id();
+    for (const PendingSignal &signal : signals) {
+        GDCubismUserModel *owner = Object::cast_to<GDCubismUserModel>(ObjectDB::get_instance(id));
+        if (owner == nullptr || owner->is_queued_for_deletion()) return;
+        if (owner->generation != signal.generation) continue;
+        if (signal.has_payload) owner->emit_signal(signal.name, signal.payload);
+        else owner->emit_signal(signal.name);
+    }
+}
+
+void GDCubismUserModel::load_model(const String assets, Ref<CubismModelResource> resource) {
+    if (destroying) return;
+    if (is_native_busy()) {
+        pending_asset = assets;
+        pending_resource = resource;
+        pending_load = true;
+        pending_unload = false;
+        return;
+    }
+    this->clear(GDCubismMotionQueueEntryHandle::RELOADED);
+    last_error.clear();
+
+    if (assets.is_empty() && resource.is_null()) {
         return;
     }
 
-    Ref<FileAccess> f = FileAccess::open(assets, FileAccess::READ);
-    ERR_FAIL_COND_MSG(f.is_null(), "Could not open model path.  Make sure to point to the model3.json");
-
+    model_state = LOADING;
+    // Creating drawable children can invoke user SceneTree callbacks. Keep the
+    // current native allocation alive until the entire load has unwound.
+    native_busy = true;
     this->internal_model = CSM_NEW InternalCubismUserModel(this);
 
     if(
-        this->internal_model->model_load(assets) == false ||
+        this->internal_model->model_load(resource.is_valid() ? resource->get_source_model_path() : assets, resource) == false ||
         this->internal_model->IsInitialized() == false
     ) { 
+        // The pinned binding's Dictionary move assignment overwrites its old
+        // storage. A const snapshot selects the releasing copy assignment.
+        const Dictionary error = this->internal_model->get_load_error();
+        last_error = error;
+        native_busy = false;
         this->clear();
+        model_state = LOAD_ERROR;
+        queue_model_signal("model_failed", last_error.duplicate(), true);
+        apply_pending_operation();
         return; 
     }
 
@@ -811,43 +1182,17 @@ void GDCubismUserModel::load_model(const String assets) {
     }
 
     this->cubism_effect_dirty = true;
+    model_state = READY;
+    if (preferred_animator) preferred_animator->configure(resource);
+    if (preferred_effects) preferred_effects->configure(internal_model->_model_setting, model);
+    update_mask_visibility();
   
     this->setup_property();
     this->notify_property_list_changed();
+    queue_model_signal("model_ready");
+    native_busy = false;
+    apply_pending_operation();
 }
-
-void GDCubismUserModel::_ready() {
-    if (!this->assets.is_empty()) {
-        this->load_model(this->assets);
-    }
-}
-
-
-void GDCubismUserModel::_enter_tree() {
-    if(this->is_initialized() == false) return;
-}
-
-
-void GDCubismUserModel::_exit_tree() {
-    if(this->is_initialized() == false) return;
-}
-
-
-void GDCubismUserModel::_process(double delta) {
-    if(this->is_initialized() == false) return;
-    if(this->playback_process_mode != IDLE) return;
-
-    this->_update(delta);
-}
-
-
-void GDCubismUserModel::_physics_process(double delta) {
-    if(this->is_initialized() == false) return;
-    if(this->playback_process_mode != PHYSICS) return;
-
-    this->_update(delta);
-}
-
 
 void GDCubismUserModel::_on_append_child_act(GDCubismEffect* node) {
     this->_list_cubism_effect.PushBack(node);
@@ -856,10 +1201,15 @@ void GDCubismUserModel::_on_append_child_act(GDCubismEffect* node) {
 
 
 void GDCubismUserModel::_on_remove_child_act(GDCubismEffect* node) {
+    const bool was_busy = native_busy;
+    native_busy = true;
+    if (internal_model != nullptr) node->_cubism_term(internal_model);
     for(Csm::csmVector<GDCubismEffect*>::iterator i = this->_list_cubism_effect.Begin(); i != this->_list_cubism_effect.End(); i++) {
         if(*i == node) { this->_list_cubism_effect.Erase(i); break; }
     }
     this->cubism_effect_dirty = true;
+    native_busy = was_busy;
+    if (!was_busy && (pending_load || pending_unload)) call_deferred("_apply_pending_operation");
 }
 
 

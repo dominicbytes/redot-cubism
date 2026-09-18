@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismModelFactory" inherits="RefCounted">
+	<brief_description>Builds validated imported model data from project sources.</brief_description>
+	<description>Validates physical project sources and creates [CubismModelResource] data. It uses temporary SDK objects to inspect the MOC, then releases them before returning. It does not create a renderer, save a resource or register an editor importer. Texture/audio assets must already be imported by Redot. Use [CubismModelImporter] to apply the managed texture policy and persist the result.</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="build" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="source_path" type="String" />
+			<param index="1" name="strict_optional_files" type="bool" default="false" />
+			<description>Returns [code]ok[/code], bounded [code]diagnostics[/code], [code]warnings[/code] and [code]model[/code], which is null on failure. Requires a project-local model manifest with valid MOC, textures and declared motions. Missing optional files warn by default; [param strict_optional_files] makes them fail. Malformed or unsafe references always fail. Source-size, texture-size and project file-count limits apply.</description>
+		</method>
+		<method name="build_with_options" qualifiers="static">
+			<return type="Dictionary" />
+			<param index="0" name="source_path" type="String" />
+			<param index="1" name="options" type="Dictionary" />
+			<description>Builds with validated import [param options], including enabled optional features, texture/rendering settings and missing-file policy. Unknown or unavailable options are rejected. The resulting resource records normalized options and dependency fingerprints; it must still pass importer texture provisioning and export validation before distribution.</description>
+		</method>
+	</methods>
+</class>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="CubismMotionPriority" inherits="RefCounted" version="4.3">
+	<brief_description>Priority constants for native primary motion playback.</brief_description>
+	<description>A new playback needs higher priority than the active motion, except FORCE can always replace it. Rejected playback preserves the current motion.</description>
+	<constants>
+		<constant name="NONE" value="0" enum="Priority">Unreserved priority; cannot start a motion.</constant>
+		<constant name="IDLE" value="1" enum="Priority">Background motion priority.</constant>
+		<constant name="NORMAL" value="2" enum="Priority">Default cue priority.</constant>
+		<constant name="FORCE" value="3" enum="Priority">Interrupt any active primary motion.</constant>
+	</constants>
+</class>

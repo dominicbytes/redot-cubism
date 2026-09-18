@@ -1,0 +1,106 @@
+// SPDX-License-Identifier: MIT
+#include "cubism_model_resource.hpp"
+#include <godot_cpp/core/class_db.hpp>
+
+int CubismModelResource::get_mask_quality() const {
+    // The import-options dictionary is the one serialized source of this setting.
+    // Resources made before this option existed retain medium quality.
+    const Variant value = import_options.get("rendering/mask_quality", 1);
+    return value.get_type() == Variant::INT && int64_t(value) >= 0 && int64_t(value) <= 2 ? int(value) : -1;
+}
+
+void CubismModelResource::_bind_methods() {
+    ClassDB::bind_method(D_METHOD("get_premultiplied_alpha"), &CubismModelResource::get_premultiplied_alpha);
+    ClassDB::bind_method(D_METHOD("get_mask_quality"), &CubismModelResource::get_mask_quality);
+    ClassDB::bind_method(D_METHOD("set_runtime_extension", "value"), &CubismModelResource::set_runtime_extension);
+    ClassDB::bind_method(D_METHOD("get_runtime_extension"), &CubismModelResource::get_runtime_extension);
+    // A real serialized edge lets Redot select/export the descriptor and native
+    // library, and retain it in the generated extension startup list.
+    ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "runtime_extension", PROPERTY_HINT_RESOURCE_TYPE, "GDExtension", PROPERTY_USAGE_STORAGE), "set_runtime_extension", "get_runtime_extension");
+    ClassDB::bind_method(D_METHOD("set_source_model_path", "value"), &CubismModelResource::set_source_model_path);
+    ClassDB::bind_method(D_METHOD("get_source_model_path"), &CubismModelResource::get_source_model_path);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "source_model_path"), "set_source_model_path", "get_source_model_path");
+    ClassDB::bind_method(D_METHOD("set_source_hash", "value"), &CubismModelResource::set_source_hash);
+    ClassDB::bind_method(D_METHOD("get_source_hash"), &CubismModelResource::get_source_hash);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "source_hash"), "set_source_hash", "get_source_hash");
+    ClassDB::bind_method(D_METHOD("set_import_fingerprint", "value"), &CubismModelResource::set_import_fingerprint);
+    ClassDB::bind_method(D_METHOD("get_import_fingerprint"), &CubismModelResource::get_import_fingerprint);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "import_fingerprint"), "set_import_fingerprint", "get_import_fingerprint");
+    ClassDB::bind_method(D_METHOD("set_moc_path", "value"), &CubismModelResource::set_moc_path);
+    ClassDB::bind_method(D_METHOD("get_moc_path"), &CubismModelResource::get_moc_path);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "moc_path"), "set_moc_path", "get_moc_path");
+    ClassDB::bind_method(D_METHOD("set_moc_version", "value"), &CubismModelResource::set_moc_version);
+    ClassDB::bind_method(D_METHOD("get_moc_version"), &CubismModelResource::get_moc_version);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "moc_version"), "set_moc_version", "get_moc_version");
+    ClassDB::bind_method(D_METHOD("set_texture_paths", "value"), &CubismModelResource::set_texture_paths);
+    ClassDB::bind_method(D_METHOD("get_texture_paths"), &CubismModelResource::get_texture_paths);
+    ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "texture_paths"), "set_texture_paths", "get_texture_paths");
+    ClassDB::bind_method(D_METHOD("set_layout", "value"), &CubismModelResource::set_layout);
+    ClassDB::bind_method(D_METHOD("get_layout"), &CubismModelResource::get_layout);
+    ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "layout"), "set_layout", "get_layout");
+    ClassDB::bind_method(D_METHOD("set_dependency_fingerprints", "value"), &CubismModelResource::set_dependency_fingerprints);
+    ClassDB::bind_method(D_METHOD("get_dependency_fingerprints"), &CubismModelResource::get_dependency_fingerprints);
+    ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "dependency_fingerprints"), "set_dependency_fingerprints", "get_dependency_fingerprints");
+    ClassDB::bind_method(D_METHOD("set_textures", "value"), &CubismModelResource::set_textures);
+    ClassDB::bind_method(D_METHOD("get_textures"), &CubismModelResource::get_textures);
+    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "textures", PROPERTY_HINT_ARRAY_TYPE, "Texture2D"), "set_textures", "get_textures");
+    ClassDB::bind_method(D_METHOD("set_motion_groups", "value"), &CubismModelResource::set_motion_groups);
+    ClassDB::bind_method(D_METHOD("get_motion_groups"), &CubismModelResource::get_motion_groups);
+    ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "motion_groups"), "set_motion_groups", "get_motion_groups");
+    ClassDB::bind_method(D_METHOD("set_expressions", "value"), &CubismModelResource::set_expressions);
+    ClassDB::bind_method(D_METHOD("get_expressions"), &CubismModelResource::get_expressions);
+    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "expressions"), "set_expressions", "get_expressions");
+    ClassDB::bind_method(D_METHOD("set_physics_path", "value"), &CubismModelResource::set_physics_path);
+    ClassDB::bind_method(D_METHOD("get_physics_path"), &CubismModelResource::get_physics_path);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "physics_path"), "set_physics_path", "get_physics_path");
+    ClassDB::bind_method(D_METHOD("set_pose_path", "value"), &CubismModelResource::set_pose_path);
+    ClassDB::bind_method(D_METHOD("get_pose_path"), &CubismModelResource::get_pose_path);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "pose_path"), "set_pose_path", "get_pose_path");
+    ClassDB::bind_method(D_METHOD("set_user_data_path", "value"), &CubismModelResource::set_user_data_path);
+    ClassDB::bind_method(D_METHOD("get_user_data_path"), &CubismModelResource::get_user_data_path);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "user_data_path"), "set_user_data_path", "get_user_data_path");
+    ClassDB::bind_method(D_METHOD("set_display_info_path", "value"), &CubismModelResource::set_display_info_path);
+    ClassDB::bind_method(D_METHOD("get_display_info_path"), &CubismModelResource::get_display_info_path);
+    ADD_PROPERTY(PropertyInfo(Variant::STRING, "display_info_path"), "set_display_info_path", "get_display_info_path");
+    ClassDB::bind_method(D_METHOD("set_hit_areas", "value"), &CubismModelResource::set_hit_areas);
+    ClassDB::bind_method(D_METHOD("get_hit_areas"), &CubismModelResource::get_hit_areas);
+    ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "hit_areas", PROPERTY_HINT_ARRAY_TYPE, "Dictionary"), "set_hit_areas", "get_hit_areas");
+    ClassDB::bind_method(D_METHOD("set_eye_blink_parameter_ids", "value"), &CubismModelResource::set_eye_blink_parameter_ids);
+    ClassDB::bind_method(D_METHOD("get_eye_blink_parameter_ids"), &CubismModelResource::get_eye_blink_parameter_ids);
+    ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "eye_blink_parameter_ids"), "set_eye_blink_parameter_ids", "get_eye_blink_parameter_ids");
+    ClassDB::bind_method(D_METHOD("set_lip_sync_parameter_ids", "value"), &CubismModelResource::set_lip_sync_parameter_ids);
+    ClassDB::bind_method(D_METHOD("get_lip_sync_parameter_ids"), &CubismModelResource::get_lip_sync_parameter_ids);
+    ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "lip_sync_parameter_ids"), "set_lip_sync_parameter_ids", "get_lip_sync_parameter_ids");
+    ClassDB::bind_method(D_METHOD("set_canvas_size", "value"), &CubismModelResource::set_canvas_size);
+    ClassDB::bind_method(D_METHOD("get_canvas_size"), &CubismModelResource::get_canvas_size);
+    ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "canvas_size"), "set_canvas_size", "get_canvas_size");
+    ClassDB::bind_method(D_METHOD("set_canvas_origin", "value"), &CubismModelResource::set_canvas_origin);
+    ClassDB::bind_method(D_METHOD("get_canvas_origin"), &CubismModelResource::get_canvas_origin);
+    ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "canvas_origin"), "set_canvas_origin", "get_canvas_origin");
+    ClassDB::bind_method(D_METHOD("set_pixels_per_unit", "value"), &CubismModelResource::set_pixels_per_unit);
+    ClassDB::bind_method(D_METHOD("get_pixels_per_unit"), &CubismModelResource::get_pixels_per_unit);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "pixels_per_unit"), "set_pixels_per_unit", "get_pixels_per_unit");
+    ClassDB::bind_method(D_METHOD("set_dependency_paths", "value"), &CubismModelResource::set_dependency_paths);
+    ClassDB::bind_method(D_METHOD("get_dependency_paths"), &CubismModelResource::get_dependency_paths);
+    ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "dependency_paths"), "set_dependency_paths", "get_dependency_paths");
+    ClassDB::bind_method(D_METHOD("set_import_warnings", "value"), &CubismModelResource::set_import_warnings);
+    ClassDB::bind_method(D_METHOD("get_import_warnings"), &CubismModelResource::get_import_warnings);
+    ADD_PROPERTY(PropertyInfo(Variant::PACKED_STRING_ARRAY, "import_warnings"), "set_import_warnings", "get_import_warnings");
+    ClassDB::bind_method(D_METHOD("set_import_schema_version", "value"), &CubismModelResource::set_import_schema_version);
+    ClassDB::bind_method(D_METHOD("get_import_schema_version"), &CubismModelResource::get_import_schema_version);
+    ADD_PROPERTY(PropertyInfo(Variant::INT, "import_schema_version"), "set_import_schema_version", "get_import_schema_version");
+    ClassDB::bind_method(D_METHOD("set_sdk_compatibility", "value"), &CubismModelResource::set_sdk_compatibility);
+    ClassDB::bind_method(D_METHOD("get_sdk_compatibility"), &CubismModelResource::get_sdk_compatibility);
+    ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "sdk_compatibility"), "set_sdk_compatibility", "get_sdk_compatibility");
+    ClassDB::bind_method(D_METHOD("set_import_options", "value"), &CubismModelResource::set_import_options);
+    ClassDB::bind_method(D_METHOD("get_import_options"), &CubismModelResource::get_import_options);
+    ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "import_options"), "set_import_options", "get_import_options");
+    ClassDB::bind_method(D_METHOD("set_metadata", "value"), &CubismModelResource::set_metadata);
+    ClassDB::bind_method(D_METHOD("get_metadata"), &CubismModelResource::get_metadata);
+    ADD_PROPERTY(PropertyInfo(Variant::DICTIONARY, "metadata"), "set_metadata", "get_metadata");
+}
+
+bool CubismModelResource::get_premultiplied_alpha() const {
+    const Variant value = import_options.get("rendering/premultiplied_alpha", false);
+    return value.get_type() == Variant::BOOL && bool(value);
+}

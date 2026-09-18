@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="GDCubismParameter" inherits="GDCubismValueAbs" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
-	<brief_description>
-	</brief_description>
+	<brief_description>Legacy resource exposing a native model parameter.</brief_description>
 	<description>
 		Elements contained in the [Array] returned by the [method GDCubismUserModel.get_parameters] function of [GDCubismUserModel].
 		By writing a value to this class's value, you can modify the parameter of the Live2D model.
@@ -30,11 +29,10 @@
 		<member name="minimum_value" type="float" setter="" getter="get_minimum_value" default="0.0">
 			If true, the parameters you set will take precedence even if motion or expression is set.
 		</member>
+		<member name="type" type="int" setter="" getter="get_type" enum="GDCubismParameter.Type" default="0">Read-only native parameter type, distinguishing normal parameters from blend-shape parameters.</member>
 	</members>
 	<constants>
-		<constant name="NORMAL" value="0" enum="Type">
-		</constant>
-		<constant name="BLEND_SHAPE" value="1" enum="Type">
-		</constant>
+		<constant name="NORMAL" value="0" enum="Type">A standard continuous model parameter.</constant>
+		<constant name="BLEND_SHAPE" value="1" enum="Type">A model parameter controlling a blend shape.</constant>
 	</constants>
 </class>

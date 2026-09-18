@@ -42,3 +42,18 @@ package.json
 thirdparty/CubismNativeFramework
 thirdparty/CubismSdkForNative*
 
+# Redot port: tracked documentation and private build inputs.
+!/docs/
+!/docs/**
+thirdparty/cubism-sdk/
+thirdparty/cubism-core/
+.local-sdk/
+.private-fixtures/
+.local-build/
+*.moc3
+__pycache__/
+*.pyc
+*.xlsx.inspect.ndjson
+.sconsign.*
+# Generated licensed texture assets belong to game projects, not addon source.
+demo/cubism_generated/
