@@ -31,6 +31,8 @@ Linux addon library needs the external Core and searches its own directory,
 copies `libLive2DCubismCore.so` beside those libraries, and adds the GDExtension
 dependency used by Redot export. Do not commit or redistribute that copied Core
 with the addon source; every user supplies it from their own accepted SDK copy.
+Because the descriptor declares the extension non-reloadable, dynamic Linux
+builds remain mapped until process exit to keep their C++ runtime state valid.
 If it is absent, Redot reports `libLive2DCubismCore.so` while loading the
 extension. Re-run the installer after replacing or rebuilding the addon folder.
 
