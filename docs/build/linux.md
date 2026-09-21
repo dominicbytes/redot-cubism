@@ -9,6 +9,33 @@ The recommended extracted SDK root is
 `Core/include/Live2DCubismCore.h`, `Core/lib/linux/x86_64/libLive2DCubismCore.a`
 and `Framework/src`. Set `CUBISM_SDK_ROOT` to that directory, not the SDK ZIP.
 
+## External Core build for redistributable addon source
+
+The default build statically links the Core library from the user's SDK. For an
+addon package that must not embed Core, build both Linux variants with
+`linux_core_link=dynamic`. This uses the official shared Core from the same
+user-supplied SDK and records an `$ORIGIN` runpath:
+
+```sh
+scons platform=linux arch=x86_64 target=template_debug precision=single \
+  use_static_cpp=yes custom_api_file="$REDOT_API" \
+  build_profile=tools/native_build_profile.json linux_core_link=dynamic
+scons platform=linux arch=x86_64 target=template_release precision=single \
+  use_static_cpp=yes custom_api_file="$REDOT_API" \
+  build_profile=tools/native_build_profile.json linux_core_link=dynamic
+python tools/install_linux_external_core.py --sdk-root "$CUBISM_SDK_ROOT"
+```
+
+The installer validates the SDK 5-r.5 Core hash, verifies that every present
+Linux addon library needs the external Core and searches its own directory,
+copies `libLive2DCubismCore.so` beside those libraries, and adds the GDExtension
+dependency used by Redot export. Do not commit or redistribute that copied Core
+with the addon source; every user supplies it from their own accepted SDK copy.
+Because the descriptor declares the extension non-reloadable, dynamic Linux
+builds remain mapped until process exit to keep their C++ runtime state valid.
+If it is absent, Redot reports `libLive2DCubismCore.so` while loading the
+extension. Re-run the installer after replacing or rebuilding the addon folder.
+
 A fresh build at `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` used
 GCC/G++ 12.2.0, GNU ld 2.40, Python 3.14.7 and SCons 4.11.1. Both variants
 passed strict headless load/identity and bounded editor-import checks. This is
