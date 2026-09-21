@@ -43,6 +43,13 @@ env.Decider("content")
 # Addon-only flags must not change targets already declared by redot-cpp.
 env = env.Clone()
 sanitizer = ARGUMENTS.get("sanitize", "none")
+linux_core_link = ARGUMENTS.get("linux_core_link", "static")
+if linux_core_link not in ("static", "dynamic"):
+    print("Redot Cubism build input error: linux_core_link supports static or dynamic")
+    Exit(1)
+if linux_core_link != "static" and ARGUMENTS.get("platform") != "linux":
+    print("Redot Cubism build input error: linux_core_link=dynamic is supported on Linux only")
+    Exit(1)
 try:
     sanitizer_compile_flags, sanitizer_link_flags = sanitizer_flags(sanitizer, env["platform"])
 except ValueError as exc:
@@ -87,6 +94,7 @@ build_info = {
     "precision": env["precision"],
     "compiler": env.subst("$CXX"),
     "sanitizer": sanitizer,
+    "linux_core_link": linux_core_link,
     "framework_patches": {PATCH_ID: {"source_sha256": sha256(patched_string),
         "helper_sha256": sha256(root / "src/private/cubism_string_hash.hpp")}},
 }
@@ -178,20 +186,24 @@ elif env["platform"] == "ios":
 
 elif env["platform"] == "linux":
     env.Append(LINKFLAGS=["-Wl,--no-undefined"])
-    o_cubism_lib = (
-        Path(CUBISM_NATIVE_CORE_DIR)
-        .joinpath("lib")
-        .joinpath(env["platform"])
-        .joinpath(env["arch"])
-        .joinpath("libLive2DCubismCore.a")
+    core_directory = "dll" if linux_core_link == "dynamic" else "lib"
+    core_filename = (
+        "libLive2DCubismCore.so"
+        if linux_core_link == "dynamic"
+        else "libLive2DCubismCore.a"
     )
+    o_cubism_lib = Path(CUBISM_NATIVE_CORE_DIR).joinpath(
+        core_directory, env["platform"], env["arch"], core_filename)
     env.Append(
         LIBPATH=[
             os.path.join(
-                CUBISM_NATIVE_CORE_DIR, "lib", "linux/{:s}".format(env["arch"])
+                CUBISM_NATIVE_CORE_DIR, core_directory, "linux/{:s}".format(env["arch"])
             )
         ]
     )
+    if linux_core_link == "dynamic":
+        # The user-supplied Core sidecar is installed beside the addon library.
+        env.Append(LINKFLAGS=["-Wl,-rpath,$$ORIGIN"])
     print("                       libs = {:s}".format(str(o_cubism_lib)))
     env.Append(LIBS=["Live2DCubismCore"])
 
