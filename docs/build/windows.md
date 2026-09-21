@@ -10,9 +10,14 @@ Use a VS 2022/MSVC 14.3 x64 Native Tools environment, Python with `venv`, the
 Redot 26.2 single-precision editor and matching templates, and the separately
 obtained Cubism Native SDK 5-r.5. Core libraries must come from its `143` toolset
 directory. Read [dependencies](../../DEPENDENCIES.md) and [licensing](../licensing.md).
+The recommended extracted SDK root is
+`.local-build/sdk/CubismSdkForNative-5-r.5`; it must contain
+`Core/include/Live2DCubismCore.h`, `Core/lib/windows/x86_64/143` and
+`Framework/src`. Do not point `CUBISM_SDK_ROOT` at the SDK ZIP.
 
 First [clone the Redot development branch](../quick-start.md#get-the-source).
-From PowerShell, run from that checkout and replace the editor/SDK paths.
+From PowerShell, run from that checkout and replace the editor path. If you
+extracted the SDK elsewhere, also replace the `CUBISM_SDK_ROOT` value.
 Start the VS 2022 x64 shell in that PowerShell process, even if newer Visual
 Studio versions are installed:
 
@@ -22,7 +27,7 @@ git submodule update --init godot-cpp
 python -m venv .local-build/tools
 & ./.local-build/tools/Scripts/python.exe -m pip install scons==4.11.1
 $env:REDOT_BIN = 'C:/tools/redot/redot.exe'
-$env:CUBISM_SDK_ROOT = 'C:/SDK/CubismSdkForNative-5-r.5'
+$env:CUBISM_SDK_ROOT = (Resolve-Path './.local-build/sdk/CubismSdkForNative-5-r.5').Path
 $env:REDOT_CPP_ROOT = (Resolve-Path './godot-cpp').Path
 $env:PYTHONUTF8 = '1'
 & ./.local-build/tools/Scripts/python.exe tools/verify_dependencies.py --output .local-build/identity
