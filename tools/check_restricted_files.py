@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tarfile
 import zipfile
+from windows_pe import imported_dlls
 
 MAX_BYTES = 128 * 1024 * 1024
 MAX_MEMBERS = 10000
@@ -49,6 +50,13 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
     if suffix in NATIVE or ".so." in lower or any(p.endswith(".framework") for p in parts) or data.startswith((b"\x7fELF", b"MZ", b"!<arch>\n", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf")):
         if approved.get(name) != hashlib.sha256(data).hexdigest():
             problems.append(f"{name}: unapproved native binary")
+    if suffix == ".dll" and "libgd_cubism.windows." in lower:
+        try:
+            imports = {entry.lower() for entry in imported_dlls(data)}
+            if "live2dcubismcore.dll" not in imports:
+                problems.append(f"{name}: Windows addon embeds or omits external Cubism Core")
+        except ValueError:
+            problems.append(f"{name}: Windows addon has an invalid PE import table")
     if data.startswith(b"MOC3"):
         problems.append(f"{name}: Cubism MOC signature")
     if suffix in {".h", ".hpp"} and re.search(rb"CSM_API\s+[^;\n]*\bcsmGetVersion\s*\(", data):

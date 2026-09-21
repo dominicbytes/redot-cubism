@@ -13,7 +13,29 @@ directory. Read [dependencies](../../DEPENDENCIES.md) and [licensing](../licensi
 The recommended extracted SDK root is
 `.local-build/sdk/CubismSdkForNative-5-r.5`; it must contain
 `Core/include/Live2DCubismCore.h`, `Core/lib/windows/x86_64/143` and
-`Framework/src`. Do not point `CUBISM_SDK_ROOT` at the SDK ZIP.
+`Core/dll/windows/x86_64` and `Framework/src`. Do not point
+`CUBISM_SDK_ROOT` at the SDK ZIP.
+
+## Install a Windows external-Core package
+
+The external-Core package contains the compiled addon and installer source, but
+never Cubism Core, its import library, headers or SDK files. It needs Python 3.11+
+but does not need a compiler. After extracting the package and your separately
+obtained SDK 5-r.5, run from the package root:
+
+```powershell
+python install_windows_external_core.py `
+  --sdk-root 'C:/path/to/CubismSdkForNative-5-r.5' `
+  --addon-dir 'addons/gd_cubism'
+```
+
+The installer checks the Core DLL against the pinned SDK hash, verifies every
+present Windows addon DLL actually imports `Live2DCubismCore.dll`, copies that
+DLL beside the addon DLLs, and adds the Windows x86_64 export dependency to
+`gd_cubism.gdextension`. Re-run it after replacing the addon folder. Do not copy
+the installed Core into a public repository or another release ZIP.
+
+## Build the external-Core package binaries
 
 First [clone the Redot development branch](../quick-start.md#get-the-source).
 From PowerShell, run from that checkout and replace the editor path. If you
@@ -31,13 +53,17 @@ $env:CUBISM_SDK_ROOT = (Resolve-Path './.local-build/sdk/CubismSdkForNative-5-r.
 $env:REDOT_CPP_ROOT = (Resolve-Path './godot-cpp').Path
 $env:PYTHONUTF8 = '1'
 & ./.local-build/tools/Scripts/python.exe tools/verify_dependencies.py --output .local-build/identity
-& ./.local-build/tools/Scripts/python.exe -m SCons -j2 platform=windows arch=x86_64 target=template_debug precision=single use_static_cpp=yes debug_crt=no custom_api_file=.local-build/identity/extension_api.json build_profile=tools/native_build_profile.json
-& ./.local-build/tools/Scripts/python.exe -m SCons -j2 platform=windows arch=x86_64 target=template_release precision=single use_static_cpp=yes debug_crt=no custom_api_file=.local-build/identity/extension_api.json build_profile=tools/native_build_profile.json
+& ./.local-build/tools/Scripts/python.exe -m SCons -j2 platform=windows arch=x86_64 target=template_debug precision=single use_static_cpp=yes debug_crt=no custom_api_file=.local-build/identity/extension_api.json build_profile=tools/native_build_profile.json windows_core_link=dynamic
+& ./.local-build/tools/Scripts/python.exe -m SCons -j2 platform=windows arch=x86_64 target=template_release precision=single use_static_cpp=yes debug_crt=no custom_api_file=.local-build/identity/extension_api.json build_profile=tools/native_build_profile.json windows_core_link=dynamic
 ```
 
 Stop if dependency verification fails. Run the builds sequentially. The expected
 outputs are `libgd_cubism.windows.debug.x86_64.dll` and
 `libgd_cubism.windows.release.x86_64.dll` under `demo/addons/gd_cubism/bin`.
+The `windows_core_link=dynamic` option is mandatory for any public binary
+package. Omitting it retains the compatible local-source default and statically
+links Core; do not publish those outputs. Run the installer only in a private
+test copy: its copied `Live2DCubismCore.dll` must not enter the public package.
 The build creates a v143-selecting copy of redot-cpp's Windows tool under
 `CUBISM_BUILD_DIR/tools` (default `.local-build/native/tools`). Confirm the SCons
 output says `MSVC_VERSION = 14.3`; the pinned redot-cpp checkout stays clean.
