@@ -12,6 +12,26 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools"))
 from check_restricted_files import inspect_bytes
 
 
+def pe_with_import(name=b"Live2DCubismCore.dll"):
+    data = bytearray(0x600)
+    data[:2] = b"MZ"
+    data[0x3C:0x40] = (0x80).to_bytes(4, "little")
+    data[0x80:0x84] = b"PE\0\0"
+    data[0x84:0x98] = (0x8664).to_bytes(2, "little") + (1).to_bytes(2, "little") + bytes(12) + (240).to_bytes(2, "little") + bytes(2)
+    optional = 0x98
+    data[optional:optional + 2] = (0x20B).to_bytes(2, "little")
+    data[optional + 120:optional + 128] = (0x1100).to_bytes(4, "little") + (40).to_bytes(4, "little")
+    section = optional + 240
+    data[section:section + 8] = b".rdata\0\0"
+    data[section + 8:section + 24] = ((0x400).to_bytes(4, "little") +
+                                              (0x1000).to_bytes(4, "little") +
+                                              (0x400).to_bytes(4, "little") +
+                                              (0x200).to_bytes(4, "little"))
+    data[0x300:0x314] = bytes(12) + (0x1150).to_bytes(4, "little") + bytes(4)
+    data[0x350:0x350 + len(name) + 1] = name + b"\0"
+    return bytes(data)
+
+
 def zipped(name, data):
     stream = io.BytesIO()
     with zipfile.ZipFile(stream, "w") as archive:
@@ -69,6 +89,14 @@ class RestrictedFilesTest(unittest.TestCase):
         data = b"synthetic"
         name = "Live2DCubismCore.dll"
         self.assertTrue(inspect_bytes(name, data, {name: hashlib.sha256(data).hexdigest()}))
+
+    def test_approved_windows_addon_must_import_external_core(self):
+        name = "bundle.zip!addons/gd_cubism/bin/libgd_cubism.windows.release.x86_64.dll"
+        dynamic = pe_with_import()
+        static = pe_with_import(b"KERNEL32.dll")
+        self.assertFalse(inspect_bytes(name, dynamic, {name: hashlib.sha256(dynamic).hexdigest()}))
+        problems = inspect_bytes(name, static, {name: hashlib.sha256(static).hexdigest()})
+        self.assertTrue(any("external Cubism Core" in problem for problem in problems))
 
     def test_archive_and_nested_archive(self):
         for data in [zipped("model.moc3", b"synthetic"), zipped("inner.zip", zipped("model.moc3", b"synthetic"))]:

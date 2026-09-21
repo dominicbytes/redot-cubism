@@ -38,14 +38,16 @@ inside the checkout at this ignored path:
 
 `CUBISM_SDK_ROOT` must point to that extracted
 `CubismSdkForNative-5-r.5` directory, not to the downloaded ZIP or to a single
-Core file. The build compiles Framework and statically links the matching Core
-library into the native addon, so adding an SDK file to an already-built addon
-does not replace this step. You may extract the SDK elsewhere and set
-`CUBISM_SDK_ROOT` to that root instead.
+Core file. Ordinary source builds compile Framework and statically link the
+matching Core library. The Windows external-Core package is different: it
+already contains dynamically linked addon DLLs, and its installer copies the
+verified Core DLL from your SDK without compiling. You may extract the SDK
+elsewhere and set `CUBISM_SDK_ROOT` to that root instead.
 
-On Windows, first follow the [VS 2022 build guide](build/windows.md), then
-continue below at [Install and import](#install-and-import). On Linux, use the
-commands below. Both platforms use the same addon folder and model resources.
+On Windows, either [install the external-Core package](build/windows.md#install-a-windows-external-core-package)
+or follow the VS 2022 source-build steps in the same guide, then continue below
+at [Install and import](#install-and-import). On Linux, use the commands below.
+Both platforms use the same addon folder and model resources.
 
 ## Build the native addon on Linux
 
