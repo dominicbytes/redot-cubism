@@ -201,9 +201,6 @@ elif env["platform"] == "linux":
             )
         ]
     )
-    if linux_core_link == "dynamic":
-        # The user-supplied Core sidecar is installed beside the addon library.
-        env.Append(LINKFLAGS=["-Wl,-rpath,$$ORIGIN"])
     print("                       libs = {:s}".format(str(o_cubism_lib)))
     env.Append(LIBS=["Live2DCubismCore"])
 
