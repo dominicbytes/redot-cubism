@@ -50,6 +50,13 @@ if linux_core_link not in ("static", "dynamic"):
 if linux_core_link != "static" and ARGUMENTS.get("platform") != "linux":
     print("Redot Cubism build input error: linux_core_link=dynamic is supported on Linux only")
     Exit(1)
+windows_core_link = ARGUMENTS.get("windows_core_link", "static")
+if windows_core_link not in ("static", "dynamic"):
+    print("Redot Cubism build input error: windows_core_link supports static or dynamic")
+    Exit(1)
+if windows_core_link != "static" and ARGUMENTS.get("platform") != "windows":
+    print("Redot Cubism build input error: windows_core_link=dynamic is supported on Windows only")
+    Exit(1)
 try:
     sanitizer_compile_flags, sanitizer_link_flags = sanitizer_flags(sanitizer, env["platform"])
 except ValueError as exc:
@@ -95,6 +102,7 @@ build_info = {
     "compiler": env.subst("$CXX"),
     "sanitizer": sanitizer,
     "linux_core_link": linux_core_link,
+    "windows_core_link": windows_core_link,
     "framework_patches": {PATCH_ID: {"source_sha256": sha256(patched_string),
         "helper_sha256": sha256(root / "src/private/cubism_string_hash.hpp")}},
 }
@@ -130,7 +138,7 @@ if env["platform"] == "windows":
         )
     )
     try:
-        o_cubism_lib = windows_core_library(core, env)
+        o_cubism_lib = windows_core_library(core, env, windows_core_link)
     except ValueError as exc:
         print(f"Redot Cubism build input error: {exc}")
         Exit(1)

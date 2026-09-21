@@ -79,10 +79,14 @@ def core_library(path, core, pins):
     check_hash(path, pins["cubism_sdk"]["core_library_sha256"].get(relative), "Core library")
 
 
-def windows_core_library(core, env):
-    """Match the pinned VS 2022 SDK library to redot-cpp's actual CRT flags."""
+def windows_core_library(core, env, link="static"):
+    """Match the pinned VS 2022 SDK library to the requested Core linkage."""
     if not env.get("is_msvc") or str(env.get("MSVC_VERSION")) != "14.3" or env["arch"] != "x86_64":
         raise ValueError("The Windows baseline requires Visual Studio 2022 (MSVC_VERSION=14.3) and arch=x86_64")
+    if link == "dynamic":
+        return core / "dll/windows/x86_64/Live2DCubismCore.lib"
+    if link != "static":
+        raise ValueError("windows_core_link supports static or dynamic")
     # redot-cpp always uses /MDd for debug_crt, including use_static_cpp=yes.
     crt = "MDd" if env["debug_crt"] else ("MT" if env["use_static_cpp"] else "MD")
     return core / "lib/windows/x86_64/143" / f"Live2DCubismCore_{crt}.lib"

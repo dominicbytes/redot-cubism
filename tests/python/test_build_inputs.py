@@ -117,6 +117,19 @@ class BuildInputsTest(unittest.TestCase):
                 path = windows_core_library(self.core, dict(env, debug_crt=debug, use_static_cpp=static))
                 self.assertEqual(path.relative_to(self.core).as_posix(), f"lib/windows/x86_64/143/Live2DCubismCore_{suffix}.lib")
 
+    def test_windows_dynamic_library_uses_sdk_import_library(self):
+        env = {"is_msvc": True, "MSVC_VERSION": "14.3", "arch": "x86_64",
+               "debug_crt": False, "use_static_cpp": True}
+        path = windows_core_library(self.core, env, "dynamic")
+        self.assertEqual(path.relative_to(self.core).as_posix(),
+                         "dll/windows/x86_64/Live2DCubismCore.lib")
+
+    def test_windows_link_mode_rejected(self):
+        env = {"is_msvc": True, "MSVC_VERSION": "14.3", "arch": "x86_64",
+               "debug_crt": False, "use_static_cpp": True}
+        with self.assertRaisesRegex(ValueError, "static or dynamic"):
+            windows_core_library(self.core, env, "embedded")
+
     def test_windows_unqualified_toolchains_rejected(self):
         env = {"is_msvc": True, "MSVC_VERSION": "14.3", "arch": "x86_64", "debug_crt": False, "use_static_cpp": True}
         for key, value in (("is_msvc", False), ("MSVC_VERSION", "14.2"), ("MSVC_VERSION", None), ("arch", "arm64")):
