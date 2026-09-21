@@ -8,8 +8,9 @@ The integration PRs target this Redot repository, not the original Godot
 project. See the [quick start](../quick-start.md) and
 [current status](../current-status.md) for installation and known limits.
 Source publication does not include SDK/Core binaries, model assets or a
-qualified binary release. Earlier branch and draft-PR states below are
-historical checkpoints.
+qualified binary release. Users must obtain Cubism Native SDK 5-r.5 separately
+and build locally as described in the [quick start](../quick-start.md#provide-the-cubism-sdk).
+Earlier branch and draft-PR states below are historical checkpoints.
 
 ## Development checkpoint before integration on 2026-09-18
 
