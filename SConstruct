@@ -201,6 +201,9 @@ elif env["platform"] == "linux":
             )
         ]
     )
+    if linux_core_link == "dynamic":
+        # The extension is not reloadable; keep C++ runtime state mapped through exit.
+        env.Append(LINKFLAGS=["-Wl,-z,nodelete"])
     print("                       libs = {:s}".format(str(o_cubism_lib)))
     env.Append(LIBS=["Live2DCubismCore"])
 
