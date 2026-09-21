@@ -21,14 +21,19 @@ The [C# regression probes](../tests/csharp/README.md) exercise motion loops,
 one-shot completion, expression changes, Unicode motion events and unsubscribe,
 look-target movement, hit-area detection/signals and parameter access. They
 also exercise native breath/blink effects through the base C# effect wrapper.
-Both probes passed in the Windows Mono source project and saved debug/release
-apps, with no engine errors or warnings in the six final runs.
+Both probes passed in the Windows and Linux Mono source projects and saved
+debug/release apps. Each platform's six runtime runs exited 0 with the required
+pass markers and no runtime engine errors or warnings. The Linux editor import
+and exports completed with sandbox IDE socket permission diagnostics; those
+editor sessions are not claimed error-free.
 
 The checks reproduced and repaired two wrapper binding defects: the hit-area
 `Monitoring` getter called the setter, and `EyesAngleX/Y` called nonexistent
-native methods. Public C# property names remain unchanged. These results do
-not establish a Linux rerun, complete typed-wrapper coverage or resolution of
-the earlier audio-probe shutdown warning. No native library code changed.
+native methods. Public C# property names remain unchanged. The Linux rerun
+used source `cc108fc936f3bcf6b56ba639c44c064e78824cdf` and reused matching
+native binaries because native source was unchanged. These results do not
+establish complete typed-wrapper coverage or resolve the earlier audio-probe
+shutdown warning. No native library code changed.
 
 ## Tested checkpoint before integration on 2026-09-18
 
