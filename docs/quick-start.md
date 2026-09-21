@@ -6,6 +6,21 @@ x86_64 have scoped runtime evidence; see [current status](current-status.md).
 Other architectures,
 Godot binaries and later SDK versions are not covered by these instructions.
 
+## Install a preview ZIP
+
+**PREVIEW:** Windows and Linux x86_64 packages are being prepared on the
+[preview release page](https://github.com/dominicbytes/redot-cubism/releases/tag/redot-26.2-preview-2026-09-20).
+After publication, download the ZIP for your platform and extract it into your
+Redot project root. It installs `addons/gd_cubism` with debug and release native
+libraries. The Linux package requires glibc 2.43 or newer; no older Linux
+compatibility is implied. Use Redot 26.2 single precision with **GL
+Compatibility**.
+
+The packages do not include models, the Redot editor or SDK source. Their native
+libraries statically link Cubism Core, whose separate terms and included notices
+remain applicable. Supply your own licensed model. To build the addon yourself,
+continue with the source instructions below.
+
 ## Get the source
 
 Clone the combined Windows and Linux Redot port from `main`:

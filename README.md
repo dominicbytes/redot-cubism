@@ -11,9 +11,12 @@ cues. The legacy GDCubism API is retained.
 
 ## Get started
 
-Build the addon for your platform, copy `demo/addons/gd_cubism` into your
-project's `addons` folder, and use **Project → Tools → Import Cubism Model**.
-Use the **GL Compatibility** renderer.
+**PREVIEW:** Prebuilt ZIPs for Redot 26.2 single precision and the
+**GL Compatibility** renderer are being prepared on the
+[preview release page](https://github.com/dominicbytes/redot-cubism/releases/tag/redot-26.2-preview-2026-09-20).
+After publication, download the Windows x86_64 ZIP or the Linux x86_64 ZIP,
+which requires glibc 2.43 or newer, and extract it into your project root.
+You can also build the addon from source using the guides below.
 
 - [Setup and first character](docs/quick-start.md)
 - [Windows build](docs/build/windows.md) · [Linux build](docs/build/linux.md)
@@ -37,5 +40,6 @@ Other renderers and platforms are not qualified by these checks.
 
 The plugin is open source under the [MIT license](LICENSE.en.adoc). Cubism SDK,
 Core and model assets have separate terms; see [licensing](docs/licensing.md).
-Obtain those dependencies separately. This repository contains source, not a
-prebuilt binary release or bundled model assets.
+This source repository does not contain SDK/Core binaries or model assets.
+The preview ZIPs contain native libraries that statically link Cubism Core;
+their included third-party notices and separate terms remain applicable.
