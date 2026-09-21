@@ -29,6 +29,7 @@
     "core_version": "6.0.1",
     "core_library_sha256": {
       "lib/linux/x86_64/libLive2DCubismCore.a": "56f20259bd6b552eacce75fbfb623e2678565287c8ccf1f6700678ecf0b044e0",
+      "dll/linux/x86_64/libLive2DCubismCore.so": "f741b043ae01a2821824412e3aa498b96564904fbf38cb40a9036f8372f3d77f",
       "lib/windows/x86_64/143/Live2DCubismCore_MD.lib": "f8f63bbda72106cae2aab735e54ff2a2d76cbdb0adc1123c4764d9109f11c46d",
       "lib/windows/x86_64/143/Live2DCubismCore_MDd.lib": "cdb38c1b52bfb49695f9e78a41ac33467e32faf808039f50b799acd10b7ae412",
       "lib/windows/x86_64/143/Live2DCubismCore_MT.lib": "177c0c58b5d8ee5992d578d9ac19decad04e2fb87a0a5a4ad4bcb6d601e52d56",
