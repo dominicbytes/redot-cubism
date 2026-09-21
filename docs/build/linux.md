@@ -4,6 +4,10 @@ Use Redot 26.2 single precision, the pinned Redot bindings and Cubism Native SDK
 5-r.5. The SDK is obtained separately after accepting its agreements. Linux
 debug/release builds and real model/export tests have passed; a final release
 still requires the full qualification gates in [desktop testing](../desktop-testing.md).
+The recommended extracted SDK root is
+`.local-build/sdk/CubismSdkForNative-5-r.5`; it must contain
+`Core/include/Live2DCubismCore.h`, `Core/lib/linux/x86_64/libLive2DCubismCore.a`
+and `Framework/src`. Set `CUBISM_SDK_ROOT` to that directory, not the SDK ZIP.
 
 A fresh build at `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` used
 GCC/G++ 12.2.0, GNU ld 2.40, Python 3.14.7 and SCons 4.11.1. Both variants

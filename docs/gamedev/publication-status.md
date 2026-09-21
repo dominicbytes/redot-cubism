@@ -7,15 +7,9 @@ The combined Windows and Linux port is on `main` in
 The integration PRs target this Redot repository, not the original Godot
 project. See the [quick start](../quick-start.md) and
 [current status](../current-status.md) for installation and known limits.
-The source repository does not include SDK/Core binaries or model assets.
-
-A **PREVIEW** binary release for Redot 26.2 single precision and GL Compatibility
-is being prepared on the
-[preview release page](https://github.com/dominicbytes/redot-cubism/releases/tag/redot-26.2-preview-2026-09-20).
-The planned ZIPs target Windows x86_64 and Linux x86_64; Linux requires glibc
-2.43 or newer. They contain native libraries that statically link Cubism Core,
-with its separate terms and notices. This preview does not broaden the tested
-platform or renderer scope or constitute complete release qualification.
+Source publication does not include SDK/Core binaries, model assets or a
+qualified binary release. Users must obtain Cubism Native SDK 5-r.5 separately
+and build locally as described in the [quick start](../quick-start.md#provide-the-cubism-sdk).
 Earlier branch and draft-PR states below are historical checkpoints.
 
 ## Development checkpoint before integration on 2026-09-18

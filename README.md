@@ -11,12 +11,11 @@ cues. The legacy GDCubism API is retained.
 
 ## Get started
 
-**PREVIEW:** Prebuilt ZIPs for Redot 26.2 single precision and the
-**GL Compatibility** renderer are being prepared on the
-[preview release page](https://github.com/dominicbytes/redot-cubism/releases/tag/redot-26.2-preview-2026-09-20).
-After publication, download the Windows x86_64 ZIP or the Linux x86_64 ZIP,
-which requires glibc 2.43 or newer, and extract it into your project root.
-You can also build the addon from source using the guides below.
+Build the addon locally for Redot 26.2 single precision and the **GL
+Compatibility** renderer. Obtain Cubism Native SDK 5-r.5 separately, extract it
+under `.local-build/sdk/CubismSdkForNative-5-r.5`, and follow the setup guide.
+The SDK archive itself cannot be copied into an already-built addon because the
+native build statically links Cubism Core.
 
 - [Setup and first character](docs/quick-start.md)
 - [Windows build](docs/build/windows.md) · [Linux build](docs/build/linux.md)
@@ -40,6 +39,5 @@ Other renderers and platforms are not qualified by these checks.
 
 The plugin is open source under the [MIT license](LICENSE.en.adoc). Cubism SDK,
 Core and model assets have separate terms; see [licensing](docs/licensing.md).
-This source repository does not contain SDK/Core binaries or model assets.
-The preview ZIPs contain native libraries that statically link Cubism Core;
-their included third-party notices and separate terms remain applicable.
+Obtain those dependencies separately. This repository contains source, not a
+prebuilt binary release or bundled SDK/Core binaries or model assets.

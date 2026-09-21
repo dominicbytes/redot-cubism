@@ -6,21 +6,6 @@ x86_64 have scoped runtime evidence; see [current status](current-status.md).
 Other architectures,
 Godot binaries and later SDK versions are not covered by these instructions.
 
-## Install a preview ZIP
-
-**PREVIEW:** Windows and Linux x86_64 packages are being prepared on the
-[preview release page](https://github.com/dominicbytes/redot-cubism/releases/tag/redot-26.2-preview-2026-09-20).
-After publication, download the ZIP for your platform and extract it into your
-Redot project root. It installs `addons/gd_cubism` with debug and release native
-libraries. The Linux package requires glibc 2.43 or newer; no older Linux
-compatibility is implied. Use Redot 26.2 single precision with **GL
-Compatibility**.
-
-The packages do not include models, the Redot editor or SDK source. Their native
-libraries statically link Cubism Core, whose separate terms and included notices
-remain applicable. Supply your own licensed model. To build the addon yourself,
-continue with the source instructions below.
-
 ## Get the source
 
 Clone the combined Windows and Linux Redot port from `main`:
@@ -37,6 +22,27 @@ and the [Windows validation snapshot](windows-validation-2026-09-18.md),
 including the managed-export shutdown warning. Obtain the SDK separately as
 described below.
 
+## Provide the Cubism SDK
+
+Download Cubism Native SDK **5-r.5** from the
+[official Native SDK page](https://www.live2d.com/en/sdk/download/native/), using
+**Download Older Versions** when 5-r.5 is not the current download. Extract it
+inside the checkout at this ignored path:
+
+```text
+.local-build/sdk/CubismSdkForNative-5-r.5/
+├── Core/include/Live2DCubismCore.h
+├── Core/lib/
+└── Framework/src/
+```
+
+`CUBISM_SDK_ROOT` must point to that extracted
+`CubismSdkForNative-5-r.5` directory, not to the downloaded ZIP or to a single
+Core file. The build compiles Framework and statically links the matching Core
+library into the native addon, so adding an SDK file to an already-built addon
+does not replace this step. You may extract the SDK elsewhere and set
+`CUBISM_SDK_ROOT` to that root instead.
+
 On Windows, first follow the [VS 2022 build guide](build/windows.md), then
 continue below at [Install and import](#install-and-import). On Linux, use the
 commands below. Both platforms use the same addon folder and model resources.
@@ -46,14 +52,14 @@ commands below. Both platforms use the same addon folder and model resources.
 You need Git, a C++17 toolchain, Python 3.11+ with `venv`/`pip`, and the separately
 obtained Cubism Native SDK **5-r.5**. Read [dependencies](../DEPENDENCIES.md) and
 [licensing](licensing.md). Run these commands from the port checkout; replace the
-two `/absolute/path/...` values with your installed editor and extracted SDK:
+`REDOT_BIN` path with your installed editor:
 
 ```sh
 git submodule update --init godot-cpp
 python3 -m venv .local-build/tools
 .local-build/tools/bin/python -m pip install scons==4.11.1
 export REDOT_BIN=/absolute/path/to/redot
-export CUBISM_SDK_ROOT=/absolute/path/to/CubismSdkForNative-5-r.5
+export CUBISM_SDK_ROOT="$PWD/.local-build/sdk/CubismSdkForNative-5-r.5"
 export REDOT_CPP_ROOT="$PWD/godot-cpp"
 .local-build/tools/bin/python tools/verify_dependencies.py --output .local-build/identity
 .local-build/tools/bin/python -m SCons -j2 platform=linux arch=x86_64 \
