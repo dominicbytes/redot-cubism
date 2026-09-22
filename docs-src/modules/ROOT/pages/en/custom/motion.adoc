@@ -17,9 +17,6 @@ ifndef::env-github,env-vscode[]
 endif::env-github,env-vscode[]
 
 
-xref:ja/custom/animation.adoc[Japanese] / xref:en/custom/animation.adoc[English]
-
-
 [NOTE]
 ====
 This document is currently under development.
