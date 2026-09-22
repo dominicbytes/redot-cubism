@@ -12,7 +12,7 @@ cues. The legacy GDCubism API is retained.
 
 == Get started
 
-Build the addon locally for Redot 26.2 single precision and the *GL
+Build the addon locally for Redot 26.2  and the *GL
 Compatibility* renderer. Obtain Cubism Native SDK 5-r.5 separately, extract it
 under `.local-build/sdk/CubismSdkForNative-5-r.5`, and follow the setup guide.
 Source builds link Core statically by default. A Windows external-Core package
@@ -34,13 +34,6 @@ Each user must obtain the official SDK separately and run the included installer
 Windows and Linux debug/release builds and scoped runtime checks have passed.
 The tested dependency set is Redot 26.2 single precision and Cubism Native SDK
 5-r.5; exact versions and hashes are in link:DEPENDENCIES.md[dependencies].
-
-A Windows C# test reported an intermittent shutdown warning. A focused check
-exited cleanly after pending audio playback cleanup; the earlier warnings are
-not conclusively attributed; warning-free managed shutdown remains unqualified.
-See link:docs/current-status.md[tested scope and limitations] and
-link:docs/gamedev/publication-status.md[publication status].
-Other renderers and platforms are not qualified by these checks.
 
 == License and dependencies
 
