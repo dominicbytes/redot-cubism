@@ -18,7 +18,7 @@ endif::env-github,env-vscode[]
 
 
 ifdef::env-github,env-vscode[]
-link:LICENSE.adoc[Japanese] / link:LICENSE.en.adoc[English]
+xref:en/license.adoc[License]
 endif::env-github,env-vscode[]
 
 
@@ -39,8 +39,6 @@ Therefore, you, as a user, must observe the following in the process of building
 Live2D Cubism Components is available under Live2D Open Software License.
 
 * link:https://www.live2d.com/eula/live2d-open-software-license-agreement_en.html[Live2D Open Software License Agreement]
-* link:https://www.live2d.com/eula/live2d-open-software-license-agreement_jp.html[Live2D Open Software 使用許諾契約書]
-* link:https://www.live2d.com/eula/live2d-open-software-license-agreement_cn.html[Live2D Open Software 使用授权协议]
 
 When publishing applications created with GDCubism, the following agreements must be observed.
 
@@ -50,8 +48,6 @@ Live2D Cubism Core is available under Live2D Proprietary Software License.
 
 
 * link:https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_en.html[Live2D Proprietary Software License Agreement]
-* link:https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_jp.html[Live2D Proprietary Software 使用許諾契約書]
-* link:https://www.live2d.com/eula/live2d-proprietary-software-license-agreement_cn.html[Live2D Proprietary Software 使用授权协议]
 
 
 [IMPORTANT]

@@ -17,9 +17,6 @@ ifndef::env-github,env-vscode[]
 endif::env-github,env-vscode[]
 
 
-xref:ja/usage.adoc[Japanese] / xref:en/usage.adoc[English]
-
-
 == How to use
 
 If you want to get started right away, please open _project.godot_ located in the _demo_ folder from the Godot Engine editor. (Instructions on how to run the demo are provided below in this document)
@@ -116,7 +113,7 @@ To ensure proper packaging, navigate to the Resources section in the Export scre
 
 For detailed instructions, refer to the Resource options section in the official documentation on Exporting projects:
 
-https://docs.godotengine.org/ja/4.x/tutorials/export/exporting_projects.html#resource-options
+https://docs.godotengine.org/en/4.x/tutorials/export/exporting_projects.html#resource-options
 
 
 == About the Demo

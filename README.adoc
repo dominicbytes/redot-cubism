@@ -1,130 +1,51 @@
-= Cubism for GDScript
-:encoding: utf-8
-:lang: ja
-:author: MizunagiKB <mizukb@live.jp>
-:copyright: 2023 MizunagiKB
-:doctype: book
-:nofooter:
-:toc: left
-:toclevels: 3
-:source-highlighter: highlight.js
-:icons: font
-:experimental:
-:stylesdir: ./docs/res/theme/css
-:stylesheet: mizunagi-works.css
-ifdef::env-github,env-vscode[]
-:adocsuffix: .adoc
-endif::env-github,env-vscode[]
-ifndef::env-github,env-vscode[]
-:adocsuffix: .html
-endif::env-github,env-vscode[]
+= Cubism for Redot
+:lang: en
 
+An unofficial, open-source Live2D Cubism plugin for *Redot Engine LTS 26.2*, with shared
+source for *Windows and Linux x86_64*. Based on
+link:https://github.com/MizunagiKB/gd_cubism[GDCubism], with its original credits
+and license preserved. This is an independent Redot port.
 
-ifdef::env-github,env-vscode[]
-link:README.adoc[Japanese] / link:README.en.adoc[English]
-endif::env-github,env-vscode[]
+Load Cubism models with `CubismModel2D` and `CubismModelResource`, play motions
+and expressions, and use `CubismCharacterController` for character and audio
+cues. The legacy GDCubism API is retained.
 
+== Get started
 
-NOTE: This is preserved upstream GDCubism documentation. For the Redot 26.2 port, use link:docs/README.md[the current guides].
+Build the addon locally for Redot 26.2 single precision and the *GL
+Compatibility* renderer. Obtain Cubism Native SDK 5-r.5 separately, extract it
+under `.local-build/sdk/CubismSdkForNative-5-r.5`, and follow the setup guide.
+Source builds link Core statically by default. A Windows external-Core package
+instead lets each user install the verified DLL from their own SDK copy without
+a compiler; see the Windows guide. The package and repository do not contain
+Cubism Core.
 
-== About GDCubism
+External-Core previews: link:https://github.com/dominicbytes/redot-cubism/releases/tag/redot-26.2-linux-sdk-external-preview-2026-09-20[Linux] ·
+link:https://github.com/dominicbytes/redot-cubism/releases/tag/redot-26.2-windows-sdk-external-preview-2026-09-21[Windows].
+Each user must obtain the official SDK separately and run the included installer.
 
-このソフトウェア（以下GDCubism）は link:https://www.live2d.com/download/cubism-sdk/[Live2D Cubism SDK]を GDScript や C# から利用可能にするための**非公式**な GDExtension です。
+* link:docs/quick-start.md[Setup and first character]
+* link:docs/build/windows.md[Windows build] · link:docs/build/linux.md[Linux build]
+* link:docs/api-reference.md[API reference] · link:demo/addons/gd_cubism/examples/character_workflows/README.md[Examples]
+* link:docs/troubleshooting.md[Troubleshooting] · link:docs/README.md[Documentation]
 
-[NOTE]
-====
-この GDExtension は Godot Engine 4.3 以上で使用可能です。（4.1, 4.2 で使用したい場合は link:https://github.com/MizunagiKB/gd_cubism/releases/tag/v0.8.2-godot4.1[v0.8.2-godot4.1] を使用してください）
-====
+== Compatibility and status
 
-[IMPORTANT]
-====
-0.9から描画方法が直接描画に変わり、 Godot Engine の処理負荷と GPU メモリの消費を大幅に抑える事に成功しました。
+Windows and Linux debug/release builds and scoped runtime checks have passed.
+The tested dependency set is Redot 26.2 single precision and Cubism Native SDK
+5-r.5; exact versions and hashes are in link:DEPENDENCIES.md[dependencies].
 
-一方でいくつか変更が生じています。最も大きな変更点は _GDCubismUserModel_ が _SubViewport_ ではなくなった点です。
+A Windows C# test reported an intermittent shutdown warning. A focused check
+exited cleanly after pending audio playback cleanup; the earlier warnings are
+not conclusively attributed; warning-free managed shutdown remains unqualified.
+See link:docs/current-status.md[tested scope and limitations] and
+link:docs/gamedev/publication-status.md[publication status].
+Other renderers and platforms are not qualified by these checks.
 
-以前と同じ様に扱いたい場合は、 _SubViewport_ の下に _GDCubismUserModel_ を配置してご利用ください。（この変更に関するデモとして demo_fade.tscn が追加されています）
-====
+== License and dependencies
 
-GDCubism 内部ではLive2D社が公開している link:https://github.com/Live2D/CubismNativeFramework[Cubism Native Framework] を併用しています。
-
-GDCubism については開発元のLive2D社に問い合わせない様お願い致します。
-
-
-== 対応プラットフォーム
-
-[cols="2",frame=none,grid=none]
-|===
->|Windows
-a|
-* x86_32
-* x86_64
-
->|macOS
-a|
-* x86_64
-* arm64
-* universal
-
->|Linux
-a|
-* x86_64
-
->|iOS
-a|
-* arm64 (experimental)
-* universal (experimental)
-
->|Android
-a|
-* armv7 (experimental)
-* arm64v8 (experimental)
-|===
-
-
-== ライセンス
-
-[NOTE]
-====
-GDCubism は依存する外部ライブラリとリンクすることで、異なる利用条件のライセンスになります。 +
-GDCubism を組み込んでの配布や販売を考えている場合は以下のページに記載されているライセンスを確認してください。
-====
-
-ifdef::env-github,env-vscode[]
-* link:https://mizunagikb.github.io/gd_cubism/gd_cubism/0.6/ja/license.html[License]
-
-
-== ビルド方法
-
-* link:https://mizunagikb.github.io/gd_cubism/gd_cubism/0.6/ja/build.html[Build]
-
-
-== 使用方法
-
-* link:https://mizunagikb.github.io/gd_cubism/gd_cubism/0.6/ja/usage.html[Usage]
-endif::env-github,env-vscode[]
-
-ifndef::env-github,env-vscode[]
-* link:./docs-src/modules/ROOT/pages/ja/license.adoc[License]
-
-
-== ビルド方法
-
-* link:./docs-src/modules/ROOT/pages/ja/build.adoc[Build]
-
-
-== 使用方法
-
-* link:./docs-src/modules/ROOT/pages/ja/usage.adoc[Usage]
-endif::env-github,env-vscode[]
-
-
-== 関連情報
-
-* Live2D
-** link:https://www.live2d.com/[Live2D Cubism]
-** link:https://www.live2d.com/download/cubism-sdk/[Live2D Cubism SDK]
-** link:https://github.com/Live2D[Live2D (GitHub)]
-** link:https://github.com/Live2D/CubismNativeFramework[CubismNativeFramework (GitHub)]
-* MizunagiKB
-** link:https://github.com/MizunagiKB/gd_cubism[MizunagiKB / gd_cubism (GitHub)]
-
+The plugin is open source under the link:LICENSE.en.adoc[MIT license]. Cubism SDK,
+Core and model assets have separate terms; see link:docs/licensing.md[licensing].
+Obtain those dependencies separately. External-Core preview packages contain
+the addon binaries and installer source, but no SDK/Core binaries, headers,
+import libraries or model assets.
