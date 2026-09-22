@@ -20,18 +20,15 @@ ifndef::env-github,env-vscode[]
 endif::env-github,env-vscode[]
 
 
-link:DEBUG{adocsuffix}[Japanese] / English
+== Debugging
 
+Use Visual Studio Code to debug GDCubism:
 
-== デバッグ方法
-
-GDCubism のデバッグを行うには VisualStudio Code を使用して以下の方法で行えます。
-
-. SCons のビルド時に `debug_symbols=true optimize=none` を追加します。
-. launch.json に以下を追加します。
-. Godot で demo プロジェクトを開き Export を行います。
-.. 作業がしやすい様に、 demo.export というフォルダが事前に用意されています。
-. デバッグ実行を行います。
+. Add `debug_symbols=true optimize=none` to the SCons build command.
+. Add the appropriate configuration below to `launch.json`.
+. Open the `demo` project in Godot Engine and export it.
+.. The repository includes a `demo.export` directory for this purpose.
+. Start the debugger.
 
 
 === Windows
@@ -70,4 +67,3 @@ GDCubism のデバッグを行うには VisualStudio Code を使用して以下�
     "cwd": "${workspaceRoot}/demo.export",
 }
 ----
-

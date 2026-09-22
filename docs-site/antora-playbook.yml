@@ -1,7 +1,7 @@
 site:
   title: GDCubism upstream archive
   url: https://mizunagikb.github.io/gd_cubism/
-  start_page: gd_cubism::ja/index.adoc
+  start_page: gd_cubism::en/index.adoc
 content:
   sources:
     - url: https://github.com/MizunagiKB/gd_cubism.git
@@ -16,4 +16,4 @@ output:
 antora:
   extensions:
     - require: "@antora/lunr-extension"
-      languages: [ja, en]
+      languages: [en]
