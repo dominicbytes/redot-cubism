@@ -1,6 +1,6 @@
 name: gd_cubism
 version: "0.9"
 title: GDCubism upstream archive
-start_page: ja/index.adoc
+start_page: en/index.adoc
 nav:
 - modules/ROOT/nav.adoc

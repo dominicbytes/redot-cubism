@@ -21,7 +21,7 @@ endif::env-github,env-vscode[]
 
 
 ifdef::env-github,env-vscode[]
-link:README.adoc[Japanese] / link:README.en.adoc[English]
+link:README.md[Cubism for Redot]
 endif::env-github,env-vscode[]
 
 
@@ -93,12 +93,12 @@ ifdef::env-github,env-vscode[]
 * link:https://mizunagikb.github.io/gd_cubism/gd_cubism/0.6/en/license.html[License]
 
 
-== ビルド方法
+== How to build
 
 * link:https://mizunagikb.github.io/gd_cubism/gd_cubism/0.6/en/build.html[Build]
 
 
-== 使用方法
+== Usage
 
 * link:https://mizunagikb.github.io/gd_cubism/gd_cubism/0.6/en/usage.html[Usage]
 endif::env-github,env-vscode[]

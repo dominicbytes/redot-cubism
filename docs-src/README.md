@@ -1,6 +1,6 @@
 # Upstream GDCubism documentation archive
 
-This directory preserves the original GDCubism 0.9 documentation and examples.
+This directory preserves an English-language archive of the GDCubism 0.9 documentation and examples. Legacy Japanese documentation paths contain short forwarding pages to their English equivalents.
 For the Redot 26.2 port, start with the [current guides](../docs/README.md).
 
 The archived build commands, SDK versions and platform claims describe upstream
