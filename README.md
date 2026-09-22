@@ -34,13 +34,6 @@ Windows and Linux debug/release builds and scoped runtime checks have passed.
 The tested dependency set is Redot 26.2 single precision and Cubism Native SDK
 5-r.5; exact versions and hashes are in [dependencies](DEPENDENCIES.md).
 
-A Windows C# test reported an intermittent shutdown warning. A focused check
-exited cleanly after pending audio playback cleanup; the earlier warnings are
-not conclusively attributed; warning-free managed shutdown remains unqualified.
-See [tested scope and limitations](docs/current-status.md) and
-[publication status](docs/gamedev/publication-status.md).
-Other renderers and platforms are not qualified by these checks.
-
 ## License and dependencies
 
 The plugin is open source under the [MIT license](LICENSE.en.adoc). Cubism SDK,
