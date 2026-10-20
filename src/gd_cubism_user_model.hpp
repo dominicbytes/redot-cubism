@@ -185,6 +185,7 @@ private:
     bool native_busy = false;
     bool disposing = false;
     bool destroying = false;
+    std::vector<uint64_t> detached_children;
     bool pending_load = false;
     bool pending_unload = false;
     GDCubismMotionQueueEntryHandle::FinishReason pending_clear_reason = GDCubismMotionQueueEntryHandle::UNLOADED;

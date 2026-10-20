@@ -47,15 +47,25 @@ void CubismCharacterController::_bind_methods() {
 }
 
 CubismCharacterController::CubismCharacterController() {
-    voice = memnew(AudioStreamPlayer);
+    auto *voice = memnew(AudioStreamPlayer);
+    voice_id = voice->get_instance_id();
     voice->set_name("Voice");
     add_child(voice, false, Node::INTERNAL_MODE_BACK);
     voice->connect("finished", callable_mp(this, &CubismCharacterController::audio_finished));
-    lip = memnew(CubismLipSync);
+    auto *lip = memnew(CubismLipSync);
+    lip_id = lip->get_instance_id();
     lip->set_name("LipSync");
     lip->set_enabled(false);
     add_child(lip, false, Node::INTERNAL_MODE_BACK);
     set_process_internal(true);
+}
+
+AudioStreamPlayer *CubismCharacterController::get_voice() const {
+    return Object::cast_to<AudioStreamPlayer>(ObjectDB::get_instance(voice_id));
+}
+
+CubismLipSync *CubismCharacterController::get_lip() const {
+    return Object::cast_to<CubismLipSync>(ObjectDB::get_instance(lip_id));
 }
 
 CubismModel2D *CubismCharacterController::get_target_model() const {
@@ -101,6 +111,8 @@ Error CubismCharacterController::set_cue_offset_seconds(double value) {
 
 void CubismCharacterController::set_paused(bool value) {
     paused = value;
+    auto *voice = get_voice();
+    if (speech.is_valid() && (!voice || !get_lip())) { terminate(CubismSpeechHandle::FAILED, ERR_UNCONFIGURED); return; }
     if (speech.is_valid() && has_audio && !manual_audio_clock) {
         auto *target = get_target_model();
         voice->set_stream_paused(paused || !can_process() || (target && (target->get_paused() || !target->can_process())));
@@ -118,11 +130,15 @@ void CubismCharacterController::_notification(int what) {
 }
 
 void CubismCharacterController::cleanup() {
-    voice->stop();
-    voice->set_stream(Ref<AudioStream>());
-    voice->set_volume_db(0);
-    lip->set_enabled(false);
-    lip->set_target_model(nullptr);
+    if (auto *voice = get_voice()) {
+        voice->stop();
+        voice->set_stream(Ref<AudioStream>());
+        voice->set_volume_db(0);
+    }
+    if (auto *lip = get_lip()) {
+        lip->set_enabled(false);
+        lip->set_target_model(nullptr);
+    }
     if (auto *target = get_target_model()) target->release_controller_clock(get_instance_id());
     speech.unref();
     idle.unref();
@@ -175,6 +191,7 @@ Ref<CubismSpeechHandle> CubismCharacterController::begin(const Ref<AudioStream> 
     Ref<CubismSpeechHandle> result; result.instantiate();
     auto reject = [&](Error error) { result->error = error; return result; };
     if (busy) return reject(ERR_BUSY);
+    if (!get_voice() || !get_lip()) return reject(ERR_UNCONFIGURED);
     auto *target = get_target_model();
     if (!is_inside_tree() || !target || !target->is_inside_tree() || !target->is_ready()) return reject(ERR_UNCONFIGURED);
     if (target->is_queued_for_deletion() || !target->is_visible_in_tree() || transition == HIDING) return reject(ERR_UNAVAILABLE);
@@ -194,7 +211,7 @@ Ref<CubismSpeechHandle> CubismCharacterController::begin(const Ref<AudioStream> 
     Error error = target->claim_controller_clock(get_instance_id());
     if (error != OK) return reject(error);
     if (profile.is_valid() && stream.is_valid()) {
-        error = lip->set_target_model(target);
+        error = get_lip()->set_target_model(target);
         if (error != OK) { target->release_controller_clock(get_instance_id()); return reject(error); }
     }
     speech = result;
@@ -214,6 +231,9 @@ Ref<CubismSpeechHandle> CubismCharacterController::begin(const Ref<AudioStream> 
     if (error == OK && preroll > 0) error = advance_model_to(preroll);
     busy = false;
     if (error != OK) { terminate(CubismSpeechHandle::FAILED, error); return result; }
+    auto *voice = get_voice();
+    auto *lip = get_lip();
+    if (!voice || !lip || speech.is_null()) { terminate(CubismSpeechHandle::FAILED, ERR_UNCONFIGURED); return result; }
     lip->set_profile(profile);
     lip->set_input_mode(CubismLipSync::AUDIO_BUS_PEAK);
     lip->set_audio_bus(voice_bus);
@@ -250,6 +270,8 @@ Error CubismCharacterController::advance_model_to(double position) {
         if (!motion_started) next = std::min(next, start_at);
         if (!target->advance_controller_clock(get_instance_id(), next - model_time)) return ERR_UNAVAILABLE;
         model_time = next;
+        target = get_target_model();
+        if (!target) return ERR_UNAVAILABLE;
         if ((speech.is_null() && idle.is_null()) || !is_inside_tree() || is_queued_for_deletion() || target->is_queued_for_deletion() || target->get_runtime_generation() != generation) return ERR_UNAVAILABLE;
     }
     return OK;
@@ -401,6 +423,9 @@ void CubismCharacterController::tick(double delta) {
     if (!target->is_ready() || !target->is_inside_tree() || target->get_runtime_generation() != generation) { terminate(CubismSpeechHandle::UNLOADED); return; }
     if (!target->is_visible_in_tree()) { terminate(CubismSpeechHandle::HIDDEN); return; }
     set_paused(paused);
+    auto *voice = get_voice();
+    auto *lip = get_lip();
+    if (!voice || !lip) { terminate(CubismSpeechHandle::FAILED, ERR_UNCONFIGURED); return; }
     if (paused || target->get_paused() || !target->can_process()) return;
     if (target->get_speed_scale() != 1.0) { terminate(CubismSpeechHandle::FAILED, ERR_UNAVAILABLE); return; }
     if (idle.is_valid()) {
@@ -463,6 +488,7 @@ void CubismCharacterController::tick(double delta) {
     const Error error = advance_model_to(destination);
     busy = false;
     if (error != OK) { terminate(CubismSpeechHandle::FAILED, error); return; }
+    if (speech.is_null()) return;
     speech->elapsed_seconds = std::max(0.0, model_time - preroll);
     sync_error = has_audio && !audio_done ? model_time - preroll - audio_position : 0;
     if (audio_done && motion_started && (motion.is_null() || motion->is_finished())) terminate(CubismSpeechHandle::COMPLETED);

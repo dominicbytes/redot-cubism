@@ -64,6 +64,11 @@ GDCubismUserModel::GDCubismUserModel()
 GDCubismUserModel::~GDCubismUserModel() {
     destroying = true;
     clear(GDCubismMotionQueueEntryHandle::MODEL_DESTROYED);
+    // Busy PREDELETE detaches children before inherited Node teardown. Native
+    // renderer cleanup above disposes its own nodes; release any others by ID.
+    for (uint64_t id : detached_children) {
+        if (auto *child = Object::cast_to<Node>(ObjectDB::get_instance(id))) memdelete(child);
+    }
     live_models.erase(this);
 }
 
@@ -307,7 +312,7 @@ void GDCubismUserModel::_notification(int p_what) {
             this->set_process_internal(false);
             this->set_physics_process_internal(false);
             if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
-                if (preferred->runtime == this) this->clear();
+                if (preferred->get_runtime() == this) this->clear();
             }
             break;
         case NOTIFICATION_INTERNAL_PROCESS:
@@ -325,8 +330,17 @@ void GDCubismUserModel::_notification(int p_what) {
             break;
         case NOTIFICATION_PREDELETE:
             if (is_native_busy()) {
-                // A legacy custom effect may request deletion from an SDK callback.
+                // Keep native ownership alive while the callback unwinds. Node
+                // still performs PREDELETE after cancel_free(), so detach its
+                // children as well; the destructor releases them after clear().
+                destroying = true;
                 cancel_free();
+                const Array children = get_children(true);
+                for (int index = 0; index < children.size(); ++index) {
+                    auto *child = Object::cast_to<Node>(children[index]);
+                    detached_children.push_back(child->get_instance_id());
+                    remove_child(child);
+                }
                 queue_free();
                 break;
             }
@@ -630,7 +644,7 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
     }
     const double scaled_delta = delta * this->speed_scale;
     auto *preferred = Object::cast_to<CubismModel2D>(get_parent());
-    const bool preferred_runtime = preferred != nullptr && preferred->runtime == this;
+    const bool preferred_runtime = preferred != nullptr && preferred->get_runtime() == this;
     if (preferred_runtime && (delta == 0.0 || speed_scale == 0.0f)) return;
     const bool uncapped = uncapped_manual_step || !preferred_runtime;
     if (uncapped && (!std::isfinite(scaled_delta) || scaled_delta > std::numeric_limits<Csm::csmFloat32>::max())) return;
@@ -642,14 +656,28 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
         step_parameter_writes[layer] = parameter_writes[layer].size();
     }
     native_busy = true;
+    const uint64_t owner_id = preferred_runtime ? uint64_t(preferred->get_instance_id()) : 0;
+    const uint64_t owner_generation = preferred_runtime ? preferred->get_runtime_generation() : 0;
+    auto cancelled = [&]() {
+        auto *owner = Object::cast_to<CubismModel2D>(ObjectDB::get_instance(owner_id));
+        return destroying || is_queued_for_deletion() || (preferred_runtime && (!owner ||
+            owner->disposal_requested || owner->is_queued_for_deletion() ||
+            owner->get_runtime() != this || owner->get_runtime_generation() != owner_generation));
+    };
+    auto finish_cancelled = [&]() {
+        native_busy = false;
+        apply_pending_operation();
+    };
 
     #ifdef DEBUG_ENABLED
     CubismDebugTimer model_timer(CubismDebugPhase::MODEL);
     #endif
     this->internal_model->pro_update(step);
+    if (cancelled()) { finish_cancelled(); return; }
     update_motion_handles();
 
     this->internal_model->efx_update(step);
+    if (cancelled()) { finish_cancelled(); return; }
 
     for(Csm::csmInt32 index = 0; index < this->ary_parameter.size(); index++ ) {
         Ref<GDCubismParameter> param = this->ary_parameter[index];
@@ -709,7 +737,7 @@ void GDCubismUserModel::advance_internal(double delta, bool manual_request) {
     ERR_FAIL_COND(this->is_initialized() == false);
     if(this->playback_process_mode != MANUAL) return;
     if (auto *preferred = Object::cast_to<CubismModel2D>(get_parent())) {
-        if (preferred->runtime == this && (!is_inside_tree() || !can_process())) return;
+        if (preferred->get_runtime() == this && (!is_inside_tree() || !can_process())) return;
     }
 
     this->_update(delta, manual_request && test_uncapped_manual_step);

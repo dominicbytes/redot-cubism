@@ -30,7 +30,7 @@ void CubismEffect::_notification(int what) {
     }
     if (what != NOTIFICATION_PREDELETE) return;
     auto *model = Object::cast_to<CubismModel2D>(get_parent());
-    if (model && model->runtime->is_native_busy()) {
+    if (model && model->get_runtime() && model->get_runtime()->is_native_busy()) {
         cancel_free();
         queue_free();
     }

@@ -423,7 +423,11 @@ void InternalCubismUserModel::efx_update(const double delta) {
     }
     this->effect_batch(delta, EFFECT_CALL_PROCESS);
     if (auto *preferred = Object::cast_to<CubismModel2D>(_owner_viewport->get_parent())) {
-        if (preferred->runtime == _owner_viewport) preferred->apply_custom_effects(delta);
+        if (preferred->get_runtime() == _owner_viewport) preferred->apply_custom_effects(delta);
+    }
+    if (_owner_viewport->is_destroying() || _owner_viewport->is_queued_for_deletion()) return;
+    if (auto *owner = Object::cast_to<CubismModel2D>(_owner_viewport->get_parent())) {
+        if (!owner->is_ready() || owner->is_queued_for_deletion()) return;
     }
     _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_EFFECT);
 }
