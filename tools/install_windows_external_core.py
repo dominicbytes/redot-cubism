@@ -3,11 +3,12 @@
 # SPDX-FileCopyrightText: 2026 Redot Cubism contributors
 """Install a user-supplied Cubism Core beside dynamically linked Windows builds."""
 import argparse
-import hashlib
 import json
 from pathlib import Path
-import shutil
 import sys
+
+from external_core_install import (descriptor_with_dependency as merge_dependency,
+                                   install_files, sha256)
 
 from windows_pe import imported_dlls_from_file
 
@@ -15,31 +16,8 @@ from windows_pe import imported_dlls_from_file
 DEPENDENCY_LINE = 'windows.x86_64 = {"bin/Live2DCubismCore.dll": ""}'
 
 
-def sha256(path):
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
 def descriptor_with_dependency(text):
-    lines = text.splitlines()
-    section = next((index for index, line in enumerate(lines)
-                    if line.strip() == "[dependencies]"), None)
-    if section is None:
-        return text.rstrip() + "\n\n[dependencies]\n\n" + DEPENDENCY_LINE + "\n"
-    end = next((index for index in range(section + 1, len(lines))
-                if lines[index].strip().startswith("[") and lines[index].strip().endswith("]")),
-               len(lines))
-    existing = next((line.strip() for line in lines[section + 1:end]
-                     if line.strip().startswith("windows.x86_64") and "=" in line), None)
-    if existing and existing != DEPENDENCY_LINE:
-        raise ValueError("Existing Windows GDExtension dependency differs from the external-Core setup")
-    if existing:
-        return text
-    lines.insert(end, DEPENDENCY_LINE)
-    return "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+    return merge_dependency(text, "windows.x86_64", DEPENDENCY_LINE)
 
 
 def inspect_dynamic_library(path):
@@ -65,16 +43,7 @@ def install(repo, sdk, addon):
     for binary in binaries:
         inspect_dynamic_library(binary)
 
-    descriptor = addon / "gd_cubism.gdextension"
-    original = descriptor.read_text()
-    updated = descriptor_with_dependency(original)
-    destination = addon / "bin/Live2DCubismCore.dll"
-    shutil.copyfile(source, destination)
-    if sha256(destination) != expected:
-        raise ValueError("Copied Cubism Core failed SHA-256 verification")
-    if updated != original:
-        descriptor.write_text(updated)
-    return destination
+    return install_files(addon, source, expected, "Live2DCubismCore.dll", descriptor_with_dependency)
 
 
 def main():
@@ -85,7 +54,7 @@ def main():
     args = parser.parse_args()
     try:
         destination = install(args.repo.resolve(), args.sdk_root.expanduser().resolve(),
-                              args.addon_dir.resolve())
+                              args.addon_dir.absolute())
     except (OSError, ValueError) as error:
         print(f"External Cubism Core install failed: {error}", file=sys.stderr)
         return 1

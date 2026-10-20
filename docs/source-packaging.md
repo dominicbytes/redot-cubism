@@ -40,3 +40,20 @@ payload from Git rather than trusting the neighboring manifest.
 The public source workflow runs the stricter history check as well as the
 existing restricted-content scanner. Passing either check alone is not a license
 to publish binaries or proof that the plugin's release tests passed.
+
+Publication checks inspect file and archive-member bytes for local drive, home,
+user, mounted-drive, AppData and network-share paths, including ASCII and both
+UTF-16 byte orders and alignments. Exact native-file hash approvals do not bypass
+these checks. Reviewed generic documentation examples and engine URLs are allowed;
+new private paths must be replaced with relative paths or placeholders. Structured
+contributor identities, contributor trailers and automated generation credits are
+also rejected in published payloads.
+
+Commit authors, committers and messages are checked for every commit reachable
+from the audited revision. `metadata_base` in `tools/publication-policy.json` is
+empty, which selects this complete audit. File contents are also checked
+throughout the full reachable history. All history and packaging commands accept
+`--metadata-base FULL_ANCESTOR_SHA` to audit only metadata after a reviewed
+ancestor, or `--metadata-base=` to audit all commit metadata explicitly.
+The default policy is read from the audited commit, so uncommitted policy edits
+do not change the result. A baseline must resolve to an ancestor of that commit.

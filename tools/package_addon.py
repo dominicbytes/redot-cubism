@@ -83,13 +83,13 @@ def verify_archive(repo, sha, archive):
             'files': expected}
 
 
-def package(repo, ref, archive):
+def package(repo, ref, archive, metadata_base=None):
     if not re.fullmatch(r'[0-9a-f]{40}', ref):
         raise ValueError('Use a full immutable 40-character commit SHA')
     sha = revision(repo, ref)
     if sha != ref:
         raise ValueError('Use the exact full 40-character commit SHA, not another object type')
-    history = validate_history(repo, sha)
+    history = validate_history(repo, sha, metadata_base)
     source_manifest(repo, sha)  # Reject incomplete refs before creating an output.
     manifest = archive.with_name(archive.name + '.manifest.json')
     if archive.exists() or manifest.exists():
@@ -123,9 +123,10 @@ def main():
     parser.add_argument('--ref', required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--repo', type=Path, default=Path.cwd())
+    parser.add_argument('--metadata-base', help='Audit commit identities and trailers after this ancestor')
     args = parser.parse_args()
     try:
-        result = package(args.repo.resolve(), args.ref, args.output.resolve())
+        result = package(args.repo.resolve(), args.ref, args.output.resolve(), args.metadata_base)
     except (OSError, ValueError, subprocess.CalledProcessError, tarfile.TarError) as error:
         print('Source package rejected: ' + str(error), file=sys.stderr)
         return 1
