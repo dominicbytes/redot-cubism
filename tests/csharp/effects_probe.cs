@@ -11,6 +11,10 @@ public partial class effects_probe : Node
 
     public override void _Ready()
     {
+        Check(typeof(GDCubismEffectCS).GetConstructor(Type.EmptyTypes) == null,
+            "abstract effect wrapper requires a concrete native instance");
+        Check(typeof(GDCubismValueAbsCS).GetConstructor(Type.EmptyTypes) == null,
+            "abstract value wrapper requires a concrete native instance");
         var modelNode = (Node2D)ClassDB.Instantiate("GDCubismUserModel");
         var targetNode = (Node)ClassDB.Instantiate("GDCubismEffectTargetPoint");
         var hitNode = (Node)ClassDB.Instantiate("GDCubismEffectHitArea");
@@ -35,6 +39,11 @@ public partial class effects_probe : Node
             model.PlaybackProcessMode = GDCubismUserModelCS.MotionProcessCallbackEnum.Manual;
             model.Assets = Asset;
             Check((bool)modelNode.Call("is_initialized"), "Mao model initialized");
+            Check(breath.GetInternalObject() == breathNode && blink.GetInternalObject() == blinkNode,
+                "base effect wrapper retains concrete Node instances");
+            Check(breath.Detach() == breathNode && GodotObject.IsInstanceValid(breathNode),
+                "detaching an effect leaves the native instance alive");
+            breath.Attach(breathNode);
             parameters = model.GetParameters();
             Check(parameters.Count > 0, "C# parameter enumeration");
 
@@ -48,9 +57,32 @@ public partial class effects_probe : Node
             if (angle == null || eyeBall == null || breathParam == null || leftEye == null || rightEye == null)
                 return;
 
+            var value = new GDCubismValueAbsCS(angle.GetInternalObject());
+            Check(value.Id == angle.Id && Math.Abs(value.Value - angle.Value) < 0.0001f,
+                "base value wrapper accepts a concrete Resource instance");
+            Check(value.Detach() == angle.GetInternalObject() && GodotObject.IsInstanceValid(angle.GetInternalObject()),
+                "detaching a value leaves the native Resource alive");
+            value.Free();
             Check(angle.MinimumValue < angle.DefaultValue && angle.DefaultValue < angle.MaximumValue,
                 "parameter range and default wrapper");
             Check(Math.Abs(angle.Value - angle.DefaultValue) < 0.1f, "parameter value wrapper initial state");
+
+            float originalAngle = angle.Value;
+            bool printErrors = Engine.PrintErrorMessages;
+            try
+            {
+                Engine.PrintErrorMessages = false;
+                foreach (float invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+                {
+                    angle.Value = invalid;
+                    Check(angle.Value == originalAngle, "nonfinite C# wrapper write preserves cached value");
+                    float nativeValue = (float)modelNode.Get(angle.Id);
+                    modelNode.Set(angle.Id, invalid);
+                    Check((float)modelNode.Get(angle.Id) == nativeValue,
+                        "nonfinite C# dynamic write preserves native value");
+                }
+            }
+            finally { Engine.PrintErrorMessages = printErrors; }
 
             // Effects initialize on the first model update; targets set before it are ignored.
             Step(model, 1);

@@ -9,14 +9,7 @@ using Godot;
 
 public partial class GDCubismValueAbsCS : GodotObject
 {
-    private static readonly StringName NativeName = "GDCubismValueAbs";
-
     protected GodotObject InternalObject = null;
-
-    public GDCubismValueAbsCS()
-    {
-        this.InternalObject = (SubViewport)Godot.ClassDB.Instantiate(NativeName);
-    }
 
     public GDCubismValueAbsCS(GodotObject o)
     {

@@ -57,6 +57,11 @@ exports completed but logged sandbox IDE socket permission diagnostics; those
 editor sessions are not claimed error-free. These probes generate no audio and
 do not resolve the separate audio-probe shutdown warning.
 
+The abstract effect/value wrappers require a concrete native instance in their
+constructors; they no longer attempt to instantiate abstract native classes.
+The effects probe checks this constructor contract, concrete instance access
+and detach ownership.
+
 The C# `StartMotion`/`StartMotionLoop` methods return `void` even though native
 methods return motion handles; queue entries are placeholder Resources. These
 probes therefore check queue count, numeric effect, completion, and signals,
