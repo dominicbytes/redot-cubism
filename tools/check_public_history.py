@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 from check_restricted_files import inspect_bytes, MAX_BYTES
+from publication_policy import inspect_commit
 
 
 def git(repo, *args):
@@ -56,8 +57,33 @@ def blobs(repo, oids):
             raise subprocess.CalledProcessError(code, process.args)
 
 
-def validate_history(repo, ref):
+def validate_metadata(repo, sha, metadata_base=None):
+    if metadata_base is None:
+        policy = 'tools/publication-policy.json'
+        if git(repo, 'ls-tree', sha, '--', policy):
+            metadata_base = json.loads(git(repo, 'show', sha + ':' + policy)).get('metadata_base')
+    revisions = [sha]
+    if metadata_base:
+        base = revision(repo, metadata_base)
+        if subprocess.run(['git', '-C', str(repo), 'merge-base', '--is-ancestor', base, sha],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode:
+            raise ValueError('Commit metadata base must be an ancestor of the audited revision')
+        revisions.append('^' + base)
+    records = git(repo, 'log', '-z', '--format=%H%x00%an <%ae>%x00%cn <%ce>%x00%B',
+                  *revisions).decode('utf-8', 'replace').split('\0')
+    count = 0
+    for offset in range(0, len(records) - 1, 4):
+        commit, author, committer, message = records[offset:offset + 4]
+        problems = inspect_commit(author, committer, message)
+        if problems:
+            raise ValueError(commit + ': ' + '; '.join(problems))
+        count += 1
+    return count
+
+
+def validate_history(repo, ref, metadata_base=None):
     sha = revision(repo, ref)
+    metadata_commits = validate_metadata(repo, sha, metadata_base)
     commits = git(repo, 'rev-list', sha).decode().splitlines()
     seen = {}
     by_oid = {}
@@ -81,16 +107,18 @@ def validate_history(repo, ref):
             problems = inspect_bytes(name, data, public=True)
             if problems:
                 raise ValueError(commit + ': ' + '; '.join(problems))
-    return {'revision': sha, 'commits': len(commits), 'file_versions': len(seen)}
+    return {'revision': sha, 'commits': len(commits), 'file_versions': len(seen),
+            'metadata_commits': metadata_commits}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ref', default='HEAD')
     parser.add_argument('--repo', type=Path, default=Path.cwd())
+    parser.add_argument('--metadata-base', help='Audit commit identities and trailers after this ancestor; empty audits all')
     args = parser.parse_args()
     try:
-        result = validate_history(args.repo.resolve(), args.ref)
+        result = validate_history(args.repo.resolve(), args.ref, args.metadata_base)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(json.dumps({'status': 'FAIL', 'error': str(error)}, indent=2))
         return 1

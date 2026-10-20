@@ -18,6 +18,7 @@ def main():
     parser.add_argument("--approved-native", type=Path, help="Reviewed JSON mapping of archive!member paths to exact SHA-256 values")
     parser.add_argument("--source-ref", help="Verify source-only payload and history against a full commit SHA")
     parser.add_argument("--repo", type=Path, default=Path.cwd())
+    parser.add_argument("--metadata-base", help="Audit commit identities and trailers after this ancestor")
     args = parser.parse_args()
     if not args.archive.is_file() or args.archive.stat().st_size > MAX_BYTES:
         parser.error("archive is missing or exceeds the audit size limit")
@@ -31,7 +32,7 @@ def main():
             sha = revision(repo, args.source_ref)
             if sha != args.source_ref:
                 raise ValueError('Source verification requires the exact commit SHA, not another object type')
-            validate_history(repo, sha)
+            validate_history(repo, sha, args.metadata_base)
             result = verify_archive(repo, sha, args.archive)
         except (OSError, ValueError, subprocess.CalledProcessError, tarfile.TarError) as error:
             print(json.dumps({'status': 'FAIL', 'error': str(error)}, indent=2))

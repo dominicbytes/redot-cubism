@@ -13,6 +13,7 @@ import sys
 import tarfile
 import zipfile
 from windows_pe import imported_dlls
+from publication_policy import inspect_attribution, inspect_local_paths
 
 MAX_BYTES = 128 * 1024 * 1024
 MAX_MEMBERS = 10000
@@ -32,7 +33,13 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
     lower = name.replace("\\", "/").lower()
     parts = PurePosixPath(lower).parts
     suffix = PurePosixPath(lower).suffix
-    problems = []
+    if len(data) > MAX_BYTES:
+        return [f"{name}: audit size limit exceeded"]
+    native = suffix in NATIVE or ".so." in lower or any(p.endswith(".framework") for p in parts) or data.startswith((b"\x7fELF", b"MZ", b"!<arch>\n", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf"))
+    problems = [f"{name}: {problem}" for problem in
+                inspect_local_paths(data, native=native) + inspect_attribution(data, native=native)]
+    if inspect_local_paths(name.encode("utf-8")) or inspect_attribution(name.encode("utf-8")):
+        return ["Archive or tracked name violates publication policy"]
     if public:
         public_parts = PurePosixPath(lower.replace("!", "/")).parts
         if (any(p in {".local-build", ".private-fixtures", ".local-sdk"} for p in public_parts)
@@ -47,7 +54,7 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
         problems.append(f"{name}: model/sample path requires separate review")
     if any(p in {".private-fixtures", ".local-sdk", "cubism-core", "cubism-sdk"} for p in parts):
         problems.append(f"{name}: private input directory")
-    if suffix in NATIVE or ".so." in lower or any(p.endswith(".framework") for p in parts) or data.startswith((b"\x7fELF", b"MZ", b"!<arch>\n", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf")):
+    if native:
         if approved.get(name) != hashlib.sha256(data).hexdigest():
             problems.append(f"{name}: unapproved native binary")
     if suffix == ".dll" and "libgd_cubism.windows." in lower:
@@ -61,8 +68,6 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
         problems.append(f"{name}: Cubism MOC signature")
     if suffix in {".h", ".hpp"} and re.search(rb"CSM_API\s+[^;\n]*\bcsmGetVersion\s*\(", data):
         problems.append(f"{name}: Cubism Core header signature")
-    if len(data) > MAX_BYTES:
-        return problems + [f"{name}: audit size limit exceeded"]
 
     def member(child_name, size, read, is_link=False):
         child = f"{name}!{child_name}"
@@ -106,10 +111,12 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
     return problems
 
 
-def scan_repository(history=None):
+def scan_repository(history=None, metadata_base=None):
     problems = []
     count = 0
     if history:
+        from check_public_history import revision, validate_metadata
+        validate_metadata(Path.cwd(), revision(Path.cwd(), history), metadata_base)
         # Object contents, including deleted historical files. No checkout or execution.
         objects = git("rev-list", "--objects", history).splitlines()
         proc = subprocess.Popen(["git", "cat-file", "--batch"], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
@@ -157,9 +164,10 @@ def scan_repository(history=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--history", help="Audit all reachable file versions in a Git revision")
+    parser.add_argument("--metadata-base", help="Audit commit identities and trailers after this ancestor")
     args = parser.parse_args()
     try:
-        count, problems = scan_repository(args.history)
+        count, problems = scan_repository(args.history, args.metadata_base)
     except (OSError, ValueError, subprocess.CalledProcessError) as exc:
         print(f"Audit failed: {exc}", file=sys.stderr)
         return 1
