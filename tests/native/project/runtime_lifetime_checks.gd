@@ -106,7 +106,7 @@ func _run() -> void:
 		if during: expect(cue.is_finished(), "runtime removal terminates cue")
 		dispose(current)
 	# free() and queued disposal must both abort the remaining effect stages.
-	for action: String in ["free_model", "queue_model", "free_runtime", "queue_runtime", "free_overlay"]:
+	for action: String in ["free_model", "queue_model", "free_runtime", "queue_runtime", "remove_runtime", "free_overlay"]:
 		var current := pair()
 		current.model.debug_draw_bounds = true
 		var model_id: int = current.model.get_instance_id()
@@ -120,10 +120,14 @@ func _run() -> void:
 			elif action == "queue_model": target.queue_free()
 			elif action == "free_runtime": target.get_node("CubismRuntime").free()
 			elif action == "queue_runtime": target.get_node("CubismRuntime").queue_free()
+			elif action == "remove_runtime": target.remove_child(target.get_node("CubismRuntime"))
 			else: target.get_node("CubismDebugOverlay").free(), CONNECT_ONE_SHOT)
 		effect(current.model, "Later", 1, func(_model: CubismModel2D, _delta: float): calls[0] += 1)
 		current.controller.advance(0.05)
 		expect(calls[0] == (1 if action == "free_overlay" else 0), "callback disposal controls remaining stages: " + action)
+		if action == "remove_runtime":
+			expect(not current.model.is_ready(), "removed runtime unloads after callback")
+			instance_from_id(runtime_id).queue_free()
 		await process_frame
 		await process_frame
 		current.controller.advance(0.05)
@@ -131,6 +135,34 @@ func _run() -> void:
 			expect(not is_instance_id_valid(runtime_id), "disposed runtime is released: " + action)
 			expect(cue.is_finished() and handle.is_finished(), "disposal terminates both handles: " + action)
 		if action.ends_with("model"): expect(not is_instance_id_valid(model_id), "disposed model is released: " + action)
+		dispose(current)
+	# Every legacy phase must stop its batch and all subsequent phases.
+	var phases := ["cubism_prologue", "cubism_process", "cubism_epilogue"]
+	for phase: String in phases:
+		var current := pair()
+		var runtime: Node = current.model.get_node("CubismRuntime")
+		var runtime_id := runtime.get_instance_id()
+		var first := GDCubismEffectCustom.new()
+		var later := GDCubismEffectCustom.new()
+		runtime.add_child(first)
+		runtime.add_child(later)
+		current.model.advance(0.01)
+		var calls := [0, 0, 0]
+		first.connect(phase, func(target: GDCubismUserModel, _delta: float):
+			print("CUBISM_SAFETY_LEGACY_DISPOSE ", phase)
+			target.queue_free(), CONNECT_ONE_SHOT)
+		for index in phases.size():
+			later.connect(phases[index], func(_target: GDCubismUserModel, _delta: float): calls[index] += 1)
+		var cue: CubismSpeechHandle = current.controller.perform(&"Cue/0")
+		var handle: CubismMotionHandle = current.controller.get_motion_handle()
+		current.controller.advance(0.05)
+		for index in phases.size():
+			expect(calls[index] == (1 if index < phases.find(phase) else 0), "legacy disposal skips callbacks: " + phase + "/" + phases[index])
+		await process_frame
+		await process_frame
+		current.controller.advance(0.05)
+		expect(not is_instance_id_valid(runtime_id), "legacy callback runtime is released: " + phase)
+		expect(cue.is_finished() and handle.is_finished(), "legacy disposal terminates both handles: " + phase)
 		dispose(current)
 	await process_frame
 	print("CUBISM_RUNTIME_LIFETIME checks=", checks, " failures=", failures.size())

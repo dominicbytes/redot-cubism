@@ -75,6 +75,7 @@ def main():
         (project / 'controller_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_checks.gd').read_bytes())
         (project / 'controller_validation_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_validation_checks.gd').read_bytes())
         (project / 'lip_profile_storage_checks.gd').write_bytes((ROOT / 'tests/native/project/lip_profile_storage_checks.gd').read_bytes())
+        (project / 'runtime_lifetime_checks.gd').write_bytes((ROOT / 'tests/native/project/runtime_lifetime_checks.gd').read_bytes())
         (project / 'controller_utility_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_utility_checks.gd').read_bytes())
         (project / 'controller_audio_timing_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_audio_timing_checks.gd').read_bytes())
         (project / 'controller_state_checks.gd').write_bytes((ROOT / 'tests/native/project/controller_state_checks.gd').read_bytes())
@@ -126,6 +127,7 @@ def main():
             execute('native-controller', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://controller_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_PASS')
             execute('native-controller-validation', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://controller_validation_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_VALIDATION_PASS')
             execute('native-lip-profile-storage', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://lip_profile_storage_checks.gd', '--quit-after', '10000'], 'CUBISM_LIP_PROFILE_STORAGE_PASS')
+            execute('native-runtime-lifetime', [engine, '--headless', '--audio-driver', 'Dummy', '--path', str(project), '--script', 'res://runtime_lifetime_checks.gd', '--quit-after', '10000'], 'CUBISM_RUNTIME_LIFETIME_PASS')
             execute('native-controller-utilities', [engine, '--headless', '--path', str(project), '--script', 'res://controller_utility_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_UTILITIES_PASS')
             execute('native-controller-state', [engine, '--headless', '--path', str(project), '--script', 'res://controller_state_checks.gd', '--quit-after', '10000', '--', '--prepare-scene'], 'CUBISM_CONTROLLER_STATE_PASS')
             if args.examples:
@@ -152,7 +154,7 @@ def main():
         (project / 'export_presets.cfg').write_text(presets.replace('"res://model2d.tscn",', '"res://alpha-model.res", "res://alpha_checks.gd", "res://fallback_checks.gd", "res://renderer_transform_checks.gd", "res://mask_quality_checks.gd", "res://mask_policy_checks.gd", "res://debug_statistics_checks.gd", "res://debug_overlay_checks.gd", "res://model2d.tscn",'))
         if args.motion:
             presets = (project / 'export_presets.cfg').read_text()
-            presets = presets.replace('"res://model2d.tscn",', '"res://controller_validation_checks.gd", "res://lip_profile_storage_checks.gd", "res://controller_checks.gd", "res://model2d.tscn",')
+            presets = presets.replace('"res://model2d.tscn",', '"res://runtime_lifetime_checks.gd", "res://controller_validation_checks.gd", "res://lip_profile_storage_checks.gd", "res://controller_checks.gd", "res://model2d.tscn",')
             presets = presets.replace('"res://model2d.tscn",', '"res://controller_utility_checks.gd", "res://model2d.tscn",')
             presets = presets.replace('"res://model2d.tscn",', '"res://controller-state.tscn", "res://controller_state_checks.gd", "res://model2d.tscn",')
             presets = presets.replace('"res://model2d.tscn",', '"res://parameter_layer_checks.gd", "res://model2d.tscn",')
@@ -179,6 +181,7 @@ def main():
                 execute('exported-controller', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://controller_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_PASS', output)
                 execute('exported-controller-validation', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://controller_validation_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_VALIDATION_PASS', output)
                 execute('exported-lip-profile-storage', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://lip_profile_storage_checks.gd', '--quit-after', '10000'], 'CUBISM_LIP_PROFILE_STORAGE_PASS', output)
+                execute('exported-runtime-lifetime', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--audio-driver', 'Dummy', '--script', 'res://runtime_lifetime_checks.gd', '--quit-after', '10000'], 'CUBISM_RUNTIME_LIFETIME_PASS', output)
                 execute('exported-controller-utilities', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://controller_utility_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_UTILITIES_PASS', output)
                 execute('exported-controller-state', [str(output / ('game.exe' if os.name == 'nt' else 'game')), '--headless', '--script', 'res://controller_state_checks.gd', '--quit-after', '10000'], 'CUBISM_CONTROLLER_STATE_PASS', output)
                 if args.examples:

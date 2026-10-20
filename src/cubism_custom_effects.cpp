@@ -19,7 +19,12 @@ void CubismModel2D::begin_custom_effects() {
 }
 
 void CubismModel2D::apply_custom_effects(double delta) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
+    const uint64_t runtime_id = runtime->get_instance_id();
     for (const auto &entry : custom_effects) {
+        runtime = get_runtime();
+        if (!runtime || runtime->get_instance_id() != runtime_id || runtime->evaluation_cancelled()) break;
         if (generation != custom_effect_generation || disposal_requested || !is_ready() || is_queued_for_deletion() || !is_inside_tree()) break;
         auto *effect = Object::cast_to<CubismEffect>(ObjectDB::get_instance(entry.id));
         if (!effect || effect->membership_revision != entry.revision || effect->get_parent() != this || effect->is_queued_for_deletion() || !effect->can_process()) continue;

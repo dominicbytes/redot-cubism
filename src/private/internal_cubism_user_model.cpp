@@ -364,6 +364,7 @@ void InternalCubismUserModel::pro_update(const double delta) {
     if(this->_model == nullptr) return;
 
     this->effect_batch(delta, EFFECT_CALL_PROLOGUE);
+    if (_owner_viewport->evaluation_cancelled()) return;
 
     primary_motion_updated = false;
 
@@ -411,7 +412,9 @@ void InternalCubismUserModel::efx_update(const double delta) {
 
     if(this->_owner_viewport->check_cubism_effect_dirty() == true) {
         this->effect_term();
+        if (_owner_viewport->evaluation_cancelled()) return;
         this->effect_init();
+        if (_owner_viewport->evaluation_cancelled()) return;
         this->_owner_viewport->cubism_effect_dirty_reset();
     }
 
@@ -422,13 +425,11 @@ void InternalCubismUserModel::efx_update(const double delta) {
         }
     }
     this->effect_batch(delta, EFFECT_CALL_PROCESS);
+    if (_owner_viewport->evaluation_cancelled()) return;
     if (auto *preferred = Object::cast_to<CubismModel2D>(_owner_viewport->get_parent())) {
         if (preferred->get_runtime() == _owner_viewport) preferred->apply_custom_effects(delta);
     }
-    if (_owner_viewport->is_destroying() || _owner_viewport->is_queued_for_deletion()) return;
-    if (auto *owner = Object::cast_to<CubismModel2D>(_owner_viewport->get_parent())) {
-        if (!owner->is_ready() || owner->is_queued_for_deletion()) return;
-    }
+    if (_owner_viewport->evaluation_cancelled()) return;
     _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_EFFECT);
 }
 
@@ -901,6 +902,7 @@ void InternalCubismUserModel::effect_batch(const double delta, const EFFECT_CALL
         effects.push_back(_owner_viewport->_list_cubism_effect[i]->get_instance_id());
     }
     for (uint64_t id : effects) {
+        if (efx_call != EFFECT_CALL_TERM && _owner_viewport->evaluation_cancelled()) break;
         auto *effect = Object::cast_to<GDCubismEffect>(ObjectDB::get_instance(id));
         if (effect == nullptr || effect->get_parent() != _owner_viewport) continue;
         if (effect->is_queued_for_deletion() && efx_call != EFFECT_CALL_TERM) continue;

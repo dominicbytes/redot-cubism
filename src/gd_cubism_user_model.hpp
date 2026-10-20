@@ -182,6 +182,9 @@ private:
     ModelState model_state = UNLOADED;
     Dictionary last_error;
     uint64_t generation = 0;
+    uint64_t evaluation_owner_id = 0;
+    uint64_t evaluation_owner_generation = 0;
+    bool evaluation_cancelled() const;
     bool native_busy = false;
     bool disposing = false;
     bool destroying = false;

@@ -632,6 +632,16 @@ void GDCubismUserModel::update_motion_handles() {
 }
 
 
+bool GDCubismUserModel::evaluation_cancelled() const {
+    if (destroying || pending_unload || is_queued_for_deletion()) return true;
+    if (!evaluation_owner_id) return false;
+    auto *owner = Object::cast_to<CubismModel2D>(ObjectDB::get_instance(evaluation_owner_id));
+    return !owner || owner->disposal_requested || owner->is_queued_for_deletion() ||
+        !is_inside_tree() || !owner->is_inside_tree() || get_parent() != owner ||
+        owner->get_runtime() != this || owner->get_runtime_generation() != evaluation_owner_generation;
+}
+
+
 void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
 
     if (native_busy || disposing || !is_initialized()) return;
@@ -656,15 +666,10 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
         step_parameter_writes[layer] = parameter_writes[layer].size();
     }
     native_busy = true;
-    const uint64_t owner_id = preferred_runtime ? uint64_t(preferred->get_instance_id()) : 0;
-    const uint64_t owner_generation = preferred_runtime ? preferred->get_runtime_generation() : 0;
-    auto cancelled = [&]() {
-        auto *owner = Object::cast_to<CubismModel2D>(ObjectDB::get_instance(owner_id));
-        return destroying || is_queued_for_deletion() || (preferred_runtime && (!owner ||
-            owner->disposal_requested || owner->is_queued_for_deletion() ||
-            owner->get_runtime() != this || owner->get_runtime_generation() != owner_generation));
-    };
+    evaluation_owner_id = preferred_runtime ? uint64_t(preferred->get_instance_id()) : 0;
+    evaluation_owner_generation = preferred_runtime ? preferred->get_runtime_generation() : 0;
     auto finish_cancelled = [&]() {
+        evaluation_owner_id = 0;
         native_busy = false;
         apply_pending_operation();
     };
@@ -673,11 +678,11 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
     CubismDebugTimer model_timer(CubismDebugPhase::MODEL);
     #endif
     this->internal_model->pro_update(step);
-    if (cancelled()) { finish_cancelled(); return; }
+    if (evaluation_cancelled()) { finish_cancelled(); return; }
     update_motion_handles();
 
     this->internal_model->efx_update(step);
-    if (cancelled()) { finish_cancelled(); return; }
+    if (evaluation_cancelled()) { finish_cancelled(); return; }
 
     for(Csm::csmInt32 index = 0; index < this->ary_parameter.size(); index++ ) {
         Ref<GDCubismParameter> param = this->ary_parameter[index];
@@ -701,6 +706,7 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
     }
 
     this->internal_model->epi_update(step);
+    if (evaluation_cancelled()) { finish_cancelled(); return; }
     // Pose and queued part writes run in the epilogue. Preserve any new write
     // queued by an epilogue callback for the next update.
     for(Csm::csmInt32 index = 0; index < this->ary_part_opacity.size(); index++) {
@@ -724,6 +730,7 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
     #else
     this->internal_model->update_node();
     #endif // COUNTERMEASURES_90017_90030
+    evaluation_owner_id = 0;
     native_busy = false;
     apply_pending_operation();
 }
