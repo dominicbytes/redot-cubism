@@ -5,6 +5,7 @@
 // ----------------------------------------------------------------- include(s)
 #include <godot_cpp/core/property_info.hpp>
 #include <godot_cpp/classes/resource.hpp>
+#include <cmath>
 
 #include <CubismFramework.hpp>
 #include <Motion/CubismExpressionMotionManager.hpp>
@@ -64,7 +65,11 @@ public:
         : _value_type(value_type) {}
 
     String get_id() const { return this->id; }
-    void set_value(const float value) { this->value = value; this->changed = true; }
+    void set_value(const float value) {
+        ERR_FAIL_COND_MSG(!std::isfinite(value), "Cubism value must be finite.");
+        this->value = value;
+        this->changed = true;
+    }
     float get_value() const { return this->value; }
     bool is_valid() const { return raw_value != nullptr; }
     void invalidate() { raw_value = nullptr; changed = false; }

@@ -12,6 +12,6 @@
 	</methods>
 	<members>
 		<member name="id" type="String" setter="" getter="get_id" default="&quot;&quot;">Read-only native parameter or part ID.</member>
-		<member name="value" type="float" setter="set_value" getter="get_value" default="0.0">Cached numeric value. Assignments mark it for application during the legacy model update while the native reference remains valid. After invalidation, changes affect only the retained resource.</member>
+		<member name="value" type="float" setter="set_value" getter="get_value" default="0.0">Cached numeric value. Nonfinite assignments, including values outside the finite native float range, are rejected with an error and preserve the previous value. Finite assignments mark it for application during the legacy model update while the native reference remains valid. After invalidation, changes affect only the retained resource.</member>
 	</members>
 </class>

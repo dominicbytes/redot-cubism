@@ -27,7 +27,7 @@
 			<return type="void" />
 			<param index="0" name="delta" type="float" />
 			<description>
-				Advances a ready legacy model in MANUAL mode, including while off-tree or while tree processing is paused. Delta is in seconds. Zero and nonfinite values do not advance; negative values are ignored with a debug warning. The full scaled delta is used when representable as a finite SDK float. Use multiple fixed steps for deterministic evaluation.
+				Advances a ready legacy model in MANUAL mode, including while off-tree or while tree processing is paused. Delta is in seconds. A zero delta evaluates pending values, custom effects and geometry without advancing time. Nonfinite values are ignored; negative values are ignored with a debug warning. The full scaled delta is used when representable as a finite SDK float. Use multiple fixed steps for deterministic evaluation.
 			</description>
 		</method>
 		<method name="csm_get_latest_moc_version">

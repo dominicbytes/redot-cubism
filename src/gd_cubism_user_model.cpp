@@ -582,21 +582,21 @@ Array GDCubismUserModel::get_hit_areas() const {
 Array GDCubismUserModel::get_parameters() const {
     ERR_FAIL_COND_V(this->is_initialized() == false, Array());
 
-    return this->ary_parameter;
+    return this->ary_parameter.duplicate();
 }
 
 
 Array GDCubismUserModel::get_part_opacities() const {
     ERR_FAIL_COND_V(this->is_initialized() == false, Array());
 
-    return this->ary_part_opacity;
+    return this->ary_part_opacity.duplicate();
 }
 
 
 Dictionary GDCubismUserModel::get_meshes() const {
     ERR_FAIL_COND_V(this->is_initialized() == false, Dictionary());
 
-    return this->internal_model->_renderer_resource.dict_mesh;
+    return this->internal_model->_renderer_resource.dict_mesh.duplicate();
 }
 
 
@@ -621,7 +621,7 @@ void GDCubismUserModel::update_motion_handles() {
 void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
 
     if (native_busy || disposing || !is_initialized()) return;
-    if (!std::isfinite(delta) || delta == 0.0 || speed_scale == 0.0f) return;
+    if (!std::isfinite(delta)) return;
     if (delta < 0.0) {
         #ifdef DEBUG_ENABLED
         WARN_PRINT("Negative Cubism delta ignored.");
@@ -631,6 +631,7 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
     const double scaled_delta = delta * this->speed_scale;
     auto *preferred = Object::cast_to<CubismModel2D>(get_parent());
     const bool preferred_runtime = preferred != nullptr && preferred->runtime == this;
+    if (preferred_runtime && (delta == 0.0 || speed_scale == 0.0f)) return;
     const bool uncapped = uncapped_manual_step || !preferred_runtime;
     if (uncapped && (!std::isfinite(scaled_delta) || scaled_delta > std::numeric_limits<Csm::csmFloat32>::max())) return;
     const double step = uncapped ? scaled_delta : MIN(scaled_delta, 0.1);
@@ -794,7 +795,9 @@ bool GDCubismUserModel::_set(const StringName &p_name, const Variant &p_value) {
         String name; name.parse_utf8(model->GetParameterId(index)->GetString().GetRawString());
 
         if(p_name == name) {
-            model->SetParameterValue(index, p_value);
+            const float value = p_value;
+            ERR_FAIL_COND_V_MSG(!std::isfinite(value), true, "Cubism parameter value must be finite.");
+            model->SetParameterValue(index, value);
             return true;
         }
     }
@@ -803,7 +806,9 @@ bool GDCubismUserModel::_set(const StringName &p_name, const Variant &p_value) {
         String name; name.parse_utf8(model->GetPartId(index)->GetString().GetRawString());
 
         if(p_name == name) {
-            model->SetPartOpacity(index, p_value);
+            const float value = p_value;
+            ERR_FAIL_COND_V_MSG(!std::isfinite(value), true, "Cubism part opacity must be finite.");
+            model->SetPartOpacity(index, value);
             return true;
         }
     }
@@ -932,6 +937,7 @@ void GDCubismUserModel::_get_property_list(List<godot::PropertyInfo> *p_list) {
 
     for(Csm::csmInt32 index = 0; index < this->ary_parameter.size(); index++) {
         Ref<GDCubismParameter> param = this->ary_parameter[index];
+        if (param.is_null()) continue;
 
         Array ary_value;
         ary_value.append(param->minimum_value);
@@ -953,6 +959,7 @@ void GDCubismUserModel::_get_property_list(List<godot::PropertyInfo> *p_list) {
 
     for(Csm::csmInt32 index = 0; index < this->ary_part_opacity.size(); index++) {
         Ref<GDCubismPartOpacity> param = this->ary_part_opacity[index];
+        if (param.is_null()) continue;
 
         Array ary_value;
         ary_value.append(0.0);
@@ -996,11 +1003,11 @@ void GDCubismUserModel::clear(GDCubismMotionQueueEntryHandle::FinishReason reaso
     finish_motion_handles(reason);
     for (int i = 0; i < ary_parameter.size(); ++i) {
         Ref<GDCubismParameter> parameter = ary_parameter[i];
-        parameter->invalidate();
+        if (parameter.is_valid()) parameter->invalidate();
     }
     for (int i = 0; i < ary_part_opacity.size(); ++i) {
         Ref<GDCubismPartOpacity> part = ary_part_opacity[i];
-        part->invalidate();
+        if (part.is_valid()) part->invalidate();
     }
     ary_parameter.clear();
     ary_part_opacity.clear();

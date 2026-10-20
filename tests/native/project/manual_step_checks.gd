@@ -56,9 +56,12 @@ func _run() -> void:
 			model.call("advance", 0.25)
 			expect(steps.size() == 1 and is_equal_approx(steps[0], 0.5 if not preferred or uncapped else 0.1), label + " manual scaled step")
 			steps.clear()
-			for delta: float in [NAN, INF, -INF, 0.0]: model.call("advance", delta)
+			for delta: float in [NAN, INF, -INF]: model.call("advance", delta)
 			model.call("advance", 1e300) # Finite double, unrepresentable by the SDK float.
 			expect(steps.is_empty() if not preferred or uncapped else steps == [0.1], label + " invalid or oversized step")
+			steps.clear()
+			model.call("advance", 0.0)
+			expect(steps.is_empty() if preferred else steps == [0.0], label + " zero delta contract")
 			steps.clear()
 			model.call("advance", 0.01)
 			expect(steps.size() == 1 and is_equal_approx(steps[0], 0.02), label + " ordinary step")

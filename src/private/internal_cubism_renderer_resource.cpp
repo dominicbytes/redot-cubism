@@ -56,7 +56,7 @@ void InternalCubismRendererResource::clear() {
     const Array nodes = this->managed_nodes.duplicate();
     this->managed_nodes.clear();
     for (int i = 0; i < nodes.size(); i++) {
-        Node *c = Object::cast_to<Node>(nodes[i]);
+        Node *c = Object::cast_to<Node>(nodes[i].get_validated_object());
         if (c == nullptr) continue;
         if (c->get_parent() != nullptr) c->get_parent()->remove_child(c);
         memdelete(c);

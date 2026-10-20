@@ -8,14 +8,7 @@ using Godot;
 
 public partial class GDCubismEffectCS : Node
 {
-    private static readonly StringName NativeName = "GDCubismEffect";
-
     protected Node InternalObject = null;
-
-    public GDCubismEffectCS()
-    {
-        this.InternalObject = (SubViewport)Godot.ClassDB.Instantiate(NativeName);
-    }
 
     public GDCubismEffectCS(Node o)
     {
