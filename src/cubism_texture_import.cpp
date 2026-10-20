@@ -31,6 +31,14 @@ Error texture_error(const String &path, const String &message, Error error) {
 }
 }
 
+String cubism_texture_policy(bool premultiplied) {
+    auto *settings = ProjectSettings::get_singleton();
+    return String(CUBISM_TEXTURE_POLICY) + String(":") +
+        String::num_int64(bool(settings->get_setting("rendering/textures/lossless_compression/force_png", false))) + String(":") +
+        String::num(double(settings->get_setting("rendering/textures/webp_compression/lossless_compression_factor", 25.0))) +
+        String(premultiplied ? ":premultiplied" : ":straight");
+}
+
 Error provision_cubism_textures(const Ref<CubismModelResource> &model) {
     const bool premultiplied = model->get_premultiplied_alpha();
     TypedArray<Texture2D> textures;
@@ -55,11 +63,8 @@ Error provision_cubism_textures(const Ref<CubismModelResource> &model) {
         if (uint64_t(bytes.size()) != size || digest(bytes) != String(fingerprints.get(source, ""))) {
             return texture_error(source, "PNG changed during import; retry the import.", ERR_FILE_CORRUPT);
         }
-        auto *settings = ProjectSettings::get_singleton();
-        const String encoding = String(fingerprints[source]) + String(":") +
-            String::num_int64(bool(settings->get_setting("rendering/textures/lossless_compression/force_png", false))) + String(":") +
-            String::num(double(settings->get_setting("rendering/textures/webp_compression/lossless_compression_factor", 25.0))) +
-            String(premultiplied ? ":premultiplied" : ":straight");
+        const String policy = cubism_texture_policy(premultiplied);
+        const String encoding = String(fingerprints[source]) + String(":") + policy;
         const std::string cache_key(encoding.utf8().get_data());
         const auto cached = generated_hashes.find(cache_key);
         if (cached != generated_hashes.end()) {
@@ -97,6 +102,8 @@ Error provision_cubism_textures(const Ref<CubismModelResource> &model) {
         // ResourceSaver otherwise generates a random internal ID, making identical
         // texture payloads serialize differently on every import.
         texture->set_scene_unique_id("CubismTexture");
+        texture->set_meta("cubism_source_sha256", fingerprints[source]);
+        texture->set_meta("cubism_texture_policy", policy);
         if (premultiplied) texture->set_meta("cubism_premultiplied_alpha", true);
         texture->set_keep_compressed_buffer(true);
         texture->create_from_image(image, PortableCompressedTexture2D::COMPRESSION_MODE_LOSSLESS);

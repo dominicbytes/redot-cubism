@@ -32,6 +32,7 @@ class CubismAnimator {
     std::vector<Motion> catalog;
     std::vector<std::unique_ptr<Playback>> playbacks;
     PackedStringArray authored_parameters;
+    Error prepare(InternalCubismUserModel &model, const StringName &id, bool loop, Playback &playback) const;
     void fade(Playback &playback, double seconds, CubismMotionHandle::FinishReason reason);
 public:
     ~CubismAnimator() { clear(CubismMotionHandle::MODEL_DISPOSED); }
@@ -42,6 +43,7 @@ public:
     bool get_default_loop(const StringName &id) const;
     StringName find_motion(const StringName &group, int index) const;
     Ref<CubismMotionHandle> play(InternalCubismUserModel &model, const StringName &id, int priority, bool loop, double speed);
+    Error preflight(InternalCubismUserModel &model, const StringName &id, bool loop) const;
     void stop(double fade_seconds);
     bool update(Csm::CubismModel *model, double delta);
     bool has_authored_parameter(const String &id) const { return authored_parameters.has(id); }

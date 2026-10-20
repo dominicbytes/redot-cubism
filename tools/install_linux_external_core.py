@@ -3,29 +3,21 @@
 """Install a user-supplied Cubism Core beside dynamically linked Linux builds."""
 
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
-import shutil
 import subprocess
 import sys
 
-
-DEPENDENCY_SECTION = '''
-
-[dependencies]
-
-linux.x86_64 = {"bin/libLive2DCubismCore.so": ""}
-'''
+from external_core_install import (descriptor_with_dependency as merge_dependency,
+                                   install_files, sha256)
 
 
-def sha256(path):
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+DEPENDENCY_LINE = 'linux.x86_64 = {"bin/libLive2DCubismCore.so": ""}'
+
+
+def descriptor_with_dependency(text):
+    return merge_dependency(text, "linux.x86_64", DEPENDENCY_LINE)
 
 
 def inspect_dynamic_library(path):
@@ -59,19 +51,7 @@ def install(repo, sdk, addon):
     for binary in binaries:
         inspect_dynamic_library(binary)
 
-    descriptor = addon / "gd_cubism.gdextension"
-    text = descriptor.read_text()
-    if "[dependencies]" in text:
-        if DEPENDENCY_SECTION.strip() not in text:
-            raise ValueError("Existing GDExtension dependencies differ from the external-Core setup")
-    else:
-        descriptor.write_text(text.rstrip() + DEPENDENCY_SECTION + "\n")
-
-    destination = addon / "bin/libLive2DCubismCore.so"
-    shutil.copyfile(source, destination)
-    if sha256(destination) != expected:
-        raise ValueError("Copied Cubism Core failed SHA-256 verification")
-    return destination
+    return install_files(addon, source, expected, "libLive2DCubismCore.so", descriptor_with_dependency)
 
 
 def main():
@@ -83,7 +63,7 @@ def main():
     args = parser.parse_args()
     try:
         destination = install(args.repo.resolve(), args.sdk_root.expanduser().resolve(),
-                              args.addon_dir.resolve())
+                              args.addon_dir.absolute())
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         print(f"External Cubism Core install failed: {error}", file=sys.stderr)
         return 1

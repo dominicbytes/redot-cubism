@@ -2,15 +2,15 @@
 
 - [C# wrapper behavior probes and tested scope](../tests/csharp/README.md)
 
-These guides describe the Redot 26.2 port in this checkout. The port is still in
+These guides describe the Redot 26.2/26.3 port in this checkout. The port is still in
 development: Linux and Windows have scoped native, export and graphics evidence;
 complete release qualification remains open. SDK/model assets are supplied separately.
 
 Start with [setup and first character](quick-start.md). Use the
 [dependency pins and build requirements](../DEPENDENCIES.md) for the native build.
-The tested baseline and remaining qualification gates are summarized in
-[current status](current-status.md); source-only commits after that baseline are
-not automatically covered by its results.
+Public preview packages, source compatibility and remaining qualification gates
+are summarized in [current status](current-status.md). Revalidate the exact
+engine/library combination before distributing a new build.
 
 | Task | Guide |
 |---|---|

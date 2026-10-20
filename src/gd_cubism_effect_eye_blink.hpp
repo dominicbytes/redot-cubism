@@ -59,6 +59,7 @@ public:
         if(this->_initialized == false) return;
         if(this->_active == false) return;
         if(this->_eye_blink == nullptr) return;
+        if(model->primary_motion_updated == true) return;
 
         this->_eye_blink->UpdateParameters(model->GetModel(), delta);
     }

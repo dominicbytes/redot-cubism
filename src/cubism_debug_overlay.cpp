@@ -3,6 +3,10 @@
 #include "private/internal_cubism_user_model.hpp"
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 
+Node2D *CubismModel2D::get_debug_overlay() const {
+    return Object::cast_to<Node2D>(ObjectDB::get_instance(debug_overlay_id));
+}
+
 void CubismModel2D::set_debug_draw_bounds(bool value) {
     debug_draw_bounds = value;
     configure_debug_overlay();
@@ -14,9 +18,12 @@ void CubismModel2D::set_debug_draw_hit_areas(bool value) {
 }
 
 void CubismModel2D::configure_debug_overlay() {
+    if (disposal_requested) return;
+    auto *debug_overlay = get_debug_overlay();
     const bool enabled = debug_draw_bounds || debug_draw_hit_areas;
     if (enabled && !debug_overlay) {
         debug_overlay = memnew(Node2D);
+        debug_overlay_id = debug_overlay->get_instance_id();
         debug_overlay->set_name("CubismDebugOverlay");
         // No owner or script dependency: scene persistence stores only flags.
         // Drawing after the internal runtime keeps outlines above this model.
@@ -30,10 +37,14 @@ void CubismModel2D::configure_debug_overlay() {
 }
 
 void CubismModel2D::queue_debug_redraw() {
+    auto *debug_overlay = get_debug_overlay();
     if (debug_overlay && (debug_draw_bounds || debug_draw_hit_areas)) debug_overlay->queue_redraw();
 }
 
 void CubismModel2D::draw_debug_overlay() {
+    auto *debug_overlay = get_debug_overlay();
+    auto *runtime = get_runtime();
+    if (!debug_overlay || !runtime) return;
     if (!is_ready() || is_queued_for_deletion()) return;
     if (debug_draw_bounds) {
         for (const Rect2 rect : runtime->internal_model->get_debug_rectangles(false)) {

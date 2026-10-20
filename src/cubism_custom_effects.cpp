@@ -19,8 +19,13 @@ void CubismModel2D::begin_custom_effects() {
 }
 
 void CubismModel2D::apply_custom_effects(double delta) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
+    const uint64_t runtime_id = runtime->get_instance_id();
     for (const auto &entry : custom_effects) {
-        if (generation != custom_effect_generation || is_queued_for_deletion() || !is_inside_tree()) break;
+        runtime = get_runtime();
+        if (!runtime || runtime->get_instance_id() != runtime_id || runtime->evaluation_cancelled()) break;
+        if (generation != custom_effect_generation || disposal_requested || !is_ready() || is_queued_for_deletion() || !is_inside_tree()) break;
         auto *effect = Object::cast_to<CubismEffect>(ObjectDB::get_instance(entry.id));
         if (!effect || effect->membership_revision != entry.revision || effect->get_parent() != this || effect->is_queued_for_deletion() || !effect->can_process()) continue;
         active_custom_effect = entry.id;
@@ -37,6 +42,8 @@ Error CubismModel2D::write_custom_effect(uint64_t effect, uint64_t revision, con
     if (!std::isfinite(value) || !std::isfinite(weight) || weight < 0.0 || weight > 1.0) return ERR_INVALID_PARAMETER;
     const int index = parameter_index(id);
     if (index < 0) return ERR_DOES_NOT_EXIST;
+    auto *runtime = get_runtime();
+    if (!runtime) return ERR_UNCONFIGURED;
     runtime->apply_parameter_write({index, value, weight, operation});
     return OK;
 }

@@ -125,50 +125,31 @@ number through double precision can change its evaluated value. Compact JSON,
 BOM, whitespace, Unicode escapes and scientific notation are exercised through
 native loading by `sdk_json_checks.gd`, including exported test projects.
 
-The Linux debug and release comparison covers Haru Idle/0 with F03 and Mao
-Idle/0 with exp_02, each with all eight expression/physics/pose combinations
-at the four default sample times: 64 cases per variant. All values match within
-the unchanged `1e-5` tolerance. Separate SDK comparisons against motion-only
-controls confirm that each selected effect changes parameters or part opacity.
-Expression and physics first change the sampled state at step 30; pose changes
-it at step 1 for both models.
+The runtime refreshes legacy part-opacity values after the final evaluation
+stage. Writes queued by legacy epilogue callbacks remain pending for the next
+update.
 
-These checks exposed a stale legacy part-opacity accessor: pose and queued
-part writes ran after its cached value was read. The runtime now refreshes
-unchanged part values after the final evaluation stage. Writes queued by legacy
-epilogue callbacks remain pending for the next update. The node regression
-fails on the earlier library and passes with this fix. This result covers the
-listed native effect states; it does not expand the release scope above.
+## Comparison scope
 
-The same Linux matrix also compares breathing off/on for every combination:
-128 cases per debug/release variant. All states match the SDK at `1e-5`, and
-every breathing-on reference differs from its corresponding off control at
-these sample times. The debug and release parameter/part results are identical.
-This verifies the standard breathing profile in the listed effect order; it
-does not qualify procedural blink timing, look targets or effect transitions.
+Use effect matrices with expression, physics, pose and breathing enabled/disabled
+separately and in combination, alongside motion-only controls. Include early
+samples to check fresh effect state, and require each enabled effect to change
+parameters or part opacity in its SDK reference control. Compare both build
+variants independently; matching numeric samples do not extend qualification
+beyond the selected inputs and times.
 
-The independent look matrix adds a local target to each of those combinations,
-plus neutral, opposite-direction and clamped targets with the full effect stack.
-At steps 1, 2, 8, 30, 90 and 180 at 60 Hz, all 420 cases per Linux variant match
-the SDK at `1e-5`. The 32 first-step look controls stay neutral; all 160 later
-paired controls change when look is enabled. Debug/release results are identical,
-and the previous 128 breathing controls are unchanged. This covers a fixed target
-from fresh smoothing state; moving targets, weights and pause/reload controls
-remain covered by the separate native look suite, not this independent oracle.
+Look fixtures should cover neutral, opposite-direction and clamped fixed targets
+from fresh smoothing state, with samples after the neutral first update. Moving
+targets, weights and pause/reload controls belong to the separate native look
+suite.
 
-The Linux loop matrix compares Haru and Mao Idle/0 with looping off/on, both
-motion-only and with the full expression/breath/look/physics/pose combination.
-Fifteen 60 Hz samples bracket the first and second loop boundaries and include
-the following fade-in. All 120 cases per variant match the SDK at `1e-5`, and
-debug/release states are identical. Initial loop/one-shot controls agree; later
-looped states differ from the completed one-shot controls. This checks repeated
-native curve/effect evaluation; event counts, terminal reasons and explicit
-stop/interruption behavior remain separate motion API tests.
+For looping, bracket the first and second loop boundaries and the following
+fade-in, comparing looping off/on with motion-only and full-effect fixtures.
+Event counts, terminal reasons and explicit stop/interruption behavior remain
+separate motion API tests.
 
-The native expression-switch matrix uses Haru F03/F01 and Mao exp_02/exp_01
-with Idle/0. It covers same-ID replay, different-ID transitions and a delayed
-first expression, with and without the other effects. At steps 1, 29, 30, 31,
-45, 60 and 90 at 60 Hz, all 98 cases per Linux variant match the SDK at `1e-5`;
-debug/release states are identical. Controls agree before the scheduled change,
-and late different-ID states differ from uninterrupted expressions. A mismatched
-scheduled-expression hash is rejected even in a sample before the switch.
+Expression-switch fixtures should include same-ID replay, different-ID
+transitions and a delayed first expression, with and without the other effects.
+Sample before, at and after the scheduled change; reject mismatched expression
+hashes even for samples before the switch. Explicit expression clearing and fade
+overrides remain outside this independent comparison.

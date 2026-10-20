@@ -43,7 +43,7 @@ class VisualReportTests(unittest.TestCase):
 
     def test_reference_identity_and_affine_state_are_required(self):
         with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder); image = root / 'reference.png'; image.write_bytes(b'image identity')
+            root = Path(folder).resolve(); image = root / 'reference.png'; image.write_bytes(b'image identity')
             model = dict(resource='res://model.res', manifest_sha256='a' * 64, moc_sha256='b' * 64,
                          texture_sha256=['c' * 64], premultiplied_alpha=False, mask_quality=2,
                          mvp=[1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],

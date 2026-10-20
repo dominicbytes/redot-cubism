@@ -29,6 +29,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
+      - run: python -m pip install scons==4.11.1
       - name: Verify checkout and run source tests
         shell: python
         run: |

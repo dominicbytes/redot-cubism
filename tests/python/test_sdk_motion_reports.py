@@ -43,7 +43,7 @@ class SDKMotionReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / 'fixtures.json'
             path.write_text(json.dumps([fixture]), encoding='utf-8')
-            self.assertEqual(load_fixtures(path)[0]['model'], str(Path(folder) / fixture['model']))
+            self.assertEqual(load_fixtures(path)[0]['model'], str(Path(folder).resolve() / fixture['model']))
             for value in ([], {}, [dict(fixture, resource='../character.res')],
                           [dict(fixture, motions=[])], [dict(fixture, motions=[{'group': 'Idle', 'index': -1}])]):
                 path.write_text(json.dumps(value), encoding='utf-8')

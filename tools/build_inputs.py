@@ -3,6 +3,7 @@
 """Validate local inputs before scheduling a native build; never download them."""
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 
@@ -63,14 +64,14 @@ def binding_root(root, options, pins, api_file, precision):
     if dirty.strip():
         raise ValueError("REDOT_CPP_ROOT contains modified tracked files; use the pinned source unchanged")
     if precision != "single":
-        raise ValueError("The Redot 26.2 port requires precision=single")
+        raise ValueError("The binding ABI requires precision=single")
     if not api_file:
         raise ValueError("Set custom_api_file to the API dump produced by tools/verify_dependencies.py")
     api_path = Path(api_file).expanduser().resolve()
     check_hash(api_path, pins["redot"].get("api_sha256"), "Redot API")
     header = json.loads(api_path.read_text()).get("redot_header", {})
     if (header.get("version_major"), header.get("version_minor"), header.get("precision")) != (26, 2, "single"):
-        raise ValueError("The API dump must target Redot 26.2 single precision")
+        raise ValueError("The binding ABI API dump must target Redot 26.2 single precision")
     return cpp
 
 
@@ -92,13 +93,20 @@ def windows_core_library(core, env, link="static"):
     return core / "lib/windows/x86_64/143" / f"Live2DCubismCore_{crt}.lib"
 
 
-def windows_tool_override(cpp, output):
+def windows_tool_override(cpp, output, source_roots=()):
     """Select the pinned v143 toolset through redot-cpp's custom_tools option."""
     source = (cpp / "tools/windows.py").read_text()
     original = 'env["MSVC_VERSION"] = None'
     if source.count(original) != 1:
         raise ValueError("Pinned redot-cpp Windows tool no longer has the expected MSVC selection")
     selected = source.replace(original, 'env["MSVC_VERSION"] = "14.3"')
+    if source_roots:
+        # This tool configures both bindings and addon objects. Strip each owned
+        # source root from __FILE__, and retain only the PDB basename in the DLL.
+        flags = ["/d1trimfile:" + str(path.resolve()) for path in source_roots]
+        selected += "\n_original_generate = generate\ndef generate(env):\n    _original_generate(env)\n"
+        selected += "    env.Append(CCFLAGS=" + repr(flags) + ")\n"
+        selected += '    env.Append(LINKFLAGS=["/PDBALTPATH:%_PDB%", "/Brepro"])\n'
     output.mkdir(parents=True, exist_ok=True)
     destination = output / "windows.py"
     if not destination.exists() or destination.read_text() != selected:
@@ -119,3 +127,16 @@ def sanitizer_flags(mode, platform):
     if "undefined" in mode:
         compile_flags += ["-fno-sanitize-recover=undefined"]
     return compile_flags, flags
+
+
+def supported_engine(version, pins):
+    """Runtime support is separate from the immutable 26.2 binding API pin."""
+    match = re.fullmatch(r"(\d+\.\d+)\.stable\.(?:mono\.)?[^.]+\.[0-9a-f]+", version)
+    return bool(match and match[1] in pins["supported_redot_versions"])
+
+
+def engine_version(binary, pins):
+    version = subprocess.check_output([str(binary), "--version"], text=True, timeout=10).strip()
+    if not supported_engine(version, pins):
+        raise ValueError("Unsupported Redot runtime: " + version)
+    return version

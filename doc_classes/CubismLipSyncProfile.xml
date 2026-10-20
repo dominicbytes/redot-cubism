@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="CubismLipSyncProfile" inherits="Resource" version="4.3">
 	<brief_description>Shared lip-sync envelope settings.</brief_description>
-	<description>Shared lip-sync envelope settings. Each CubismLipSync owns separate sample and envelope state. Numeric setters reject nonfinite or out-of-range values and retain the old setting. Mouth amplitude is additive; default maximum 0.8 matches the Native SDK sample weight. Authored parameters are protected unless blending is explicitly enabled.</description>
+	<description>Shared lip-sync envelope settings. Each CubismLipSync owns separate sample and envelope state. Numeric setters reject nonfinite or out-of-range values and retain the old setting. Mouth amplitude is additive; default maximum 0.8 matches the Native SDK sample weight. Ranges are stored atomically when saving or duplicating. Legacy separately stored endpoints are staged until they form a valid range; explicit set_minimum/set_maximum calls always validate against the current opposite endpoint. Authored parameters are protected unless blending is explicitly enabled.</description>
 	<members>
 		<member name="gain" type="float" setter="set_gain" getter="get_gain" default="1.0">Nonnegative gain applied to a unit-clamped amplitude after the noise gate.</member>
 		<member name="noise_gate" type="float" setter="set_noise_gate" getter="get_noise_gate" default="0.02">Samples below this [0,1] threshold become silence before gain.</member>

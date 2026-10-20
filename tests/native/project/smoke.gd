@@ -141,7 +141,8 @@ func _run() -> void:
 	print("CUBISM_NATIVE_VERSIONS:" + JSON.stringify(versions))
 	if not _check(versions.runtime_core_packed == 0x06000001, "Core version mismatch"):
 		return
-	if not _check(versions.runtime_redot.major == 26 and versions.runtime_redot.minor == 2, "Redot version mismatch"):
+	var runtime_series: String = "%d.%d" % [versions.runtime_redot.major, versions.runtime_redot.minor]
+	if not _check(versions.supported_redot_versions.has(runtime_series), "Redot version mismatch"):
 		return
 	if not _check(OS.has_feature("editor") or not ClassDB.class_exists("GDCubismPlugin"), "editor plugin registered in export template"):
 		return

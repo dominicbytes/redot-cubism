@@ -49,5 +49,5 @@ The native graphics regression checks ownership against the actual scene tree
 in Direct and SubViewport Fallback modes, additive manual-step uploads, frame
 reset, hidden-mask requests, and ownership returning to zero after unload.
 `tools/run_model2d_tests.py --graphics --motion` includes this check in both the
-source project and checked export. The [benchmark runner](benchmarks.md) records the plan's eight scenarios using
-these counters. Diagnostic checks alone do not establish a performance baseline.
+source project and checked export. The [benchmark runner](benchmarks.md) records
+eight scenarios using these counters. Diagnostic checks alone do not establish a performance baseline.

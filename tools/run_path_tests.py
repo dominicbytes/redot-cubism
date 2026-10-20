@@ -40,7 +40,7 @@ def main():
         env[f"XDG_{name}_HOME"] = str(run / name.lower())
 
     def execute(name, switches, marker=None):
-        command = [engine, "--headless", "--path", str(project), *switches]
+        command = [engine, "--headless", "--audio-driver", "Dummy", "--path", str(project), *switches]
         result = subprocess.run(command, env=env, cwd=run, stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, text=True, timeout=60)
         (run / f"{name}.log").write_text(result.stdout)

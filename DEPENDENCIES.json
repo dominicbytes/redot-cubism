@@ -45,5 +45,14 @@
     "linux_compiler": "GCC 16.2.1 20260810",
     "linux_linker": "GNU ld 2.47",
     "windows_compiler": null
+  },
+  "supported_redot_versions": [
+    "26.2",
+    "26.3"
+  ],
+  "redot_26_3": {
+    "version": "26.3.stable.official.85e520394",
+    "commit": "85e5203945af15755dd2f66cb6fdf7545fd88c0b",
+    "api_sha256": "4c709d5920855dfe7294d01b9899d21aec4e94d3df9fc46f7aa90ad8fff5a38e"
   }
 }

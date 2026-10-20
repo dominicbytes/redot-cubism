@@ -17,8 +17,8 @@ Error CubismLipSyncProfile::set_gain(double value) { return set_number(gain, val
 Error CubismLipSyncProfile::set_noise_gate(double value) { return set_number(noise_gate, value, 0, 1); }
 Error CubismLipSyncProfile::set_attack(double value) { return set_number(attack, value, 0, std::numeric_limits<float>::max()); }
 Error CubismLipSyncProfile::set_release(double value) { return set_number(release, value, 0, std::numeric_limits<float>::max()); }
-Error CubismLipSyncProfile::set_minimum(double value) { return set_number(minimum, value, -std::numeric_limits<float>::max(), maximum); }
-Error CubismLipSyncProfile::set_maximum(double value) { return set_number(maximum, value, minimum, std::numeric_limits<float>::max()); }
+Error CubismLipSyncProfile::set_minimum(double value) { restoring_range = false; return set_number(minimum, value, -std::numeric_limits<float>::max(), maximum); }
+Error CubismLipSyncProfile::set_maximum(double value) { restoring_range = false; return set_number(maximum, value, minimum, std::numeric_limits<float>::max()); }
 Error CubismLipSyncProfile::set_mouth_form_value(double value) { return set_number(mouth_form_value, value, -std::numeric_limits<float>::max(), std::numeric_limits<float>::max()); }
 
 void CubismLipSyncProfile::_bind_methods() {
@@ -30,13 +30,68 @@ void CubismLipSyncProfile::_bind_methods() {
     LIP_PROPERTY(Variant::FLOAT, noise_gate)
     LIP_PROPERTY(Variant::FLOAT, attack)
     LIP_PROPERTY(Variant::FLOAT, release)
-    LIP_PROPERTY(Variant::FLOAT, minimum)
-    LIP_PROPERTY(Variant::FLOAT, maximum)
+    ClassDB::bind_method(D_METHOD("set_minimum", "value"), &CubismLipSyncProfile::set_minimum);
+    ClassDB::bind_method(D_METHOD("get_minimum"), &CubismLipSyncProfile::get_minimum);
+    ClassDB::bind_method(D_METHOD("set_maximum", "value"), &CubismLipSyncProfile::set_maximum);
+    ClassDB::bind_method(D_METHOD("get_maximum"), &CubismLipSyncProfile::get_maximum);
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "minimum", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_minimum", "get_minimum");
+    ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "maximum", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR), "set_maximum", "get_maximum");
     LIP_PROPERTY(Variant::PACKED_STRING_ARRAY, parameter_ids)
     LIP_PROPERTY(Variant::STRING_NAME, mouth_form_parameter)
     LIP_PROPERTY(Variant::FLOAT, mouth_form_value)
     LIP_PROPERTY(Variant::BOOL, blend_with_authored)
 #undef LIP_PROPERTY
+}
+
+void CubismLipSyncProfile::_get_property_list(List<PropertyInfo> *properties) const {
+    properties->push_back(PropertyInfo(Variant::PACKED_FLOAT64_ARRAY, "_range", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_STORAGE));
+}
+
+bool CubismLipSyncProfile::_get(const StringName &name, Variant &value) const {
+    if (name != StringName("_range")) return false;
+    PackedFloat64Array range;
+    range.push_back(minimum);
+    range.push_back(maximum);
+    value = range;
+    return true;
+}
+
+bool CubismLipSyncProfile::_set(const StringName &name, const Variant &value) {
+    // Older resources stored endpoints separately. Stage those assignments so
+    // either order can restore a valid pair without exposing an inverted range.
+    // Direct setter calls keep their strict validation and discard staging.
+    if (name == StringName("minimum") || name == StringName("maximum")) {
+        if (value.get_type() != Variant::INT && value.get_type() != Variant::FLOAT) return true;
+        const double endpoint = value;
+        if (!std::isfinite(endpoint) || std::abs(endpoint) > std::numeric_limits<float>::max()) return true;
+        if (!restoring_range) {
+            restored_minimum = minimum;
+            restored_maximum = maximum;
+        }
+        restoring_range = true;
+        if (name == StringName("minimum")) restored_minimum = endpoint;
+        else restored_maximum = endpoint;
+        if (restored_minimum <= restored_maximum) {
+            minimum = restored_minimum;
+            maximum = restored_maximum;
+            restoring_range = false;
+            emit_changed();
+        }
+        return true;
+    }
+    if (name == StringName("_range")) {
+        if (value.get_type() != Variant::PACKED_FLOAT64_ARRAY) return false;
+        const PackedFloat64Array range = value;
+        const double limit = std::numeric_limits<float>::max();
+        if (range.size() != 2 || !std::isfinite(range[0]) || !std::isfinite(range[1]) ||
+                range[0] < -limit || range[1] > limit || range[0] > range[1]) return false;
+        restoring_range = false;
+        minimum = range[0];
+        maximum = range[1];
+        emit_changed();
+        return true;
+    }
+    return false;
 }
 
 void CubismLipSync::_bind_methods() {

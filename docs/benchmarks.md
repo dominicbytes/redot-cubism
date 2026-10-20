@@ -1,6 +1,6 @@
 # Licensed runtime benchmarks
 
-`tools/run_benchmarks.py` runs the eight scenarios in plan section 23.3 on the
+`tools/run_benchmarks.py` runs the eight scenarios listed below on the
 real GL Compatibility renderer. It requires a private, prepared Redot project
 with imported `CubismModelResource` files and a matching **debug** addon library.
 It copies that project into a new directory under the selected output folder
@@ -79,7 +79,7 @@ fingerprints. Addon and shader hashes are recorded but may differ, allowing comp
 between revisions. Every metric's p95 is checked; a regression larger than the
 threshold fails. A zero baseline permits only zero. No tolerance is selected
 implicitly. Repeat measurements under controlled conditions before reviewing a
-baseline; a VM measurement is useful evidence but does not replace the plan's
+baseline; a VM measurement is useful evidence but does not replace the
 dedicated-runner gate.
 
 `tools/run_tests.py --suite benchmark` exposes measurement and baseline comparison
@@ -99,49 +99,9 @@ incomplete scenarios or mismatched library/engine identities fail the command.
 Reports and copied projects can contain
 licensed assets and private paths; keep them private unless separately reviewed.
 
-## Linux VM measurements recorded on 2026-09-18
+## Compatibility and qualification
 
-The [current Linux validation snapshot](linux-validation-2026-09-18.md) records
-three complete eight-workload trials using the frozen `55dd060` debug library,
-with 7,200 measured frames, FPS ranges and frame/CPU percentiles. The runs are
-`MEASURED_ONLY`; their variation does not establish a dedicated-runner baseline.
-An initial failed offscreen attempt remains separately recorded and unexplained.
-
-## Linux VM measurements recorded on 2026-09-14
-
-The workload was exercised through the aggregate frontend using Redot 26.2,
-the repository shaders at that time and a debug addon. The report records library
-and shader hashes but not a source revision or dirty state; these measurements
-cannot establish performance for revision `90f8d18` or a later release candidate.
-The prepared SDK fixtures were Haru (`Idle/0`, `F03`)
-and Mao for mask stress. All eight scenarios passed their workload, cleanup and
-measurement checks: 60 warmup frames and 300 measured frames each (2,400 measured
-frames total). Animated scenarios retained the expected 2/3/8 motion handles;
-static/mask scenarios retained none. Both culled scenarios requested zero mask
-redraws throughout measurement; mask stress created 16 mask compositions.
-
-These p95 timings are from an Omarchy VM using GL Compatibility through virgl.
-They describe that measurement run, not a regression comparison against an
-approved baseline:
-
-| Scenario | Frame interval (ms) | Model CPU (ms) | Renderer CPU (ms) |
-|---|---:|---:|---:|
-| static | 14.685 | 0.955 | 2.818 |
-| vn | 25.398 | 1.344 | 5.106 |
-| party | 33.713 | 1.863 | 6.157 |
-| crowd | 124.015 | 4.492 | 27.765 |
-| masks | 55.218 | 0.841 | 8.105 |
-| physics | 49.212 | 2.243 | 8.981 |
-| offscreen | 72.854 | 3.747 | 29.102 |
-| hidden | 80.198 | 5.618 | 31.306 |
-
-The frame interval includes engine, graphics scheduling and harness overhead;
-CPU phase percentiles cannot be added to derive its percentile. Offscreen and
-hidden cases still receive explicit manual simulation steps here; zero mask
-requests do not imply zero model or renderer CPU work.
-
-Private raw reports retain all seven metric distributions, shader/library
-identities and live ownership counts. This run is `MEASURED_ONLY`, with no
-regression threshold selected. It does not replace repeated measurements and
-a reviewed baseline on the planned dedicated runner. Older crowd measurements
-without idle motion are not a comparable workload.
+The runner accepts the supported Redot 26.2/26.3 runtime families. Use a matching
+prepared project and debug library; engine acceptance alone does not qualify a
+platform, renderer or performance baseline. See [current status](current-status.md)
+for compatibility limits. Keep per-run measurements and machine evidence private.

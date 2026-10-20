@@ -17,7 +17,7 @@ class BuildInputsTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.sdk = self.root / "SDK with spaces"
         self.core = self.sdk / "Core"
         self.framework = self.sdk / "Framework"
@@ -96,6 +96,13 @@ class BuildInputsTest(unittest.TestCase):
         self.pins["redot"] = {"api_sha256": sha256(api)}
         options = {"REDOT_CPP_ROOT": str(cpp)}
         self.assertEqual(binding_root(self.root, options, self.pins, str(api), "single"), cpp)
+        baseline_api = api.read_text()
+        api.write_text(json.dumps({"redot_header": {"version_major": 26, "version_minor": 3, "precision": "single"}}))
+        self.pins["redot"]["api_sha256"] = sha256(api)
+        with self.assertRaisesRegex(ValueError, "binding ABI API dump must target Redot 26.2"):
+            binding_root(self.root, options, self.pins, str(api), "single")
+        api.write_text(baseline_api)
+        self.pins["redot"]["api_sha256"] = sha256(api)
         with self.assertRaisesRegex(ValueError, "precision=single"):
             binding_root(self.root, options, self.pins, str(api), "double")
         with self.assertRaisesRegex(ValueError, "Set custom_api_file"):

@@ -17,6 +17,8 @@ import shlex
 import subprocess
 import tempfile
 
+from build_inputs import supported_engine
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -33,8 +35,8 @@ def main():
         parser.error("Supply --sdk-root or CUBISM_SDK_ROOT for the licensed local SDK")
     engine = os.environ["REDOT_BIN"]
     version = subprocess.check_output([engine, "--version"], text=True, timeout=10).strip()
-    if version != json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]:
-        parser.error("REDOT_BIN does not match the pinned Redot version")
+    if not supported_engine(version, json.loads((ROOT / "DEPENDENCIES.json").read_text())):
+        parser.error("REDOT_BIN is not a supported Redot runtime")
     shaders = args.sdk_root.resolve() / "Framework/src/Rendering/OpenGL/Shaders/Standard"
     sdk_files = [shaders / ("FragShaderSrc" + mask + alpha + ".frag")
                  for mask in ("", "Mask", "MaskInverted")

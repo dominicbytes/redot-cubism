@@ -1,7 +1,7 @@
 # Android and iOS status
 
-Android and iOS are experimental, later-stage targets in the implementation
-plan. The current port has no qualified mobile build or exported application.
+Android and iOS are experimental targets. The current port has no qualified
+mobile build or exported application.
 Retained upstream platform branches are not tested mobile support.
 
 Mobile work requires separately verified SDK/Core architectures, Redot bindings

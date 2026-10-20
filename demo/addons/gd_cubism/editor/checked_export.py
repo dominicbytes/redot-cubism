@@ -30,6 +30,23 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def executable_name(name, target):
+    if name in ('', '.', '..') or any(c in name for c in '/\\:'):
+        raise ValueError('Executable name must be a single filename')
+    if target == 'Windows' and not name.lower().endswith('.exe'):
+        name += '.exe'
+    probe = '.cubism-identity-editor' + ('.exe' if target == 'Windows' else '')
+    normalized = name.lower() if target == 'Windows' else name
+    if normalized in (MANIFEST, '.gdignore', probe):
+        raise ValueError('Executable name is reserved by checked export')
+    return name
+
+
+def check_executable(game, digest):
+    if sha256(game) != digest:
+        raise ValueError('Exported executable changed after validation')
+
+
 def binary_architecture(path):
     """Identify the supported native executable/library header independently."""
     with path.open('rb') as stream:
@@ -62,6 +79,11 @@ def promote(stage, output, previous):
 
 
 def execute(command, log, cwd, env, timeout, marker=None):
+    if '--headless' in command:
+        if '--audio-driver' not in command:
+            command[1:1] = ['--audio-driver', 'Dummy']
+        if '--quit-after' not in command:
+            command[1:1] = ['--quit-after', '10000']
     kwargs = {'start_new_session': True} if os.name != 'nt' else {}
     with log.open('wb') as stream:
         process = subprocess.Popen(command, cwd=cwd, env=env, stdout=stream, stderr=subprocess.STDOUT, **kwargs)
@@ -93,7 +115,19 @@ def check_native_build(build, target, mode):
             raise ValueError('Exported native build ' + key + ' mismatch: expected ' + value + ', got ' + str(build.get(key)))
 
 
+def check_runtime_build(build, version):
+    supported = build.get('supported_redot_versions', [])
+    parts = version.split('.')
+    runtime = '.'.join(parts[:2])
+    if version != build['redot_version'] and (len(parts) < 3 or parts[2] != 'stable' or runtime not in supported):
+        raise ValueError('Editor does not match the native addon runtime support')
+
+
 def stage_identity_editor(editor, probe, target):
+    if target == 'Windows' and editor.name.lower().endswith('.console.exe'):
+        editor = editor.with_name(editor.name[:-len('.console.exe')] + '.exe')
+        if not editor.is_file():
+            raise ValueError('Windows console wrapper requires its paired editor executable; select the .exe without .console')
     # A Windows parent editor may still hold the original executable open.
     # Removing a hard link to it then fails even after the probe exits.
     if target != 'Windows':
@@ -186,8 +220,9 @@ def checked_export(args):
                  '--cubism-preflight', args.preset, str(preflight_file)],
                 work / 'preflight.log', work, env, args.timeout, 'CUBISM_EXPORT_PREFLIGHT_PASS')
         preflight = json.loads(preflight_file.read_text())
-        if not preflight['ok'] or version != preflight['build']['redot_version']:
-            raise ValueError('Preflight failed or editor does not match the native addon')
+        if not preflight['ok']:
+            raise ValueError('Preflight failed')
+        check_runtime_build(preflight['build'], version)
         preset = preflight['preset']
         target = {'Linux': 'Linux', 'Windows Desktop': 'Windows'}.get(preset['platform'])
         if target != platform.system() or preset['architecture'] != 'x86_64':
@@ -204,7 +239,7 @@ def checked_export(args):
             hashes.setdefault(name, sha256(path))
         check_sources(snapshot, hashes)
         check_sources(project, hashes)
-        name = args.name + ('.exe' if target == 'Windows' and not args.name.lower().endswith('.exe') else '')
+        name = executable_name(args.name, target)
         game = stage / name
         execute([args.redot_bin, '--headless', '--path', str(snapshot), '--export-' + args.mode, args.preset, str(game)],
                 work / 'export.log', work, env, args.timeout)
@@ -212,11 +247,12 @@ def checked_export(args):
         check_sources(project, hashes)
         if binary_architecture(game) != preset['architecture']:
             raise ValueError('Exported executable architecture mismatch')
+        game_hash = sha256(game)
         template_version = execute([str(game), '--version'], work / 'template-version.log', stage, env, 10).strip()
         if template_version != version:
             raise ValueError('Exported template version does not match the pinned editor')
         archive = inspect_pack(game.with_suffix('.pck'))
-        if archive['engine_version'][:2] != [26, 2]:
+        if archive['engine_version'][:2] != [int(part) for part in version.split('.')[:2]]:
             raise ValueError('Exported PCK engine version mismatch')
         for name, digest in preflight['raw_hashes'].items():
             if archive['files'].get(name.removeprefix('res://'), {}).get('sha256') != digest:
@@ -271,6 +307,7 @@ def checked_export(args):
         check_sources(project, hashes)
         shutil.rmtree(private)
         private = None
+        check_executable(game, game_hash)
         promote(stage, output, work / 'previous')
         committed = {'status': 'PASS', 'output': str(output), 'work': str(work), 'manifest': str(output / MANIFEST)}
         return committed

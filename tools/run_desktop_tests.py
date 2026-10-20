@@ -13,6 +13,8 @@ import sys
 import tempfile
 import time
 
+from build_inputs import supported_engine
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -63,7 +65,7 @@ def main():
     engine = Path(os.environ['REDOT_BIN']).resolve()
     version = subprocess.check_output([str(engine), '--version'], text=True, timeout=10).strip()
     pins = json.loads((ROOT / 'DEPENDENCIES.json').read_text())
-    if version != pins['redot']['version']: parser.error('Editor version differs from pinned Redot')
+    if not supported_engine(version, pins): parser.error('Unsupported Redot runtime')
     if subprocess.check_output([str(args.template), '--version'], text=True, timeout=10).strip() != version:
         parser.error('Template version differs from editor')
     args.output.mkdir(parents=True, exist_ok=True)

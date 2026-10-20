@@ -2,7 +2,7 @@
 
 | SDK | Compile | Runtime | Notes |
 |---|---|---|---|
-| 5-r.5 / Core 6.0.1 | Linux and Windows x86_64 debug/release pass | Scoped model, motion, expression and export checks on both platforms | Exact source/environment boundaries and incomplete release gates are in [current status](../current-status.md) |
+| 5-r.5 / Core 6.0.1 | Linux and Windows x86_64 debug/release pass | Scoped model, motion, expression and export checks on both platforms | See [current status](../current-status.md) for supported workflows and remaining qualification limits |
 | Older SDK | Unsupported | Unsupported | No automatic compatibility or mixed Core/Framework versions |
 | Newer SDK | Untested | Untested | Requires a separately verified upgrade |
 
@@ -25,7 +25,7 @@ hooks are no-ops because Redot owns canvas submission. `GetRenderOrders()`
 replaces `GetDrawableRenderOrders()`; with offscreen objects rejected, the
 drawable-indexed order array retains the required meaning.
 
-See [native test evidence](../gamedev/pr-02b-native-report.md) for actual coverage.
+See [native test scope](../desktop-testing.md) for actual coverage.
 The existing drawable texture, culling and multiply/screen-color queries still
 exist in the pinned headers and have not been renamed speculatively. The lifetime,
 color-override and rendering requirements remain subject to the native tests.

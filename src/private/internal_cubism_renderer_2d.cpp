@@ -193,7 +193,16 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
         res);
 
     // get the model's global transform to preform optimizations against
-    auto mesh_0 = Object::cast_to<MeshInstance2D>(res.dict_mesh.values()[0]);
+    MeshInstance2D *mesh_0 = nullptr;
+    const Array meshes = res.dict_mesh.values();
+    for (int i = 0; i < meshes.size(); ++i) {
+        mesh_0 = Object::cast_to<MeshInstance2D>(meshes[i].get_validated_object());
+        if (mesh_0 != nullptr) break;
+    }
+    if (mesh_0 == nullptr) {
+        res.compositor.clear();
+        return;
+    }
 
     const Transform2D viewport_transform = mesh_0->get_global_transform_with_canvas();
     const Rect2 viewport_bounds = mesh_0->get_viewport_rect();
@@ -229,7 +238,7 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
         
         CubismIdHandle handle = model->GetDrawableId(index);
         String node_name = String::utf8(handle->GetString().GetRawString());
-        MeshInstance2D *node = Object::cast_to<MeshInstance2D>(res.dict_mesh[node_name]);
+        MeshInstance2D *node = Object::cast_to<MeshInstance2D>(res.dict_mesh.get(node_name, Variant()).get_validated_object());
         if (node == nullptr) {
             continue;
         }
@@ -237,6 +246,10 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
         node->set_visible(visible);
         Ref<ShaderMaterial> mat = node->get_material();
         Ref<ArrayMesh> ary_mesh = node->get_mesh();
+        if (ary_mesh.is_null() || mat.is_null()) {
+            node->set_visible(false);
+            continue;
+        }
 
         this->update_mesh(model, index, res, ary_mesh);
         this->update_material(model, index, mat);
@@ -269,18 +282,23 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
     Array masks = res.dict_mask.keys();
     for (int i = 0; i < masks.size(); i++) {
         String mask_name = masks[i];
-        SubViewport *mask = Object::cast_to<SubViewport>(res.dict_mask[mask_name]);
+        SubViewport *mask = Object::cast_to<SubViewport>(res.dict_mask[mask_name].get_validated_object());
+        if (mask == nullptr) continue;
 
         // build bounding box of all the meshes in the viewport
         AABB aabb;
-        {
-            Ref<ArrayMesh> mesh = Object::cast_to<MeshInstance2D>(mask->get_child(0))->get_mesh();
-            aabb = mesh->get_custom_aabb();
-
-            for (int n = 1; n < mask->get_child_count(); n++) {
-                Ref<ArrayMesh> mesh = Object::cast_to<MeshInstance2D>(mask->get_child(n))->get_mesh();
-                aabb = aabb.merge(mesh->get_custom_aabb());
-            }
+        bool has_bounds = false;
+        for (int n = 0; n < mask->get_child_count(); n++) {
+            MeshInstance2D *node = Object::cast_to<MeshInstance2D>(mask->get_child(n));
+            if (node == nullptr) continue;
+            Ref<ArrayMesh> mesh = node->get_mesh();
+            if (mesh.is_null()) continue;
+            aabb = has_bounds ? aabb.merge(mesh->get_custom_aabb()) : mesh->get_custom_aabb();
+            has_bounds = true;
+        }
+        if (!has_bounds) {
+            mask->set_update_mode(SubViewport::UPDATE_DISABLED);
+            continue;
         }
         aabb = aabb.grow(4.0);  // adds padding around the mask for safety
         Rect2 bounds(aabb.position.x, aabb.position.y, aabb.size.x, aabb.size.y);
@@ -338,8 +356,10 @@ void InternalCubismRenderer2D::update(InternalCubismRendererResource &res, int32
 
         Array meshes = res.dict_mask_meshes[mask_name];
         for (int n = 0; n < meshes.size(); n++) {
-            MeshInstance2D *mesh = Object::cast_to<MeshInstance2D>(meshes[n]);
+            MeshInstance2D *mesh = Object::cast_to<MeshInstance2D>(meshes[n].get_validated_object());
+            if (mesh == nullptr) continue;
             Ref<ShaderMaterial> mat = mesh->get_material();
+            if (mat.is_null()) continue;
             mat->set_shader_parameter("tex_mask", mask->get_texture());
             mat->set_shader_parameter("mask_scale", scalar);
             mat->set_shader_parameter("mesh_offset", viewport_offset);

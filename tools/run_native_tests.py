@@ -12,7 +12,7 @@ import sys
 import tempfile
 import wave
 
-from build_inputs import sha256
+from build_inputs import sha256, supported_engine
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,7 +51,7 @@ def main():
         parser.error("Set REDOT_BIN and supply existing library/model files")
     pins = json.loads((ROOT / "DEPENDENCIES.json").read_text())
     version = subprocess.check_output([binary, "--version"], text=True, timeout=10).strip()
-    if version != pins["redot"]["version"]:
+    if not supported_engine(version, pins):
         parser.error(f"Unexpected Redot version: {version}")
     if bool(args.sanitizer_runtime) != bool(args.sanitizer_library):
         parser.error("Supply both sanitizer runtime and library")
@@ -88,6 +88,10 @@ def main():
         audio.writeframes(b"\x00\x00" * 80)
     copy_bytes(args.model.parent, project / "fixture")
     copy_bytes(ROOT / "demo/addons/gd_cubism/res", project / "addons/gd_cubism/res")
+    example_script = ROOT / "demo/addons/gd_cubism/example/demo_effect_custom_03.gd"
+    example_target = project / "addons/gd_cubism/example/demo_effect_custom_03.gd"
+    example_target.parent.mkdir(parents=True, exist_ok=True)
+    example_target.write_bytes(example_script.read_bytes())
     shader_hashes = {path.name: sha256(path) for path in sorted((project / "addons/gd_cubism/res/shader").glob("*.gdshader"))}
     library_path = project / "addons/gd_cubism/bin" / args.library.name
     library_path.parent.mkdir(parents=True)
@@ -106,15 +110,16 @@ def main():
     checks = []
 
     def run(name, switches, marker=None, executable=None, graphics=False):
-        command = [str(executable or binary)]
+        command = [str(executable or binary), "--audio-driver", "Dummy"]
         if graphics:
-            command += ["--rendering-method", args.graphics]
+            command += ["--mcp-background", "--rendering-method", args.graphics]
             if feature == "linux":
                 command += ["--display-driver", "x11"]
         else:
             command += ["--headless"]
         if executable is None:
             command += ["--path", str(project)]
+        command += ["--audio-driver", "Dummy"]
         command += switches
         try:
             result = subprocess.run(command, cwd=run_root, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300 if name.endswith("-asan") else 60)
@@ -123,6 +128,8 @@ def main():
             output, code = str(exc), 124
         (run_root / f"{name}.log").write_text(output)
         diagnostic_output = output
+        if name.endswith("legacy-target-point"):
+            diagnostic_output = diagnostic_output.replace("WARNING: Undefined parameter name: MissingLegacyTarget", "EXPECTED_UNDEFINED_TARGET_WARNING", 2)
         if "deltas" in name:
             # This deliberate negative input has one documented debug diagnostic.
             diagnostic_output = diagnostic_output.replace("WARNING: Negative Cubism delta ignored.", "EXPECTED_NEGATIVE_DELTA_WARNING", 1)
@@ -146,6 +153,8 @@ def main():
     if success:
         success = run("empty-runtime", ["--script", "res://empty_runtime.gd", "--quit-after", "2"], "CUBISM_EMPTY_PASS")
     if success:
+        success = run("variant-compatibility", ["--script", "res://variant_compatibility_checks.gd", "--quit-after", "2"], "CUBISM_VARIANT_COMPATIBILITY_PASS")
+    if success:
         success = run("manifest-parser", ["--script", "res://manifest_checks.gd", "--quit-after", "2"], "CUBISM_MANIFEST_PASS cases=49")
     if success:
         success = run("model-resource", ["--script", "res://resource_checks.gd", "--quit-after", "2"], "CUBISM_RESOURCE_PASS")
@@ -156,6 +165,8 @@ def main():
     if success:
         success = run("motion-parser", ["--script", "res://motion_parser_checks.gd", "--quit-after", "2"], "CUBISM_MOTION_PARSER_PASS")
     if success:
+        success = run("motion-loader", ["--script", "res://motion_loader_checks.gd", "--quit-after", "2"], "CUBISM_MOTION_LOADER_PASS")
+    if success:
         success = run("pose-parser", ["--script", "res://pose_parser_checks.gd", "--quit-after", "2"], "CUBISM_POSE_PARSER_PASS")
     if success:
         success = run("physics-parser", ["--script", "res://physics_parser_checks.gd", "--quit-after", "2"], "CUBISM_PHYSICS_PARSER_PASS")
@@ -164,7 +175,19 @@ def main():
     if success:
         success = run("model-factory", ["--script", "res://model_factory_checks.gd", "--quit-after", "2"], "CUBISM_MODEL_FACTORY_PASS")
     if success:
+        success = run("legacy-hit-area", ["--script", "res://legacy_hit_area_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_HIT_AREA_PASS")
+    if success:
+        success = run("legacy-target-point", ["--script", "res://legacy_target_point_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_TARGET_POINT_PASS")
+    if success:
+        success = run("legacy-eye-blink", ["--script", "res://legacy_eye_blink_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_EYE_BLINK_PASS")
+    if success:
+        success = run("legacy-audio-demo", ["--script", "res://legacy_audio_demo_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_AUDIO_DEMO_PASS")
+    if success:
         success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
+    if success:
+        success = run("legacy-state", ["--script", "res://legacy_state_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_STATE_PASS")
+    if success:
+        success = run("model-opacity", ["--script", "res://model_opacity_checks.gd", "--quit-after", "600"], "CUBISM_MODEL_OPACITY_PASS")
     if success:
         success = run("sdk-json", ["--script", "res://sdk_json_checks.gd", "--quit-after", "600"], "CUBISM_SDK_JSON_PASS variants=5")
     if success:
@@ -218,6 +241,8 @@ def main():
     graphics_tested = False
     if success and args.mask_compositions:
         success = run("renderer-masks", ["--quit-after", "120", "--", "--mask-checks"], "CUBISM_MASK_PASS")
+    if success and args.graphics:
+        success = run("model-opacity-graphics", ["--script", "res://model_opacity_checks.gd", "--quit-after", "600"], "CUBISM_MODEL_OPACITY_PASS", graphics=True)
     if success and args.graphics:
         success = run("graphics", ["--quit-after", "120", "--", f"--capture={run_root / 'model.png'}"], "CUBISM_NATIVE_GRAPHICS:", graphics=True)
         graphics_tested = success and (run_root / "model.png").is_file()
@@ -274,6 +299,8 @@ def main():
             success = run("exported-expression-parser", ["--script", "res://expression_parser_checks.gd", "--quit-after", "2"], "CUBISM_EXPRESSION_PARSER_PASS", game)
         if success:
             success = run("exported-motion-parser", ["--script", "res://motion_parser_checks.gd", "--quit-after", "2"], "CUBISM_MOTION_PARSER_PASS", game)
+        if success:
+            success = run("exported-motion-loader", ["--script", "res://motion_loader_checks.gd", "--quit-after", "2"], "CUBISM_MOTION_LOADER_PASS", game)
         if success:
             success = run("exported-pose-parser", ["--script", "res://pose_parser_checks.gd", "--quit-after", "2"], "CUBISM_POSE_PARSER_PASS", game)
         if success:

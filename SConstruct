@@ -12,6 +12,7 @@ root = Path(Dir("#").abspath)
 sys.path.insert(0, str(root / "tools"))
 from build_inputs import binding_root, core_library, sdk_roots, windows_core_library, windows_tool_override, sanitizer_flags, sha256
 from framework_patch import patch_csm_string, PATCH_ID
+from binding_patch import prepare_bindings, PATCH_ID as BINDING_PATCH_ID
 
 pins = json.loads((root / "DEPENDENCIES.json").read_text())
 options = dict(os.environ)
@@ -26,12 +27,17 @@ except (OSError, ValueError) as exc:
 build_dir = Path(options.get("CUBISM_BUILD_DIR", root / ".local-build/native")).resolve()
 build_dir.mkdir(parents=True, exist_ok=True)
 SConsignFile(str(build_dir / ".sconsign.dblite"))
+try:
+    cpp = prepare_bindings(cpp, build_dir / "redot-cpp")
+except (OSError, ValueError) as exc:
+    print(f"Redot Cubism build input error: {exc}")
+    Exit(1)
 if ARGUMENTS.get("platform") == "windows":
     if ARGUMENTS.get("custom_tools"):
         print("Redot Cubism build input error: custom_tools cannot override the pinned Windows toolchain")
         Exit(1)
     try:
-        ARGUMENTS["custom_tools"] = str(windows_tool_override(cpp, build_dir / "tools"))
+        ARGUMENTS["custom_tools"] = str(windows_tool_override(cpp, build_dir / "tools", (root, framework, core, build_dir)))
     except (OSError, ValueError) as exc:
         print(f"Redot Cubism build input error: {exc}")
         Exit(1)
@@ -87,7 +93,9 @@ if not patched_string.exists() or patched_string.read_bytes() != patched_bytes:
 build_info = {
     "addon_version": pins["addon_version"],
     "addon_commit": subprocess.check_output(["git", "-C", str(root), "rev-parse", "HEAD"], text=True).strip(),
-    "redot_version": pins["redot"]["version"],
+    "redot_version": pins["redot"]["version"],  # Binding ABI, not the running engine.
+    "supported_redot_versions": pins["supported_redot_versions"],
+    "binding_patch": BINDING_PATCH_ID,
     "redot_api_sha256": pins["redot"]["api_sha256"],
     "redot_cpp_commit": pins["redot_cpp"]["commit"],
     "framework_version": pins["cubism_framework"]["version"],

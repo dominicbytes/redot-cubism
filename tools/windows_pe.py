@@ -13,7 +13,7 @@ def imported_dlls(data):
     sections = struct.unpack_from("<H", data, pe + 6)[0]
     optional_size = struct.unpack_from("<H", data, pe + 20)[0]
     optional = pe + 24
-    if optional + optional_size > len(data):
+    if optional_size < 2 or optional + optional_size > len(data):
         raise ValueError("truncated PE optional header")
     magic = struct.unpack_from("<H", data, optional)[0]
     directory = optional + (112 if magic == 0x20B else 96 if magic == 0x10B else -1)

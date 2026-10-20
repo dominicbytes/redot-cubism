@@ -33,10 +33,8 @@ mouth opening during the active talk motion. It compares them with a temporary
 same-model, physics-disabled control without lip-sync input. This checks that
 physics and voice-driven mouth changes reach the model together; it is a
 qualitative integration check, not an SDK parity or physical-audio measurement.
-On the a613 Windows debug/release libraries, the headless example passed 41
-checks per variant. Private copies with VN physics deliberately disabled each
-failed only the new hair-physics assertion. Pose and blink numeric parity remain
-covered by their separate tests, not this comparison.
+Pose and blink numeric parity remain covered by their separate tests, not this
+comparison.
 
 Each invocation creates a unique directory below `--output`. Its
 `desktop-report.json` is updated before and after each stage, so a crash cannot
@@ -115,8 +113,8 @@ explains why persistent self-hosted runners require isolation.
 
 ## Private CI setup
 
-`.github/workflows/desktop-functional.yml` is a manual workflow for a private
-mirror of reviewed source. Its first job rejects public repositories before
+`.github/workflows/desktop-functional.yml` is a manual workflow for reviewed
+source in a private repository. Its first job rejects public repositories before
 selecting a licensed runner. It has no pull-request trigger, SDK download,
 artifact upload, or public cache. Supply the full reviewed commit SHA when
 dispatching it; configure approval on the private `licensed-desktop` environment
@@ -213,3 +211,15 @@ and rerun the licensed matrix before merging. Engine and Cubism Framework/Core
 updates also require an explicit compatibility review; the automation never
 downloads or replaces the licensed SDK. Dependabot begins operating only after
 this configuration is present on the repository's default branch.
+
+## Runtime matrix
+
+The private licensed workflow selects Redot 26.2 and 26.3 separately on each
+desktop platform. Provision `REDOT_BIN_26_2`, `REDOT_BIN_26_3`,
+`CUBISM_TEMPLATE_DEBUG_26_2`, `CUBISM_TEMPLATE_RELEASE_26_2`,
+`CUBISM_TEMPLATE_DEBUG_26_3` and `CUBISM_TEMPLATE_RELEASE_26_3` on the runner.
+Each editor must match its templates exactly. `REDOT_BINDING_BIN` is set to
+the 26.2 editor for both builds; runtime reports identify the selected engine,
+while native build metadata identifies the retained 26.2 ABI and binding patch.
+The matrix is a required qualification gate, not a claim that every entry has
+already passed.

@@ -141,8 +141,13 @@ void CubismModel2D::_bind_methods() {
     BIND_ENUM_CONSTANT(OFFSCREEN_ALWAYS); BIND_ENUM_CONSTANT(OFFSCREEN_REDUCED); BIND_ENUM_CONSTANT(OFFSCREEN_PAUSED);
 }
 
+GDCubismUserModel *CubismModel2D::get_runtime() const {
+    return Object::cast_to<GDCubismUserModel>(ObjectDB::get_instance(runtime_id));
+}
+
 CubismModel2D::CubismModel2D() {
-    runtime = memnew(GDCubismUserModel);
+    auto *runtime = memnew(GDCubismUserModel);
+    runtime_id = runtime->get_instance_id();
     runtime->enable_preferred_animation();
     runtime->set_name("CubismRuntime");
     runtime->set_process_callback(GDCubismUserModel::MANUAL);
@@ -155,6 +160,8 @@ CubismModel2D::CubismModel2D() {
 }
 
 void CubismModel2D::set_rendering_mode(RenderingMode value) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     if (value < DIRECT || value > SUBVIEWPORT_FALLBACK) {
         emit_signal("runtime_warning", ERR_INVALID_PARAMETER, "Invalid Cubism rendering mode.");
         return;
@@ -164,6 +171,8 @@ void CubismModel2D::set_rendering_mode(RenderingMode value) {
 }
 
 void CubismModel2D::refresh_rendering() {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     if ((!runtime->use_subviewport_fallback && !rendering_refresh_needed) || !is_inside_tree()
             || !is_ready() || runtime->is_native_busy() || runtime->is_destroying()) return;
     // Transform/visibility changes must update the offscreen mapping even while
@@ -176,6 +185,8 @@ void CubismModel2D::refresh_rendering() {
 }
 
 void CubismModel2D::update_mask_limit() {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     const int limits[] = {512, 1024, 2048, custom_mask_limit};
     const int imported = model.is_valid() ? model->get_mask_quality() : MASK_MEDIUM;
     const int quality = mask_quality == MASK_MODEL ? (imported >= 0 ? imported : MASK_MEDIUM) : mask_quality;
@@ -183,6 +194,7 @@ void CubismModel2D::update_mask_limit() {
 }
 
 bool CubismModel2D::get_premultiplied_alpha() const {
+    auto *runtime = get_runtime();
     return is_ready() && runtime->internal_model->get_premultiplied_alpha();
 }
 
@@ -201,6 +213,8 @@ void CubismModel2D::set_custom_mask_limit(int64_t value) {
 }
 
 void CubismModel2D::set_offscreen_update_mode(OffscreenUpdateMode value) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     if (value < OFFSCREEN_ALWAYS || value > OFFSCREEN_PAUSED) {
         emit_signal("runtime_warning", ERR_INVALID_PARAMETER, "Invalid Cubism offscreen update mode.");
         return;
@@ -209,6 +223,7 @@ void CubismModel2D::set_offscreen_update_mode(OffscreenUpdateMode value) {
 }
 
 void CubismModel2D::_notification(int what) {
+    auto *runtime = get_runtime();
     switch (what) {
         case NOTIFICATION_ENTER_TREE:
             queue_debug_redraw();
@@ -245,9 +260,20 @@ void CubismModel2D::_notification(int what) {
             if (hit_target_active || !hovered_hit_areas.is_empty()) queue_hit_refresh();
             break;
         case NOTIFICATION_PREDELETE:
-            if (runtime->is_native_busy()) { cancel_free(); queue_free(); }
+            disposal_requested = true;
+            if (runtime && runtime->is_native_busy()) {
+                // Object cancellation does not cancel Node child teardown. Detach
+                // the busy runtime so its SDK and drawable ownership survives
+                // until the synchronous evaluation has returned.
+                cancel_free();
+                if (runtime->get_parent() == this) remove_child(runtime);
+                runtime->queue_free();
+                queue_free();
+                notify_controller(CubismSpeechHandle::MODEL_DISPOSED);
+            }
             else {
                 notify_controller(CubismSpeechHandle::MODEL_DISPOSED);
+                if (!runtime) break;
                 if (auto *lip = Object::cast_to<CubismLipSync>(ObjectDB::get_instance(runtime->get_procedural_effects()->lip_sync_id))) lip->set_target_model(nullptr);
                 runtime->get_animator()->clear(CubismMotionHandle::MODEL_DISPOSED);
             }
@@ -256,6 +282,8 @@ void CubismModel2D::_notification(int what) {
 }
 
 Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
+    auto *runtime = get_runtime();
+    if (!runtime) return ERR_UNCONFIGURED;
     queue_debug_redraw();
     notify_controller(CubismSpeechHandle::UNLOADED);
     reset_hit_tracking();
@@ -277,6 +305,8 @@ Error CubismModel2D::load_model(const Ref<CubismModelResource> &resource) {
 }
 
 void CubismModel2D::unload_model() {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     queue_debug_redraw();
     notify_controller(CubismSpeechHandle::UNLOADED);
     reset_hit_tracking();
@@ -287,7 +317,11 @@ void CubismModel2D::unload_model() {
     runtime->unload_selected_model();
 }
 
-String CubismModel2D::get_last_error() const { return runtime->get_last_error().get("message", ""); }
+String CubismModel2D::get_last_error() const {
+    auto *runtime = get_runtime();
+    if (!runtime) return "Cubism runtime is unavailable.";
+    return runtime->get_last_error().get("message", "");
+}
 
 void CubismModel2D::emit_load_started(uint64_t expected_generation) {
     if (expected_generation == generation && load_requested && !is_queued_for_deletion()) emit_signal("model_load_started", model);
@@ -301,6 +335,8 @@ void CubismModel2D::on_model_ready() {
 }
 
 void CubismModel2D::start_autoplay(uint64_t expected_generation) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     if (expected_generation != generation || autoplay_started || !autoplay || !load_requested
         || !is_ready() || !is_inside_tree() || is_queued_for_deletion()) return;
     autoplay_started = true;
@@ -328,11 +364,13 @@ void CubismModel2D::set_playback_process_mode(PlaybackProcessMode mode) {
 }
 
 void CubismModel2D::step(double delta, bool controller) {
+    auto *runtime = get_runtime();
     if (controller_clock_id && !controller) return;
     if (!paused && is_ready() && is_inside_tree() && can_process()) {
         // The internal runtime is always MANUAL, including automatic and
         // controller-driven updates. Only a direct manual call opts into tests.
         runtime->advance_internal(delta, !controller && playback_process_mode == MANUAL);
+        if (disposal_requested || !is_ready()) return;
         queue_debug_redraw();
     }
     if (hit_target_active || !hovered_hit_areas.is_empty()) queue_hit_refresh();
@@ -345,6 +383,8 @@ void CubismModel2D::notify_controller(CubismSpeechHandle::FinishReason reason) {
 }
 
 Error CubismModel2D::claim_controller_clock(uint64_t controller) {
+    auto *runtime = get_runtime();
+    if (!runtime) return ERR_UNCONFIGURED;
     if (runtime->is_native_busy() || is_queued_for_deletion()) return ERR_BUSY;
     if (controller_clock_id && controller_clock_id != controller && ObjectDB::get_instance(controller_clock_id)) return ERR_ALREADY_IN_USE;
     if (controller_clock_id == controller) return OK;
@@ -364,22 +404,57 @@ void CubismModel2D::release_controller_clock(uint64_t controller) {
 }
 
 bool CubismModel2D::advance_controller_clock(uint64_t controller, double delta) {
+    auto *runtime = get_runtime();
+    if (!runtime) return false;
     if (controller_clock_id != controller || runtime->is_native_busy() || paused || !is_ready() || !is_inside_tree() || !can_process()) return false;
     step(delta, true);
     return true;
 }
 
-void CubismModel2D::set_enable_eye_blink(bool value) { runtime->get_procedural_effects()->enable_eye_blink = value; }
-bool CubismModel2D::get_enable_eye_blink() const { return runtime->get_procedural_effects()->enable_eye_blink; }
-void CubismModel2D::set_enable_breath(bool value) { runtime->get_procedural_effects()->enable_breath = value; }
-bool CubismModel2D::get_enable_breath() const { return runtime->get_procedural_effects()->enable_breath; }
-void CubismModel2D::set_deterministic_seed(int64_t value) { runtime->get_procedural_effects()->set_seed(value); }
-int64_t CubismModel2D::get_deterministic_seed() const { return runtime->get_procedural_effects()->get_seed(); }
+void CubismModel2D::set_enable_eye_blink(bool value) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
+    runtime->get_procedural_effects()->enable_eye_blink = value;
+}
+bool CubismModel2D::get_enable_eye_blink() const {
+    auto *runtime = get_runtime();
+    if (!runtime) return false;
+    return runtime->get_procedural_effects()->enable_eye_blink;
+}
+void CubismModel2D::set_enable_breath(bool value) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
+    runtime->get_procedural_effects()->enable_breath = value;
+}
+bool CubismModel2D::get_enable_breath() const {
+    auto *runtime = get_runtime();
+    if (!runtime) return false;
+    return runtime->get_procedural_effects()->enable_breath;
+}
+void CubismModel2D::set_deterministic_seed(int64_t value) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
+    runtime->get_procedural_effects()->set_seed(value);
+}
+int64_t CubismModel2D::get_deterministic_seed() const {
+    auto *runtime = get_runtime();
+    if (!runtime) return 0;
+    return runtime->get_procedural_effects()->get_seed();
+}
 
-void CubismModel2D::set_enable_look_target(bool value) { runtime->get_procedural_effects()->enable_look_target = value; }
-bool CubismModel2D::get_enable_look_target() const { return runtime->get_procedural_effects()->enable_look_target; }
+void CubismModel2D::set_enable_look_target(bool value) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
+    runtime->get_procedural_effects()->enable_look_target = value;
+}
+bool CubismModel2D::get_enable_look_target() const {
+    auto *runtime = get_runtime();
+    if (!runtime) return false;
+    return runtime->get_procedural_effects()->enable_look_target;
+}
 
 void CubismModel2D::set_look_target(const Vector2 &local_target, double weight) {
+    auto *runtime = get_runtime();
     if (!std::isfinite(local_target.x) || !std::isfinite(local_target.y) || !std::isfinite(weight) || weight < 0.0 || weight > 1.0) {
         call_deferred("emit_signal", "runtime_warning", ERR_INVALID_PARAMETER, "Invalid look target or weight.");
         return;
@@ -396,14 +471,26 @@ void CubismModel2D::set_look_target(const Vector2 &local_target, double weight) 
 }
 
 void CubismModel2D::clear_look_target() {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     runtime->get_procedural_effects()->clear_look_target();
     requested_look_active = false;
 }
 
-void CubismModel2D::set_enable_lip_sync(bool value) { runtime->get_procedural_effects()->enable_lip_sync = value; }
-bool CubismModel2D::get_enable_lip_sync() const { return runtime->get_procedural_effects()->enable_lip_sync; }
+void CubismModel2D::set_enable_lip_sync(bool value) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
+    runtime->get_procedural_effects()->enable_lip_sync = value;
+}
+bool CubismModel2D::get_enable_lip_sync() const {
+    auto *runtime = get_runtime();
+    if (!runtime) return false;
+    return runtime->get_procedural_effects()->enable_lip_sync;
+}
 
 Error CubismModel2D::attach_lip_sync(uint64_t component) {
+    auto *runtime = get_runtime();
+    if (!runtime) return ERR_UNCONFIGURED;
     if (is_queued_for_deletion()) return ERR_UNAVAILABLE;
     auto *effects = runtime->get_procedural_effects();
     if (effects->lip_sync_id != component && ObjectDB::get_instance(effects->lip_sync_id)) return ERR_ALREADY_IN_USE;
@@ -412,11 +499,14 @@ Error CubismModel2D::attach_lip_sync(uint64_t component) {
 }
 
 void CubismModel2D::detach_lip_sync(uint64_t component) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     auto *effects = runtime->get_procedural_effects();
     if (effects->lip_sync_id == component) effects->lip_sync_id = 0;
 }
 
 PackedStringArray CubismModel2D::get_hit_area_names() const {
+    auto *runtime = get_runtime();
     PackedStringArray names;
     if (is_ready()) for (const Dictionary area : runtime->get_hit_areas()) {
         const String name = area["name"];
@@ -426,6 +516,7 @@ PackedStringArray CubismModel2D::get_hit_area_names() const {
 }
 
 bool CubismModel2D::hit_test(const StringName &hit_area, const Vector2 &local_point) const {
+    auto *runtime = get_runtime();
     return is_ready() && std::isfinite(local_point.x) && std::isfinite(local_point.y)
         && runtime->internal_model->hit_test(hit_area, local_point);
 }
@@ -487,13 +578,19 @@ void CubismModel2D::refresh_hit_areas() {
     }
 }
 
-PackedStringArray CubismModel2D::get_motion_ids() const { return runtime->get_animator()->get_motion_ids(); }
+PackedStringArray CubismModel2D::get_motion_ids() const {
+    auto *runtime = get_runtime();
+    if (!runtime) return PackedStringArray();
+    return runtime->get_animator()->get_motion_ids();
+}
 
 PackedStringArray CubismModel2D::get_expression_ids() const {
+    auto *runtime = get_runtime();
     return is_ready() ? runtime->internal_model->get_expression_ids() : PackedStringArray();
 }
 
 Error CubismModel2D::set_expression(const StringName &id, double fade_seconds) {
+    auto *runtime = get_runtime();
     if (!std::isfinite(fade_seconds) || (fade_seconds < 0.0 && fade_seconds != -1.0)
         || fade_seconds > double(std::numeric_limits<float>::max())) return ERR_INVALID_PARAMETER;
     if (!is_ready()) return ERR_UNCONFIGURED;
@@ -508,6 +605,7 @@ Error CubismModel2D::set_expression(const StringName &id, double fade_seconds) {
 }
 
 void CubismModel2D::clear_expression(double fade_seconds) {
+    auto *runtime = get_runtime();
     if (!std::isfinite(fade_seconds) || (fade_seconds < 0.0 && fade_seconds != -1.0)
         || fade_seconds > double(std::numeric_limits<float>::max())) {
         call_deferred("emit_signal", "runtime_warning", ERR_INVALID_PARAMETER, "Invalid expression fade duration.");
@@ -529,11 +627,21 @@ void CubismModel2D::expression_changed(const StringName &id, uint64_t expected_g
     if (generation == expected_generation && is_ready() && !is_queued_for_deletion()) emit_signal("expression_changed", id);
 }
 
+Error CubismModel2D::preflight_idle(const StringName &id) const {
+    auto *runtime = get_runtime();
+    if (!is_ready()) return ERR_UNCONFIGURED;
+    if (runtime->is_native_busy()) return ERR_BUSY;
+    return runtime->get_animator()->preflight(*runtime->internal_model, id, true);
+}
+
 bool CubismModel2D::controller_state_available(uint64_t owner) const {
+    auto *runtime = get_runtime();
+    if (!runtime) return false;
     return !runtime->is_native_busy() && (controller_clock_id == 0 || controller_clock_id == owner);
 }
 
 Ref<CubismMotionHandle> CubismModel2D::play_motion(const StringName &id, CubismMotionPriority::Priority priority, bool loop, double speed) {
+    auto *runtime = get_runtime();
     if (!is_ready()) return CubismMotionHandle::rejected(id, ERR_UNCONFIGURED);
     if (runtime->is_native_busy()) return CubismMotionHandle::rejected(id, ERR_BUSY);
     const Ref<CubismMotionHandle> handle = runtime->get_animator()->play(*runtime->internal_model, id, priority, loop, speed);
@@ -548,10 +656,14 @@ Ref<CubismMotionHandle> CubismModel2D::play_motion(const StringName &id, CubismM
 }
 
 Ref<CubismMotionHandle> CubismModel2D::play_motion_from_group(const StringName &group, int index, CubismMotionPriority::Priority priority, bool loop, double speed) {
+    auto *runtime = get_runtime();
+    if (!runtime) return CubismMotionHandle::rejected(StringName(), ERR_UNCONFIGURED);
     return play_motion(runtime->get_animator()->find_motion(group, index), priority, loop, speed);
 }
 
 void CubismModel2D::stop_motion(double fade_seconds) {
+    auto *runtime = get_runtime();
+    if (!runtime) return;
     if (!std::isfinite(fade_seconds) || (fade_seconds < 0.0 && fade_seconds != -1.0) || fade_seconds > double(std::numeric_limits<float>::max()) / 256.0) {
         call_deferred("emit_signal", "runtime_warning", ERR_INVALID_PARAMETER, "Invalid motion fade duration.");
         return;
@@ -594,6 +706,7 @@ void CubismModel2D::motion_finished(int reason, int64_t id) {
 }
 
 int CubismModel2D::parameter_index(const StringName &id) const {
+    auto *runtime = get_runtime();
     if (!is_ready()) return -1;
     const Array parameters = runtime->get_parameters();
     for (int i = 0; i < parameters.size(); ++i) {
@@ -604,11 +717,14 @@ int CubismModel2D::parameter_index(const StringName &id) const {
 }
 
 double CubismModel2D::get_parameter_value(const StringName &id) const {
+    auto *runtime = get_runtime();
+    if (!runtime) return 0.0;
     const int index = parameter_index(id);
     return index < 0 ? 0.0 : runtime->evaluated_parameter(index);
 }
 
 Error CubismModel2D::queue_parameter(const StringName &id, double value, double weight, int operation, ParameterLayer layer) {
+    auto *runtime = get_runtime();
     if (layer < LAYER_BASE || layer > LAYER_POST_EFFECT) return ERR_INVALID_PARAMETER;
     if (!std::isfinite(value) || !std::isfinite(weight) || weight < 0.0 || weight > 1.0) return ERR_INVALID_PARAMETER;
     if (!is_ready()) return ERR_UNCONFIGURED;
@@ -618,6 +734,7 @@ Error CubismModel2D::queue_parameter(const StringName &id, double value, double 
 }
 
 Error CubismModel2D::set_part_opacity(const StringName &id, double opacity) {
+    auto *runtime = get_runtime();
     if (!std::isfinite(opacity)) return ERR_INVALID_PARAMETER;
     if (!is_ready()) return ERR_UNCONFIGURED;
     const Array parts = runtime->get_part_opacities();
@@ -629,12 +746,14 @@ Error CubismModel2D::set_part_opacity(const StringName &id, double opacity) {
 }
 
 PackedStringArray CubismModel2D::get_parameter_ids() const {
+    auto *runtime = get_runtime();
     PackedStringArray ids;
     if (is_ready()) for (const Ref<GDCubismParameter> parameter : runtime->get_parameters()) ids.push_back(parameter->get_id());
     return ids;
 }
 
 PackedStringArray CubismModel2D::get_part_ids() const {
+    auto *runtime = get_runtime();
     PackedStringArray ids;
     if (is_ready()) for (const Ref<GDCubismPartOpacity> part : runtime->get_part_opacities()) ids.push_back(part->get_id());
     return ids;

@@ -13,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 
+from build_inputs import supported_engine
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -32,7 +34,7 @@ def main():
         parser.error("Set REDOT_BIN and CUBISM_ABI_LIBRARY to the verified editor and built ABI test library")
     pins = json.loads((ROOT / "DEPENDENCIES.json").read_text())
     version = subprocess.check_output([binary, "--version"], text=True, timeout=10).strip()
-    if version != pins["redot"]["version"]:
+    if not supported_engine(version, pins):
         parser.error(f"Unexpected Redot version: {version}")
     run_root = Path(tempfile.mkdtemp(prefix="abi-", dir=args.output))
     project = run_root / "project"
@@ -57,7 +59,7 @@ def main():
     checks = []
 
     def run(name, switches, markers, executable=None, from_export=False):
-        command = [executable or binary, "--headless"]
+        command = [executable or binary, "--headless", "--audio-driver", "Dummy"]
         if not from_export:
             command += ["--path", str(project)]
         command += switches

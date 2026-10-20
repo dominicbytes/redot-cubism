@@ -12,7 +12,7 @@ The importer must assign IDs using `<group>/<manifest-index>` and validate
 identity consistency. Setters preserve supplied values; they do not derive IDs
 or renumber descriptors. Reordering a manifest changes index-based identities.
 The optional Animation field supports serialization only; motion conversion
-remains a separate P1 feature and is not enabled by this resource class.
+is not implemented by this resource class.
 
 `CubismMotionEvent` stores `time_seconds` and a String `value`. Event values are
 data, including Unicode text. Native playback delivers deferred events through

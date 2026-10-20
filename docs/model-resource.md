@@ -5,7 +5,7 @@ model data. Creating or loading one does not create a Cubism model or renderer.
 The editor importer creates it and the runtime adapter validates it before loading.
 Saving a resource is not evidence that its contents describe a valid model.
 
-The stored properties follow the implementation plan:
+The resource stores these properties:
 
 | Properties | Type |
 | --- | --- |

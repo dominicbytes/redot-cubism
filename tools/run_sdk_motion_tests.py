@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import tempfile
 
-from build_inputs import core_library, sdk_roots, sha256
+from build_inputs import core_library, sdk_roots, sha256, supported_engine
 
 ROOT = Path(__file__).resolve().parents[1]
 TOLERANCE = 1e-5
@@ -98,7 +98,7 @@ def main():
     pins = json.loads((ROOT / 'DEPENDENCIES.json').read_text())
     engine = Path(os.environ['REDOT_BIN']).resolve()
     version = subprocess.check_output([str(engine), '--version'], text=True, timeout=10).strip()
-    if version != pins['redot']['version']: parser.error('Editor differs from pinned Redot')
+    if not supported_engine(version, pins): parser.error('Unsupported Redot runtime')
     try:
         core, framework = sdk_roots({'CUBISM_SDK_ROOT': str(args.sdk_root)}, pins)
         fixtures = load_fixtures(args.fixtures.resolve())

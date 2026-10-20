@@ -24,7 +24,7 @@ class LicensedRunnerTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.root = Path(self.directory.name)
+        self.root = Path(self.directory.name).resolve()
         self.pins = json.loads((licensed.ROOT / 'DEPENDENCIES.json').read_text())
         (self.root / 'DEPENDENCIES.json').write_text(json.dumps(self.pins))
         (self.root / 'tools').mkdir()
@@ -44,6 +44,9 @@ class LicensedRunnerTests(unittest.TestCase):
         self.env['CUBISM_BENCHMARK_RELATIVE_THRESHOLD'] = '0.10'
         self.modules = {'SCons': types.SimpleNamespace(__version__=self.pins['toolchain']['scons']),
                         'PIL': types.SimpleNamespace(__version__='12.3.0')}
+        engine = patch.object(licensed, 'engine_version', return_value=self.pins['redot']['version'])
+        engine.start()
+        self.addCleanup(engine.stop)
         self.calls = []
 
     def _write_visual_matrix(self, matrix=None, limits_platform=None):

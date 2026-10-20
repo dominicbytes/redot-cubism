@@ -1,6 +1,6 @@
 # Linux x86_64 source build
 
-Use Redot 26.2 single precision, the pinned Redot bindings and Cubism Native SDK
+Use Redot 26.2 or 26.3 single precision, the pinned Redot bindings and Cubism Native SDK
 5-r.5. The SDK is obtained separately after accepting its agreements. Linux
 debug/release builds and real model/export tests have passed; a final release
 still requires the full qualification gates in [desktop testing](../desktop-testing.md).
@@ -36,19 +36,19 @@ builds remain mapped until process exit to keep their C++ runtime state valid.
 If it is absent, Redot reports `libLive2DCubismCore.so` while loading the
 extension. Re-run the installer after replacing or rebuilding the addon folder.
 
-A fresh build at `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` used
-GCC/G++ 12.2.0, GNU ld 2.40, Python 3.14.7 and SCons 4.11.1. Both variants
-passed strict headless load/identity and bounded editor-import checks. This is
-a separate environment from the historical GCC 16.2.1/ld 2.47 record in
-`DEPENDENCIES.json`; its smoke checks do not repeat the earlier full graphical
-qualification. See [current status](../current-status.md) for the evidence boundaries.
+Build/load smoke checks do not establish graphical or complete release
+qualification. See [current status](../current-status.md) for compatibility
+limits and [desktop testing](../desktop-testing.md) for the required checks.
 
 The complete environment setup and sequential debug/release commands are in
 [Setup and first character](../quick-start.md#build-the-native-addon-on-linux).
 Run them from the source checkout. Install the pinned SCons version in a
 project-local virtual environment, initialize the `godot-cpp` submodule, set
 `REDOT_BIN`, `CUBISM_SDK_ROOT` and `REDOT_CPP_ROOT`, then generate the API using
-`tools/verify_dependencies.py`. Require its `PASS` before building.
+`tools/verify_dependencies.py`. If `REDOT_BIN` selects 26.3, also set
+`REDOT_BINDING_BIN` to the pinned 26.2 editor; the generated binding API remains
+26.2. Require its `PASS` before building. Linux 26.3 execution has not been
+verified by the Windows compatibility checks.
 
 Pass that generated API as `custom_api_file` and use
 `build_profile=tools/native_build_profile.json` for both variants. Build them
@@ -66,7 +66,9 @@ build; sanitizer success does not replace graphical testing.
 
 Use the official **Redot 26.2 Mono** editor and a .NET 8 SDK. The demo project
 targets `Redot.NET.Sdk/26.2.0` and `net8.0`; `demo/project.godot` sets its
-assembly name to `demo` so Redot loads the resulting `demo.dll`.
+assembly name to `demo` so Redot loads the resulting `demo.dll`. This managed
+SDK pin is retained independently of native 26.3 support. A 26.3 Mono build needs
+its matching managed SDK and templates; it is not certified by native tests.
 
 After building the native addon above, unpack the matching official Mono editor
 and set `REDOT_MONO_ROOT` to the directory containing `GodotSharp`. Restore from

@@ -70,6 +70,80 @@ func _run() -> void:
 					expect(baseline > 0.4 and baseline < 0.6, "canonical motion evaluates selected parameter")
 				else: expect(absf(parameter.value - baseline) < 1e-5, "equivalent JSON preserves playback")
 		model.free()
+	# Compare the converted Animation with real Framework playback, including
+	# both cubic evaluation modes. Reuse the private, lawfully supplied model.
+	var curves := [[0, 0, 0, 1, 1], [0, 0, 1, 0.1, 0.8, 0.7, 0.2, 1, 1],
+		[0, 0, 1, -0.5, 0.8, 1.5, 0.2, 1, 1]]
+	var samples := 0
+	for curve_index in 5:
+		var value: Dictionary = JSON.parse_string(base)
+		value.Curves[0].Segments = curves[0 if curve_index == 0 else 1 if curve_index < 3 else 2]
+		value.Meta.TotalPointCount = 2 if curve_index == 0 else 4
+		value.Meta.AreBeziersRestricted = curve_index == 2 or curve_index == 4
+		var path := directory.path_join("curve-%d.motion3.json" % curve_index)
+		write_bytes(path, JSON.stringify(value).to_utf8_buffer())
+		var previous := Engine.print_error_messages
+		if curve_index == 3: Engine.print_error_messages = false
+		var animation := ResourceLoader.load(path, "Animation", ResourceLoader.CACHE_MODE_IGNORE) as Animation
+		Engine.print_error_messages = previous
+		expect((animation == null) == (curve_index == 3), "only unrestricted outside-control Animation is rejected")
+		var manifest := {"Version":3,"FileReferences":{"Moc":"model.moc3","Textures":textures,
+			"Motions":{"Curve":[{"File":path.get_file(),"FadeInTime":0,"FadeOutTime":0}]}}}
+		var source := directory.path_join("curve-%d.model3.json" % curve_index)
+		write_bytes(source, JSON.stringify(manifest).to_utf8_buffer())
+		var times := [0.1, 0.25, 0.5, 0.75, 0.9]
+		var reference := [0.2008, 0.38125, 0.5, 0.61875, 0.7992]
+		if curve_index == 3:
+			# Cardano root selection jumps near both boundaries. No finite
+			# density of continuous sampled keys gives a uniform 0.002 bound.
+			times = [0.01, 0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98, 0.99]
+			reference = [0, 0.3839517, 0.4213537, 0.4614707, 0.5, 0.5385293, 0.5786463, 0.6160486, 1]
+		for index in times.size():
+			var time: float = times[index]
+			var model := GDCubismUserModel.new()
+			model.playback_process_mode = GDCubismUserModel.MANUAL
+			model.physics_evaluate = false
+			model.pose_update = false
+			root.add_child(model)
+			model.assets = source
+			expect(model.is_initialized(), "SDK comparison model loads")
+			if model.is_initialized():
+				expect(model.start_motion("Curve", 0, GDCubismUserModel.PRIORITY_FORCE).get_error() == OK, "comparison motion starts")
+				model.advance(0.000001) # Establish the SDK queue start time.
+				model.advance(time)
+				for parameter: GDCubismParameter in model.get_parameters():
+					if parameter.id == id:
+						if animation != null:
+							expect(absf(parameter.value - animation.bezier_track_interpolate(0, time)) < 0.002,
+								"Animation matches SDK curve=%d time=%.2f" % [curve_index, time])
+						if curve_index >= 3:
+							expect(absf(parameter.value - reference[index]) < 0.00001,
+								"outside-control SDK reference curve=%d time=%.2f" % [curve_index, time])
+						samples += 1
+			model.free()
+	expect(samples == 29, "all original and outside-control SDK samples evaluated")
+	var bad: Dictionary = JSON.parse_string(base)
+	bad.Meta.TotalSegmentCount = 0
+	# Validate original JSON before adapting Unicode escapes for the SDK.
+	var rejected := [JSON.stringify(bad), base.replace(JSON.stringify(id), '\"\\u0000\"')]
+	for index in rejected.size():
+		var motion_file := "rejected-%d.json" % index
+		write_bytes(directory.path_join(motion_file), rejected[index].to_utf8_buffer())
+		var bad_manifest := {"Version":3,"FileReferences":{"Moc":"model.moc3","Textures":textures,
+			"Motions":{"Bad":[{"File":motion_file}]}}}
+		var bad_source := directory.path_join("rejected-%d.model3.json" % index)
+		write_bytes(bad_source, JSON.stringify(bad_manifest).to_utf8_buffer())
+		for source: String in [bad_source, ProjectSettings.globalize_path(bad_source)]:
+			var model := GDCubismUserModel.new()
+			root.add_child(model)
+			var previous := Engine.print_error_messages
+			Engine.print_error_messages = false
+			model.assets = source
+			Engine.print_error_messages = previous
+			expect(not model.is_initialized() and model.get_last_error().get("code") == ERR_PARSE_ERROR,
+				"raw invalid motion %d fails with parse error" % index)
+			model.free()
+	if failures.is_empty(): print("CUBISM_MOTION_SDK_PASS samples=29 raw_rejections=4")
 	for failure in failures: printerr("CUBISM_SDK_JSON_FAIL: ", failure)
 	if failures.is_empty(): print("CUBISM_SDK_JSON_PASS variants=5")
 	quit(0 if failures.is_empty() else 1)
