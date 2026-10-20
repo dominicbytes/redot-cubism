@@ -194,12 +194,44 @@ class PublicationMetadataTest(unittest.TestCase):
                 validate_history(self.repo, "HEAD", self.base)
 
     def test_base_must_exist_and_be_ancestor(self):
-        with self.assertRaises(subprocess.CalledProcessError):
+        with self.assertRaisesRegex(ValueError, "baseline is unavailable"):
             validate_metadata(self.repo, self.base, "missing-ref")
         self.fixture.git("commit", "--allow-empty", "-qm", "future fixture")
         future = self.fixture.git("rev-parse", "HEAD")
         with self.assertRaisesRegex(ValueError, "ancestor"):
             validate_metadata(self.repo, self.base, future)
+
+    def test_removed_baseline_after_history_rewrite_has_actionable_cli_error(self):
+        old_branch = self.fixture.git("symbolic-ref", "--short", "HEAD")
+        self.fixture.git("checkout", "--orphan", "rewritten-history")
+        self.fixture.write("tools/publication-policy.json", json.dumps({"metadata_base": self.base}).encode())
+        current = self.fixture.commit()
+        self.fixture.git("branch", "-D", old_branch)
+        self.fixture.git("reflog", "expire", "--expire=now", "--all")
+        self.fixture.git("gc", "--prune=now")
+        missing = subprocess.run(["git", "-C", str(self.repo), "cat-file", "-e", self.base],
+                                 capture_output=True)
+        self.assertNotEqual(missing.returncode, 0)
+        command = [sys.executable,
+                   str(Path(__file__).resolve().parents[2] / "tools/check_public_history.py"),
+                   "--repo", str(self.repo), "--ref", current]
+        for override in ([], ["--metadata-base", "missing-ref"]):
+            result = subprocess.run(command + override, text=True, capture_output=True)
+            self.assertEqual(result.returncode, 1)
+            message = json.loads(result.stdout)["error"]
+            for guidance in ("baseline is unavailable", "Fetch complete history", "history was rewritten",
+                             "reviewed replacement ancestor", "--metadata-base '' audits all metadata"):
+                self.assertIn(guidance, message)
+            self.assertNotIn(str(self.repo.resolve()), result.stdout + result.stderr)
+            self.assertEqual(result.stderr, "")
+        rejected = self.fixture.root / "rejected.tar.gz"
+        with self.assertRaisesRegex(ValueError, "baseline is unavailable"):
+            package(self.repo, current, rejected)
+        self.assertFalse(rejected.exists())
+        for override, count in (("", 1), (current, 0)):
+            result = subprocess.run(command + ["--metadata-base", override], text=True, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(json.loads(result.stdout)["metadata_commits"], count)
 
     def test_paths_in_deleted_file_are_rejected(self):
         self.fixture.write("docs/note.md", local_paths()[0].encode("utf-16le"))

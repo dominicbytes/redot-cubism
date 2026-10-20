@@ -11,7 +11,8 @@ from publication_policy import inspect_commit
 
 
 def git(repo, *args):
-    return subprocess.check_output(['git', '-c', 'safe.directory=' + str(repo), '-C', str(repo), *args])
+    return subprocess.check_output(['git', '-c', 'safe.directory=' + str(repo), '-C', str(repo), *args],
+                                   stderr=subprocess.PIPE)
 
 
 def revision(repo, ref):
@@ -64,7 +65,12 @@ def validate_metadata(repo, sha, metadata_base=None):
             metadata_base = json.loads(git(repo, 'show', sha + ':' + policy)).get('metadata_base')
     revisions = [sha]
     if metadata_base:
-        base = revision(repo, metadata_base)
+        try:
+            base = revision(repo, metadata_base)
+        except subprocess.CalledProcessError:
+            raise ValueError("Commit metadata baseline is unavailable. Fetch complete history. "
+                             "If history was rewritten, supply a reviewed replacement ancestor with "
+                             "--metadata-base <ancestor>; --metadata-base '' audits all metadata.") from None
         if subprocess.run(['git', '-C', str(repo), 'merge-base', '--is-ancestor', base, sha],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE).returncode:
             raise ValueError('Commit metadata base must be an ancestor of the audited revision')
