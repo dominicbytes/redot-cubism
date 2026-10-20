@@ -42,7 +42,8 @@ class PublicationBytesTest(unittest.TestCase):
     def test_unicode_and_punctuation_drive_paths_in_all_payloads(self):
         paths = ("Q:" + "/" + "example/caf\u00e9/file.pdb",
                  "Q:" + "\\" + "@example\\file.cpp",
-                 "Q:" + "/" + "\u00e9xample/file.pdb")
+                 "Q:" + "/" + "\u00e9xample/file.pdb",
+                 "Q:" + "/" + "example/\ufffd/file.pdb")
         for path in paths:
             for encoding in ("utf-8", "utf-16le", "utf-16be"):
                 for prefix in (b"", b"!"):
@@ -61,6 +62,15 @@ class PublicationBytesTest(unittest.TestCase):
                         with zipfile.ZipFile(outer, "w", zipfile.ZIP_DEFLATED) as archive:
                             archive.writestr("inner.zip", inner.getvalue())
                         self.assertTrue(inspect_bytes("bundle.zip", outer.getvalue()))
+
+    def test_invalid_utf8_binary_noise_is_not_unicode_path_text(self):
+        for noise in (b"\xa7\xc0\x98\xf6\xc8\xf1", b"\x97", b"\xce"):
+            data = b"prefix!" + b"Q:" + b"/" + b"example/" + noise
+            self.assertFalse(inspect_local_paths(data))
+            self.assertFalse(inspect_bytes("fixture.dat", data))
+            native = b"MZfixture" + data
+            name = "addon.dll"
+            self.assertFalse(inspect_bytes(name, native, {name: hashlib.sha256(native).hexdigest()}))
 
     def test_quoted_formatting_escapes_are_not_drive_paths(self):
         for quote in ("'", '"'):

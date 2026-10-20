@@ -31,7 +31,7 @@ AUTHOR_LABEL = re.compile(LINE_START + r"(?:author|committer)[\t ]*:[\t ]*([^\x0
 
 
 def decoded_texts(data):
-    yield data.decode("latin-1")
+    yield data.decode("utf-8", "surrogateescape")
     # Wide strings in native files need not start on an even byte.
     for encoding in ("utf-16le", "utf-16be"):
         for offset in (0, 1):
@@ -47,6 +47,9 @@ def inspect_local_paths(data, native=False):
                 # Mixed native bytes can decode to a letter before a wide path.
                 pattern = re.compile(pattern.pattern.replace("(?<![A-Za-z0-9_])", ""), pattern.flags)
             for match in pattern.finditer(text):
+                # Invalid UTF-8 in compressed/native bytes is not Unicode path text.
+                if any("\udc80" <= char <= "\udcff" for char in match.group(1)):
+                    continue
                 # Recognize quoted tab/colon/tab escapes in source formatting tests.
                 quoted = text[max(0, match.start() - 2):match.start()]
                 if (match.group(1) == "t:" + "\\t" and quoted.endswith("\\")
