@@ -88,6 +88,10 @@ def main():
         audio.writeframes(b"\x00\x00" * 80)
     copy_bytes(args.model.parent, project / "fixture")
     copy_bytes(ROOT / "demo/addons/gd_cubism/res", project / "addons/gd_cubism/res")
+    example_script = ROOT / "demo/addons/gd_cubism/example/demo_effect_custom_03.gd"
+    example_target = project / "addons/gd_cubism/example/demo_effect_custom_03.gd"
+    example_target.parent.mkdir(parents=True, exist_ok=True)
+    example_target.write_bytes(example_script.read_bytes())
     shader_hashes = {path.name: sha256(path) for path in sorted((project / "addons/gd_cubism/res/shader").glob("*.gdshader"))}
     library_path = project / "addons/gd_cubism/bin" / args.library.name
     library_path.parent.mkdir(parents=True)
@@ -115,6 +119,7 @@ def main():
             command += ["--headless"]
         if executable is None:
             command += ["--path", str(project)]
+        command += ["--audio-driver", "Dummy"]
         command += switches
         try:
             result = subprocess.run(command, cwd=run_root, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300 if name.endswith("-asan") else 60)
@@ -123,6 +128,8 @@ def main():
             output, code = str(exc), 124
         (run_root / f"{name}.log").write_text(output)
         diagnostic_output = output
+        if name.endswith("legacy-target-point"):
+            diagnostic_output = diagnostic_output.replace("WARNING: Undefined parameter name: MissingLegacyTarget", "EXPECTED_UNDEFINED_TARGET_WARNING", 2)
         if "deltas" in name:
             # This deliberate negative input has one documented debug diagnostic.
             diagnostic_output = diagnostic_output.replace("WARNING: Negative Cubism delta ignored.", "EXPECTED_NEGATIVE_DELTA_WARNING", 1)
@@ -165,6 +172,14 @@ def main():
         success = run("metadata-parser", ["--script", "res://metadata_parser_checks.gd", "--quit-after", "2"], "CUBISM_METADATA_PARSER_PASS")
     if success:
         success = run("model-factory", ["--script", "res://model_factory_checks.gd", "--quit-after", "2"], "CUBISM_MODEL_FACTORY_PASS")
+    if success:
+        success = run("legacy-hit-area", ["--script", "res://legacy_hit_area_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_HIT_AREA_PASS")
+    if success:
+        success = run("legacy-target-point", ["--script", "res://legacy_target_point_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_TARGET_POINT_PASS")
+    if success:
+        success = run("legacy-eye-blink", ["--script", "res://legacy_eye_blink_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_EYE_BLINK_PASS")
+    if success:
+        success = run("legacy-audio-demo", ["--script", "res://legacy_audio_demo_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_AUDIO_DEMO_PASS")
     if success:
         success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
     if success:

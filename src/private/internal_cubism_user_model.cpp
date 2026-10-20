@@ -371,7 +371,7 @@ void InternalCubismUserModel::pro_update(const double delta) {
         this->_model->LoadParameters();
         _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_BASE);
         if (_owner_viewport->get_animator()) primary_motion_updated = _owner_viewport->get_animator()->update(this->_model, delta);
-        else this->_motionManager->UpdateMotion(this->_model, delta);
+        else primary_motion_updated = this->_motionManager->UpdateMotion(this->_model, delta);
         _owner_viewport->apply_parameter_writes(GDCubismUserModel::WRITE_MOTION);
         this->_model->SaveParameters();
     }

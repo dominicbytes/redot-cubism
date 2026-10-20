@@ -60,6 +60,29 @@ private:
     bool _monitoring = true;
     Dictionary _dict_monitoring;
 
+    Ref<ArrayMesh> get_hit_mesh(const Dictionary& dict_mesh, const String& id) const {
+        if(dict_mesh.has(id) != true) return Ref<ArrayMesh>();
+        const Variant mesh_value = dict_mesh[id];
+        MeshInstance2D* p_mesh_inst = cast_to<MeshInstance2D>(mesh_value.get_validated_object());
+        if(p_mesh_inst == nullptr) return Ref<ArrayMesh>();
+        Ref<ArrayMesh> ref_ary_mesh = p_mesh_inst->get_mesh();
+        if(ref_ary_mesh.is_valid() != true) return Ref<ArrayMesh>();
+        if(ref_ary_mesh->get_surface_count() == 0) return Ref<ArrayMesh>();
+        if(ref_ary_mesh->surface_get_primitive_type(0) != Mesh::PRIMITIVE_TRIANGLES) return Ref<ArrayMesh>();
+
+        Array ary = ref_ary_mesh->surface_get_arrays(0);
+        if(ary.size() <= Mesh::ARRAY_INDEX) return Ref<ArrayMesh>();
+        if(ary[Mesh::ARRAY_VERTEX].get_type() != Variant::PACKED_VECTOR2_ARRAY) return Ref<ArrayMesh>();
+        if(ary[Mesh::ARRAY_INDEX].get_type() != Variant::PACKED_INT32_ARRAY) return Ref<ArrayMesh>();
+        PackedVector2Array ary_vtx = ary[Mesh::ARRAY_VERTEX];
+        PackedInt32Array ary_idx = ary[Mesh::ARRAY_INDEX];
+        if(ary_vtx.is_empty() || ary_idx.size() < 3 || ary_idx.size() % 3 != 0) return Ref<ArrayMesh>();
+        for(int64_t i = 0; i < ary_idx.size(); i++) {
+            if(ary_idx[i] < 0 || ary_idx[i] >= ary_vtx.size()) return Ref<ArrayMesh>();
+        }
+        return ref_ary_mesh;
+    }
+
     Rect2 build_rect2(const Ref<ArrayMesh>& ref_ary_mesh) const {
         Array ary = ref_ary_mesh->surface_get_arrays(0);
         PackedVector2Array ary_vtx = ary[Mesh::ARRAY_VERTEX];
@@ -119,12 +142,8 @@ public:
         if(model->is_initialized() == false) return Dictionary();
 
         const Dictionary dict_mesh = model->get_meshes();
-        if(dict_mesh.is_empty() == true) return Dictionary();
-
-        MeshInstance2D* p_mesh_inst = cast_to<MeshInstance2D>(dict_mesh[id]);
-        Ref<ArrayMesh> ref_ary_mesh =  static_cast<ArrayMesh*>(p_mesh_inst->get_mesh().ptr());
+        Ref<ArrayMesh> ref_ary_mesh = this->get_hit_mesh(dict_mesh, id);
         if(ref_ary_mesh.is_valid() != true) return Dictionary();
-        if(ref_ary_mesh->surface_get_array_index_len(0) < 3) return Dictionary();
 
         Dictionary dict_result;
 
@@ -175,12 +194,8 @@ public:
 
         for(int64_t i = 0; i < ary.size(); i++) {
             const String id = static_cast<Dictionary>(ary[i]).get("id", String());
-            if(dict_mesh.has(id) != true) continue;
-
-            MeshInstance2D* p_mesh_inst = cast_to<MeshInstance2D>(dict_mesh[id]);
-            Ref<ArrayMesh> ref_ary_mesh =  static_cast<ArrayMesh*>(p_mesh_inst->get_mesh().ptr());
+            Ref<ArrayMesh> ref_ary_mesh = this->get_hit_mesh(dict_mesh, id);
             if(ref_ary_mesh.is_valid() != true) continue;
-            if(ref_ary_mesh->surface_get_array_index_len(0) < 3) continue;
 
             Rect2 check_rect = this->build_rect2(ref_ary_mesh);
 

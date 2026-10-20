@@ -154,6 +154,10 @@ public:
             this->_target_point->Set(0.0, 0.0);
         }
         this->_map_param_idx.Clear();
+        this->_need_update = true;
+        for(int i = HEAD_ANGLE_X; i <= EYES_BALL_Y; i++) {
+            this->_map_param_idx[static_cast<E_PARAM>(i)] = -1;
+        }
 
         this->_initialized = true;
     }
@@ -162,6 +166,7 @@ public:
         if(this->_initialized == false) return;
 
         this->_map_param_idx.Clear();
+        this->_need_update = true;
         if(this->_target_point != nullptr) {
             memdelete(this->_target_point);
             this->_target_point = nullptr;
@@ -215,16 +220,16 @@ public:
         Csm::csmFloat32 _dragY = this->_target_point->GetY();
 
         // Dragging Head
-        _model->AddParameterValue(this->_map_param_idx[HEAD_ANGLE_X], _dragX * this->_headRange);
-        _model->AddParameterValue(this->_map_param_idx[HEAD_ANGLE_Y], _dragY * this->_headRange);
-        _model->AddParameterValue(this->_map_param_idx[HEAD_ANGLE_Z], _dragX * _dragY * (this->_headRange * -1));
+        if(this->_map_param_idx[HEAD_ANGLE_X] >= 0) _model->AddParameterValue(this->_map_param_idx[HEAD_ANGLE_X], _dragX * this->_headRange);
+        if(this->_map_param_idx[HEAD_ANGLE_Y] >= 0) _model->AddParameterValue(this->_map_param_idx[HEAD_ANGLE_Y], _dragY * this->_headRange);
+        if(this->_map_param_idx[HEAD_ANGLE_Z] >= 0) _model->AddParameterValue(this->_map_param_idx[HEAD_ANGLE_Z], _dragX * _dragY * (this->_headRange * -1));
 
         // Dragging Body
-        _model->AddParameterValue(this->_map_param_idx[BODY_ANGLE_X], _dragX * this->_bodyRange);
+        if(this->_map_param_idx[BODY_ANGLE_X] >= 0) _model->AddParameterValue(this->_map_param_idx[BODY_ANGLE_X], _dragX * this->_bodyRange);
 
         // Dragging Eyes
-        _model->AddParameterValue(this->_map_param_idx[EYES_BALL_X], _dragX * this->_eyesRange);
-        _model->AddParameterValue(this->_map_param_idx[EYES_BALL_Y], _dragY * this->_eyesRange);
+        if(this->_map_param_idx[EYES_BALL_X] >= 0) _model->AddParameterValue(this->_map_param_idx[EYES_BALL_X], _dragX * this->_eyesRange);
+        if(this->_map_param_idx[EYES_BALL_Y] >= 0) _model->AddParameterValue(this->_map_param_idx[EYES_BALL_Y], _dragY * this->_eyesRange);
     }
 };
 
