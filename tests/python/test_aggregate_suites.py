@@ -2,6 +2,7 @@
 import contextlib
 import io
 import json
+import os
 from pathlib import Path
 import signal
 import subprocess
@@ -29,6 +30,9 @@ class AggregateSuiteTests(unittest.TestCase):
         self.good = {'status': 'PASS', 'library_sha256': run_tests.sha256(self.library),
                      'engine_version': json.loads((run_tests.ROOT / 'DEPENDENCIES.json').read_text())['redot']['version'],
                      'checks': [{'status': 'PASS'}], 'graphics': True}
+        environment = patch.dict(os.environ, {'REDOT_BIN': 'redot-fixture'})
+        environment.start()
+        self.addCleanup(environment.stop)
         engine = patch.object(run_tests, 'engine_version', return_value=self.good['engine_version'])
         engine.start()
         self.addCleanup(engine.stop)
@@ -73,6 +77,19 @@ class AggregateSuiteTests(unittest.TestCase):
             code = run_tests.main()
         report_path, = set((self.root / 'results').glob(pattern)) - before
         return code, json.loads(report_path.read_text()), commands
+
+    def test_engine_suites_require_redot_bin_before_launch(self):
+        for suite in ('editor', 'export', 'benchmark'):
+            with self.subTest(suite=suite), patch.dict(os.environ, {}, clear=True), \
+                    patch.object(sys, 'argv', self.arguments(suite)), \
+                    patch.object(run_tests.subprocess, 'Popen') as spawn, \
+                    contextlib.redirect_stderr(io.StringIO()) as errors:
+                with self.assertRaises(SystemExit) as exit:
+                    run_tests.main()
+                self.assertEqual(exit.exception.code, 2)
+                self.assertIn('Set REDOT_BIN to the selected Redot editor', errors.getvalue())
+                run_tests.engine_version.assert_not_called()
+                spawn.assert_not_called()
 
     def test_editor_runs_graphics_and_keeps_scoped_report(self):
         code, report, commands = self.invoke('editor')

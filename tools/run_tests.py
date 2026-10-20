@@ -51,6 +51,8 @@ def main():
     parser.add_argument("--visual-project", type=Path, help="Prepared project for visual reference models")
     parser.add_argument("--visual-limits", type=Path, help="Reviewed limits for the exact visual fixtures and adapter")
     args = parser.parse_args()
+    if args.suite in ("editor", "export", "benchmark") and not os.environ.get("REDOT_BIN"):
+        parser.error("Set REDOT_BIN to the selected Redot editor for this suite")
     args.output.mkdir(parents=True, exist_ok=True)
     child_reports = []
     if args.suite == "licensed-desktop":
