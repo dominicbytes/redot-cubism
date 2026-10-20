@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <class name="GDCubismMotionLoader" inherits="ResourceFormatLoader">
 	<brief_description>Legacy motion JSON to Animation resource loader.</brief_description>
-	<description>Retained upstream converter for [code].motion3.json[/code] resources. It approximates Bezier handle times, uses infinity for stepped handles, adds an inverse-step key offset and skips non-parameter curves. Do not treat its output as lossless native Cubism playback or as a hardened import validator. Full conversion/hardening is deferred P1 work. Use [CubismModelImporter] with [CubismModel2D] for the supported native-motion path; [member CubismMotionDescriptor.animation] is not required for that path.</description>
+	<description>Converter for [code].motion3.json[/code] resources. Reads at most 4 MiB and validates the motion schema, segment widths and declared counts before conversion. Uses [code]Meta.Fps[/code] for the Animation step and preserves linear and cubic parameter curves, including the SDK restricted-Bezier evaluation mode. Stepped handles still use infinity, inverse steps add a key offset, and non-parameter curves are skipped. Do not treat its output as lossless native Cubism playback. Use [CubismModelImporter] with [CubismModel2D] for the supported native-motion path; [member CubismMotionDescriptor.animation] is not required for that path.</description>
 	<tutorials>
 	</tutorials>
 </class>
