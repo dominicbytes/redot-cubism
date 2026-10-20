@@ -118,7 +118,11 @@ class PublicationBytesTest(unittest.TestCase):
         credits = ("Generated" + " with " + identity, "Generated" + " with a build tool",
                    "Co-authored" + "-by: " + identity,
                    "Co-authored" + "-by: Person <person@example.invalid>",
-                   "Author: " + identity, identity)
+                   "Author: " + identity, identity,
+                   "Author: " + identity.split(" <")[0],
+                   "Committer: " + identity.split(" <")[0],
+                   "author " + identity + " 1700000000 +0000",
+                   "committer " + identity + " 1700000000 -0430")
         for credit in credits:
             for encoding in ("ascii", "utf-16le", "utf-16be"):
                 data = credit.encode(encoding)
@@ -129,10 +133,14 @@ class PublicationBytesTest(unittest.TestCase):
                 self.assertTrue(inspect_bytes(name, native_data, {name: hashlib.sha256(native_data).hexdigest()}))
                 self.assertTrue(inspect_commit("Human", "Human", credit))
                 stream = io.BytesIO()
-                with zipfile.ZipFile(stream, "w") as archive:
+                with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
                     archive.writestr("note.md", data)
                 self.assertTrue(inspect_bytes("bundle.zip", stream.getvalue()))
-        for text in ("Author: Person <person@example.invalid>", "generated output", "Document tooling"):
+        for text in ("Author: Person <person@example.invalid>", "generated output", "Document tooling",
+                     "Author: Person", "Committer: Person",
+                     "author Person <person@example.invalid> 1700000000 +0000",
+                     "The author checker detects Co" + "dex identities.",
+                     "Document Co" + "dex author records"):
             self.assertFalse(inspect_attribution(text.encode()))
 
     def test_identity_and_trailer_scope(self):

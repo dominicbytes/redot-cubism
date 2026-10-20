@@ -26,7 +26,8 @@ IDENTITY = re.compile(
 LINE_START = r"(?:^|[\x00\r\n])[\t ]*"
 TRAILER = re.compile(LINE_START + r"co-authored" + r"-by\s*:", re.I | re.M)
 GENERATED = re.compile(LINE_START + r"generated" + r"\s+with\b[^\r\n]*", re.I | re.M)
-AUTHOR = re.compile(r"(?:^|[\x00\r\n])[\t ]*(?:(?:author|committer)\s*:\s*)?([^<>\x00\r\n]{1,120}<[^<>\s\x00]+@[^<>\s\x00]+>)[\t ]*(?=$|[\x00\r\n])", re.I | re.M)
+AUTHOR = re.compile(LINE_START + r"(?:(?:author|committer)(?:[\t ]*:[\t ]*|[\t ]+))?([^<>\x00\r\n]{1,120}<[^<>\s\x00]+@[^<>\s\x00]+>)(?:[\t ]+[0-9]+[\t ]+[+-][0-9]{4})?[\t ]*(?=$|[\x00\r\n])", re.I | re.M)
+AUTHOR_LABEL = re.compile(LINE_START + r"(?:author|committer)[\t ]*:[\t ]*([^\x00\r\n]+)", re.I | re.M)
 
 
 def decoded_texts(data):
@@ -61,8 +62,11 @@ def inspect_attribution(data, native=False):
                 pattern = re.compile(pattern.pattern.removeprefix(LINE_START), pattern.flags)
             if pattern.search(text):
                 return [problem]
-        if any(IDENTITY.search(match.group(1)) for match in AUTHOR.finditer(text)):
-            return ["prohibited automated contributor identity"]
+        for pattern in (AUTHOR, AUTHOR_LABEL):
+            if index or native:
+                pattern = re.compile(pattern.pattern.removeprefix(LINE_START), pattern.flags)
+            if any(IDENTITY.search(match.group(1)) for match in pattern.finditer(text)):
+                return ["prohibited automated contributor identity"]
     return []
 
 
