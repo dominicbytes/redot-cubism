@@ -53,6 +53,7 @@ class OutputDirectory:
         self.path = path
         self.fd = None
         self.handle = None
+        self.staged = {}
         checked_stat(path.lstat(), directory=True)
         if parent is not None and path.resolve().parent != parent.path.resolve():
             raise ValueError("Output escapes the addon root")
@@ -82,6 +83,9 @@ class OutputDirectory:
                               dir_fd=parent.fd if parent else None)
 
     def close(self):
+        for stream in self.staged.values():
+            stream.close()
+        self.staged.clear()
         if self.fd is not None:
             os.close(self.fd)
             self.fd = None
@@ -116,20 +120,45 @@ class OutputDirectory:
     def stage(self, data=None, source=None, expected=None):
         name = ".core-install-" + secrets.token_hex(16)
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
-        fd = os.open(name if self.fd is not None else self.path / name, flags, 0o644, dir_fd=self.fd)
+        if os.name == "nt":
+            import ctypes
+            import msvcrt
+            from ctypes import wintypes
+            # Hold write/delete access without sharing it, from creation through rename.
+            handle = self.kernel.CreateFileW(str(self.path / name), 0xC0010000, 1,
+                                              None, 1, 0x00200080, None)
+            if handle == wintypes.HANDLE(-1).value:
+                raise ctypes.WinError(ctypes.get_last_error())
+            try:
+                fd = msvcrt.open_osfhandle(handle, os.O_RDWR | os.O_BINARY)
+            except BaseException:
+                self.kernel.CloseHandle(handle)
+                raise
+        else:
+            fd = os.open(name, flags, 0o644, dir_fd=self.fd)
+        output = os.fdopen(fd, "w+b" if os.name == "nt" else "wb")
         try:
-            with os.fdopen(fd, "wb") as output:
-                if source is not None:
-                    with source.open("rb") as input_stream:
-                        shutil.copyfileobj(input_stream, output)
-                else:
-                    output.write(data)
-                output.flush()
-                os.fsync(output.fileno())
-            if expected and hashlib.sha256(self.read(name)).hexdigest() != expected:
+            if source is not None:
+                with source.open("rb") as input_stream:
+                    shutil.copyfileobj(input_stream, output)
+            else:
+                output.write(data)
+            output.flush()
+            os.fsync(output.fileno())
+            if os.name == "nt":
+                output.seek(0)
+                digest = hashlib.file_digest(output, "sha256").hexdigest()
+            else:
+                digest = hashlib.sha256(self.read(name)).hexdigest()
+            if expected and digest != expected:
                 raise ValueError("Copied Cubism Core failed SHA-256 verification")
+            if os.name == "nt":
+                self.staged[name] = output
+            else:
+                output.close()
             return name
         except BaseException:
+            output.close()
             self.remove(name)
             raise
 
@@ -139,9 +168,29 @@ class OutputDirectory:
         if self.fd is not None:
             os.replace(source, destination, src_dir_fd=self.fd, dst_dir_fd=self.fd)
         else:
-            os.replace(self.path / source, self.path / destination)
+            import ctypes
+            import msvcrt
+            from ctypes import wintypes
+            # Rename the verified object itself; never reopen the staging pathname.
+            target = str(self.path / destination).encode("utf-16le")
+            class RenameInfo(ctypes.Structure):
+                _fields_ = [("ReplaceIfExists", wintypes.BOOL), ("RootDirectory", wintypes.HANDLE),
+                            ("FileNameLength", wintypes.DWORD), ("FileName", ctypes.c_byte * len(target))]
+            info = RenameInfo(True, None, len(target))
+            ctypes.memmove(ctypes.addressof(info) + RenameInfo.FileName.offset, target, len(target))
+            self.kernel.SetFileInformationByHandle.argtypes = [wintypes.HANDLE, ctypes.c_int,
+                                                               wintypes.LPVOID, wintypes.DWORD]
+            self.kernel.SetFileInformationByHandle.restype = wintypes.BOOL
+            stream = self.staged[source]
+            if not self.kernel.SetFileInformationByHandle(msvcrt.get_osfhandle(stream.fileno()),
+                                                          3, ctypes.byref(info), ctypes.sizeof(info)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            self.staged.pop(source).close()
 
     def remove(self, name):
+        stream = self.staged.pop(name, None)
+        if stream is not None:
+            stream.close()
         try:
             os.unlink(name if self.fd is not None else self.path / name, dir_fd=self.fd)
         except FileNotFoundError:

@@ -215,6 +215,33 @@ class ExternalCoreInstallTest(unittest.TestCase):
             finally:
                 source.write_bytes(original)
 
+    @unittest.skipUnless(os.name == "nt", "Windows protected staging fixture")
+    def test_verified_windows_stages_deny_competing_writes_and_swaps(self):
+        real_replace = transaction.OutputDirectory.replace
+        for platform in ("windows", "linux"):
+            for attack in ("write", "swap"):
+                with self.subTest(platform=platform, attack=attack):
+                    self.descriptor.write_bytes(self.original)
+                    attempts = []
+                    def replace(directory, source, target):
+                        path = directory.path / source
+                        if target in (self.destinations[platform].name, self.descriptor.name):
+                            with self.assertRaises(PermissionError):
+                                if attack == "write":
+                                    path.write_bytes(b"unverified competing write")
+                                else:
+                                    replacement = self.root / "replacement"
+                                    replacement.write_bytes(b"unverified competing swap")
+                                    os.replace(replacement, path)
+                            attempts.append(target)
+                        return real_replace(directory, source, target)
+                    with mock.patch.object(transaction.OutputDirectory, "replace", replace):
+                        self.install(platform)
+                    self.assertEqual(len(attempts), 2)
+                    self.assertEqual(self.destinations[platform].read_bytes(), self.sources[platform].read_bytes())
+                    self.assertIn(b"[dependencies]", self.descriptor.read_bytes())
+                    self.assert_clean()
+
     @unittest.skipUnless(os.name == "nt", "Windows sharing violation fixture")
     def test_failed_windows_rollback_keeps_recovery_backup(self):
         import ctypes
@@ -255,7 +282,7 @@ class ExternalCoreInstallTest(unittest.TestCase):
 
     def test_descriptor_prepare_and_replace_failures_roll_back(self):
         real_stage = transaction.OutputDirectory.stage
-        real_replace = os.replace
+        real_replace = transaction.OutputDirectory.replace
         for platform in ("windows", "linux"):
             for installed in (False, True):
                 for failure in ("prepare", "replace"):
@@ -268,12 +295,12 @@ class ExternalCoreInstallTest(unittest.TestCase):
                             if failure == "prepare" and data and b"[dependencies]" in data:
                                 raise OSError("injected descriptor preparation failure")
                             return real_stage(directory, data=data, **kwargs)
-                        def replace(source, target, **kwargs):
+                        def replace(directory, source, target):
                             if failure == "replace" and Path(target).name == self.descriptor.name:
                                 raise OSError("injected descriptor replacement failure")
-                            return real_replace(source, target, **kwargs)
+                            return real_replace(directory, source, target)
                         with mock.patch.object(transaction.OutputDirectory, "stage", stage), \
-                             mock.patch.object(os, "replace", side_effect=replace):
+                             mock.patch.object(transaction.OutputDirectory, "replace", replace):
                             with self.assertRaises(OSError):
                                 self.install(platform)
                         self.assertEqual(self.descriptor.read_bytes(), self.original)
