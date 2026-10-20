@@ -2,7 +2,7 @@
 
 | SDK | Compile | Runtime | Notes |
 |---|---|---|---|
-| 5-r.5 / Core 6.0.1 | Linux and Windows x86_64 debug/release pass | Scoped model, motion, expression and export checks on both platforms | Exact source/environment boundaries and incomplete release gates are in [current status](../current-status.md) |
+| 5-r.5 / Core 6.0.1 | Linux and Windows x86_64 debug/release pass | Scoped model, motion, expression and export checks on both platforms | See [current status](../current-status.md) for supported workflows and remaining qualification limits |
 | Older SDK | Unsupported | Unsupported | No automatic compatibility or mixed Core/Framework versions |
 | Newer SDK | Untested | Untested | Requires a separately verified upgrade |
 

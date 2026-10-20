@@ -56,49 +56,39 @@ retain the requested mode, draw no character, expose `rendering_error`, and emit
 one `runtime_warning` per changed error. Resizing or selecting Direct recovers.
 It does not silently change modes or downsample to hide an allocation overflow.
 
-## Evidence
+## Regression coverage
 
-The focused GL compatibility experiment compares direct rendering against each
-wrapper at model opacity 1.0 and 0.65, with RGB modulation, using the same Haru
-fixture and a 256x256 target. The fixed channel tolerance is 3/255. CanvasGroup
-has maximum error 1/255; the premultiplied SubViewport path matches exactly.
-Captures and logs remain private under `.local-build/evidence`.
+The native graphics tests compare direct rendering against the experimental
+wrappers at model opacity 1.0 and 0.65, with RGB modulation. These checks cover
+normal-blend, single-model composition. Use a premultiplied-alpha material for a
+ViewportTexture: ordinary straight-alpha composition darkens its edges.
 
-The SDK-free regression can be run with:
+The SDK-free compositor regression can be run with:
 
 ```sh
 REDOT_BIN=/path/to/pinned/redot python3 tools/run_composition_tests.py --output /persistent/results --size 64
 ```
 
-Its 75 cases use the production compositor shader and MeshInstance2D fixtures:
-normal/add/multiply, patterned textures, regular/inverted masks, both alpha
-encodings, modulation, 84-drawable chains and three backdrop alpha values. All
-pixels match direct output exactly on the tested Linux GL backend; the flat
-negative control fails 20 cases. Nonempty-reference assertions guard against
-vacuous texture tests. The mesh-based algorithm also passed at target size 41.
+It uses the production compositor shader and MeshInstance2D fixtures to compare
+normal/add/multiply blending, patterned textures, regular/inverted masks, both
+alpha encodings, modulation, long drawable chains and backdrop alpha values.
+Nonempty-reference assertions guard against vacuous texture tests; a flattened
+composition provides a negative control.
 
-The expanded native Haru regression passes 84 assertions and twelve full-model
-comparisons at 256x256: rotation, mirroring, partial clipping, canvas zoom,
-viewport stretch, tiny models, inherited modulation, overlapping straight/PMA
-models, reordered character z values and paused movement. It compares the first
-fallback frame and immediate movement of an already-paused fallback character.
-Mode changes preserve geometry, pose and motion time; bounded allocation,
-unsupported target/oversized atlas recovery, unload and scene save/reopen are
-checked. Linux debug/release each pass all 41 runtime/export stages through
-`tools/run_model2d_tests.py --graphics --motion --examples`, including all 84
-fallback assertions in native and selected-export runs. The maximum channel
-difference across the twelve images is 2/255 (tolerance 3/255). Earlier
-settled-frame checks alone did not detect the first-frame defects above.
-
-A negative control using the default Sprite2D material fails with 2,119 pixels
-outside tolerance and maximum error 0.1843. A ViewportTexture already contains
-premultiplied output; using ordinary straight-alpha composition darkens edges.
+`tools/run_model2d_tests.py --graphics --motion --examples` checks the public
+fallback in native and selected-export runs. Coverage includes rotation,
+mirroring, partial clipping, canvas zoom, viewport stretch, tiny models,
+inherited modulation, overlapping straight/PMA models, reordered character
+layers and paused movement. It compares the first fallback frame and immediate
+movement of an already-paused character. Mode changes must preserve geometry,
+pose and motion time. The suite also checks bounded allocation, recovery from
+unsupported targets or oversized atlases, unload and scene save/reopen.
 
 ## Qualification limits
 
-The older wrapper results establish only normal-blend, single-model equivalence.
-The new tests add shader-level destination-dependent blend coverage and native
-multi-character composition, but do not establish a performance advantage,
+Wrapper comparisons cover only normal-blend, single-model composition.
+The public fallback tests add shader-level destination-dependent blend coverage
+and native multi-character composition, but do not establish a performance advantage,
 Windows behavior, other backends/HDR, arbitrary canvas effects, or full-model
 Mao/Mark/Rice parity with the SDK reference. These remain explicit release gates.
 

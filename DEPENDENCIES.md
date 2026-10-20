@@ -10,8 +10,8 @@ to the runtime and `REDOT_BINDING_BIN` (or `--binding-bin`) to the pinned 26.2
 editor. Verification emits the 26.2 `extension_api.json` for building and a
 separate `runtime/` API dump for 26.3. Godot binaries are not certified.
 
-The user downloaded Native SDK 5-r.5 from Live2D's official website after accepting
-its agreements. The archive, Core header, Linux x86_64 libraries, Windows x86_64
+Obtain Native SDK 5-r.5 from Live2D's official website after accepting its
+agreements. The archive, Core header, Linux x86_64 libraries, Windows x86_64
 VS 2022 static libraries, and Windows dynamic DLL/import-library pair are
 fingerprinted in `DEPENDENCIES.json`; loaded Core reports 6.0.1. Build, install
 and CI scripts do not download Core. Library
@@ -30,8 +30,8 @@ addon binaries. Neither file belongs in public source or release archives.
 from `tools/verify_dependencies.py`. `CUBISM_FRAMEWORK_ROOT` defaults to the SDK's
 `Framework` directory. Source filenames and bytes below Framework's `src` are
 hashed in sorted POSIX-path order; use unchanged files and LF checkout endings.
-The source hash was measured from the pinned public Framework commit, not a
-proprietary package. The downloaded SDK Framework independently matches that hash.
+The source hash identifies the pinned public Framework commit; the SDK's
+Framework must match it.
 
 `CUBISM_BUILD_DIR` selects object, generated-document and SCons metadata storage.
 On hosts whose shared filesystem rejects atomic metadata updates, put this
@@ -41,8 +41,7 @@ destination under `demo/addons/gd_cubism/bin`.
 Bindings compile from a generated copy under `CUBISM_BUILD_DIR/redot-cpp`.
 Its only source patch bounds `Variant::clear` before indexing the 26.2 cleanup
 table: 26.3 Struct (type 39) and future unknown types are destroyed through the
-engine interface. The pinned submodule stays unchanged. No 26.3 redot-cpp ref
-was available during compatibility verification.
+engine interface. The pinned submodule stays unchanged.
 
 The optional `build_profile=tools/native_build_profile.json` includes the engine
 classes used by this addon and by the pinned binding's support code. The build
@@ -53,8 +52,8 @@ at link time. Windows currently requires VS 2022 (`MSVC_VERSION=14.3`), x86_64,
 and SDK toolset directory `143`; Core's MT, MD or MDd library follows the binding's
 `use_static_cpp` and `debug_crt` flags. Windows builds and scoped execution checks
 have passed; full release qualification remains open. The platform build guides
-and [current status](docs/current-status.md) record the actual tested toolchains
-and source revisions separately from historical toolchain entries in the pins.
+describe setup requirements; [current status](docs/current-status.md) describes
+supported workflows and remaining qualification limits.
 
 Example Linux build after configuring the local SDK and matching editor:
 
