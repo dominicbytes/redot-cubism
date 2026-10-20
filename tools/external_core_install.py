@@ -4,6 +4,7 @@ from contextlib import ExitStack
 import hashlib
 import os
 from pathlib import Path
+import re
 import secrets
 import shutil
 import stat
@@ -25,7 +26,10 @@ def descriptor_with_dependency(text, key, dependency):
                len(lines))
     existing = [line.strip() for line in lines[section + 1:end]
                 if "=" in line and line.split("=", 1)[0].strip() == key]
-    if len(existing) > 1 or (existing and existing[0].replace(" ", "") != dependency.replace(" ", "")):
+    def normalized(value):
+        return re.sub(r'"(?:\\.|[^"\\])*"|\s+',
+                      lambda match: match[0] if match[0].startswith('"') else "", value)
+    if len(existing) > 1 or (existing and normalized(existing[0]) != normalized(dependency)):
         raise ValueError("Existing GDExtension dependency differs from the external-Core setup")
     if existing:
         return text

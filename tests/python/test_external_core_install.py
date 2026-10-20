@@ -85,6 +85,23 @@ class ExternalCoreInstallTest(unittest.TestCase):
                 module.descriptor_with_dependency('[dependencies]\n' +
                     module.DEPENDENCY_LINE.split('=')[0] + '= {}\n')
 
+    def test_dependency_values_preserve_quoted_whitespace(self):
+        for platform, module in (("windows", windows), ("linux", linux)):
+            with self.subTest(platform=platform):
+                line = module.DEPENDENCY_LINE
+                formatted = line.replace(' = ', '\t=\t').replace(': ', '\t:\t')
+                text = '[dependencies]\n' + formatted + '\n'
+                self.assertEqual(module.descriptor_with_dependency(text), text)
+                for changed in (line.replace('Cubism', 'Cub ism'),
+                                line.replace(': ""', ': " "')):
+                    self.descriptor.write_text('[dependencies]\n' + changed + '\n')
+                    before = self.descriptor.read_bytes()
+                    with self.assertRaisesRegex(ValueError, "differs"):
+                        self.install(platform)
+                    self.assertEqual(self.descriptor.read_bytes(), before)
+                    self.assertFalse(self.destinations[platform].exists())
+                    self.assert_clean()
+
     def test_hard_linked_outputs_are_rejected(self):
         outside = self.root / "sentinel"
         outside.write_bytes(b"unrelated sentinel")
