@@ -108,7 +108,7 @@ def main():
     def run(name, switches, marker=None, executable=None, graphics=False):
         command = [str(executable or binary), "--audio-driver", "Dummy"]
         if graphics:
-            command += ["--rendering-method", args.graphics]
+            command += ["--mcp-background", "--rendering-method", args.graphics]
             if feature == "linux":
                 command += ["--display-driver", "x11"]
         else:
@@ -168,6 +168,10 @@ def main():
     if success:
         success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
     if success:
+        success = run("legacy-state", ["--script", "res://legacy_state_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_STATE_PASS")
+    if success:
+        success = run("model-opacity", ["--script", "res://model_opacity_checks.gd", "--quit-after", "600"], "CUBISM_MODEL_OPACITY_PASS")
+    if success:
         success = run("sdk-json", ["--script", "res://sdk_json_checks.gd", "--quit-after", "600"], "CUBISM_SDK_JSON_PASS variants=5")
     if success:
         success = run("manual-steps", ["--script", "res://manual_step_checks.gd", "--quit-after", "10000"], "CUBISM_MANUAL_STEP_PASS")
@@ -220,6 +224,8 @@ def main():
     graphics_tested = False
     if success and args.mask_compositions:
         success = run("renderer-masks", ["--quit-after", "120", "--", "--mask-checks"], "CUBISM_MASK_PASS")
+    if success and args.graphics:
+        success = run("model-opacity-graphics", ["--script", "res://model_opacity_checks.gd", "--quit-after", "600"], "CUBISM_MODEL_OPACITY_PASS", graphics=True)
     if success and args.graphics:
         success = run("graphics", ["--quit-after", "120", "--", f"--capture={run_root / 'model.png'}"], "CUBISM_NATIVE_GRAPHICS:", graphics=True)
         graphics_tested = success and (run_root / "model.png").is_file()

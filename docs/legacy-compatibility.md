@@ -37,7 +37,8 @@ Resource edits follow the same snapshot/reload rules as the explicit `model` API
 
 Legacy `GDCubismUserModel` playback retains the upstream timing and lifecycle
 behavior. A positive finite, SDK-representable update uses the full `delta * speed_scale`;
-it is not capped at 0.1 seconds. In manual mode, explicit `advance()` calls also
+it is not capped at 0.1 seconds. A zero delta evaluates pending parameter and
+part-opacity writes, custom effects and geometry without advancing time. In manual mode, explicit `advance()` calls also
 work outside the scene tree or while tree processing is paused. Detaching and
 reattaching a legacy node preserves its model, parameters and active playback.
 Explicit unloading, replacing its assets, or deleting the node still releases
