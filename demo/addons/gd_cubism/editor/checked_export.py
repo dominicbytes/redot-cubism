@@ -30,6 +30,23 @@ def sha256(path):
     return digest.hexdigest()
 
 
+def executable_name(name, target):
+    if name in ('', '.', '..') or any(c in name for c in '/\\:'):
+        raise ValueError('Executable name must be a single filename')
+    if target == 'Windows' and not name.lower().endswith('.exe'):
+        name += '.exe'
+    probe = '.cubism-identity-editor' + ('.exe' if target == 'Windows' else '')
+    normalized = name.lower() if target == 'Windows' else name
+    if normalized in (MANIFEST, '.gdignore', probe):
+        raise ValueError('Executable name is reserved by checked export')
+    return name
+
+
+def check_executable(game, digest):
+    if sha256(game) != digest:
+        raise ValueError('Exported executable changed after validation')
+
+
 def binary_architecture(path):
     """Identify the supported native executable/library header independently."""
     with path.open('rb') as stream:
@@ -218,7 +235,7 @@ def checked_export(args):
             hashes.setdefault(name, sha256(path))
         check_sources(snapshot, hashes)
         check_sources(project, hashes)
-        name = args.name + ('.exe' if target == 'Windows' and not args.name.lower().endswith('.exe') else '')
+        name = executable_name(args.name, target)
         game = stage / name
         execute([args.redot_bin, '--headless', '--path', str(snapshot), '--export-' + args.mode, args.preset, str(game)],
                 work / 'export.log', work, env, args.timeout)
@@ -226,6 +243,7 @@ def checked_export(args):
         check_sources(project, hashes)
         if binary_architecture(game) != preset['architecture']:
             raise ValueError('Exported executable architecture mismatch')
+        game_hash = sha256(game)
         template_version = execute([str(game), '--version'], work / 'template-version.log', stage, env, 10).strip()
         if template_version != version:
             raise ValueError('Exported template version does not match the pinned editor')
@@ -285,6 +303,7 @@ def checked_export(args):
         check_sources(project, hashes)
         shutil.rmtree(private)
         private = None
+        check_executable(game, game_hash)
         promote(stage, output, work / 'previous')
         committed = {'status': 'PASS', 'output': str(output), 'work': str(work), 'manifest': str(output / MANIFEST)}
         return committed

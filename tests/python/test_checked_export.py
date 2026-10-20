@@ -28,6 +28,85 @@ class CheckedExportTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'runtime support'):
             checked.check_runtime_build({'redot_version': baseline}, '26.3.stable.official.85e520394')
 
+    def test_linux_executable_names_and_final_integrity(self):
+        for name, tamper in ((checked.MANIFEST, False), ('.gdignore', False),
+                             ('.cubism-identity-editor', False), ('game', False), ('game', True)):
+            with self.subTest(name=name, tamper=tamper), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory).resolve()
+                project, output, editor = (root / item for item in ('project', 'output', 'redot'))
+                project.mkdir()
+                (project / 'project.godot').write_text('[application]\n')
+                (project / 'export_presets.cfg').write_text('[preset.0]\n')
+                output.mkdir()
+                (output / checked.MANIFEST).write_text('old')
+                (output / 'old.txt').write_text('prior build')
+                editor.write_bytes(b'editor')
+                args = argparse.Namespace(project=project, output=output, name=name, preset='P',
+                                          mode='debug', redot_bin=str(editor), timeout=10)
+                version = '26.2.stable.official.4f5b14aba'
+                exported = []
+
+                def fake_execute(command, log, cwd, env, timeout, marker=None):
+                    if '--version' in command:
+                        return version
+                    if '--cubism-preflight' in command:
+                        Path(command[-1]).write_text(json.dumps({
+                            'ok': True, 'build': {'redot_version': version}, 'models': 0,
+                            'preset': {'platform': 'Linux', 'architecture': 'x86_64',
+                                       'embedded_pck': False, 'encrypted_pck': False, 'encrypted_directory': False,
+                                       'project_hash': checked.sha256(project / 'project.godot'),
+                                       'presets_hash': checked.sha256(project / 'export_presets.cfg')},
+                            'raw_hashes': {}, 'files': []}))
+                        return 'CUBISM_EXPORT_PREFLIGHT_PASS'
+                    if '--export-debug' in command:
+                        game = Path(command[-1])
+                        exported.append(game)
+                        game.write_bytes(b'validated executable')
+                        game.with_suffix('.pck').write_bytes(b'pack')
+                        return ''
+                    if '--main-pack' in command:
+                        Path(command[-1]).write_text('{}')
+                        return 'CUBISM_EXPORT_IDENTITY_PASS'
+                    if '--script' in command:
+                        Path(command[-1]).write_text(json.dumps({'ok': True, 'models': 0,
+                                                               'motions': 0, 'expressions': 0, 'build': {}}))
+                        return 'CUBISM_EXPORTED_SMOKE_PASS'
+                    raise AssertionError(command)
+
+                write_text = Path.write_text
+
+                def metadata_write(path, *a, **kw):
+                    result = write_text(path, *a, **kw)
+                    if tamper and path.name == checked.MANIFEST and path.parent.name == 'build':
+                        exported[0].write_bytes(b'replaced executable')
+                    return result
+
+                with patch.object(checked, 'execute', fake_execute), \
+                        patch.object(checked.platform, 'system', return_value='Linux'), \
+                        patch.object(checked, 'binary_architecture', return_value='x86_64'), \
+                        patch.object(checked, 'inspect_pack', return_value={'engine_version': [26, 2, 0], 'files': {}}), \
+                        patch.object(checked, 'stage_identity_editor', side_effect=lambda editor, probe, target: probe.write_bytes(b'probe')), \
+                        patch.object(Path, 'write_text', metadata_write):
+                    if name != 'game' or tamper:
+                        with self.assertRaisesRegex(ValueError, 'changed' if tamper else 'reserved'):
+                            checked.checked_export(args)
+                        self.assertEqual((output / 'old.txt').read_text(), 'prior build')
+                        self.assertEqual((output / checked.MANIFEST).read_text(), 'old')
+                        if name != 'game':
+                            self.assertEqual(exported, [])
+                    else:
+                        self.assertEqual(checked.checked_export(args)['status'], 'PASS')
+                        self.assertEqual((output / 'game').read_bytes(), b'validated executable')
+                        manifest = json.loads((output / checked.MANIFEST).read_text())
+                        self.assertEqual(manifest['files']['game'], checked.sha256(output / 'game'))
+
+    def test_executable_name_normalizes_before_reserved_check(self):
+        self.assertEqual(checked.executable_name(checked.MANIFEST, 'Windows'), checked.MANIFEST + '.exe')
+        self.assertEqual(checked.executable_name('.gdignore', 'Windows'), '.gdignore.exe')
+        for name in ('.cubism-identity-editor', '.cubism-identity-editor.exe', '.CUBISM-IDENTITY-EDITOR.EXE'):
+            with self.assertRaisesRegex(ValueError, 'reserved'):
+                checked.executable_name(name, 'Windows')
+
     def test_windows_identity_probe_copies_running_editor(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
