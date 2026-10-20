@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 #include "cubism_manifest_parser.hpp"
 #include "cubism_descriptors.hpp"
+#include "cubism_model_limits.hpp"
 #include <godot_cpp/classes/json.hpp>
 #include <godot_cpp/classes/file_access.hpp>
 #include <godot_cpp/classes/hashing_context.hpp>
@@ -15,7 +16,7 @@ using namespace godot;
 
 namespace {
 constexpr int MAX_JSON_BYTES = 4 * 1024 * 1024;
-constexpr int MAX_STRING = 4096;
+constexpr int MAX_STRING = CubismModelLimits::MAX_STRING;
 constexpr int MAX_NODES = 65536;
 constexpr int MAX_REFERENCES = 4096;
 constexpr int MAX_DIAGNOSTICS = 32;
@@ -352,7 +353,7 @@ Dictionary CubismManifestParser::parse_manifest(const String &json, const String
             files["Moc"] = v.reference(files.get("Moc", Variant()), "FileReferences.Moc", ".moc3");
             if (v.type(files, "Textures", Variant::ARRAY, "FileReferences.Textures")) {
                 Array textures = files["Textures"];
-                if (textures.size() > 64) v.error("FileReferences.Textures", "At most 64 textures are supported.");
+                if (textures.size() > CubismModelLimits::MAX_TEXTURES) v.error("FileReferences.Textures", "At most 64 textures are supported.");
                 else for (int i = 0; i < textures.size(); ++i) textures[i] = v.reference(textures[i], "FileReferences.Textures[" + String::num_int64(i) + String("]"), ".png");
             }
             v.optional_reference(files, "Physics", ".physics3.json");
@@ -362,7 +363,7 @@ Dictionary CubismManifestParser::parse_manifest(const String &json, const String
             if (files.has("Expressions") && v.type(files, "Expressions", Variant::ARRAY, "FileReferences.Expressions")) {
                 Array expressions = files["Expressions"];
                 Dictionary names;
-                if (expressions.size() > 512) v.error("FileReferences.Expressions", "At most 512 expressions are supported.");
+                if (expressions.size() > CubismModelLimits::MAX_EXPRESSIONS) v.error("FileReferences.Expressions", "At most 512 expressions are supported.");
                 else for (int i = 0; i < expressions.size(); ++i) {
                     const String path = "FileReferences.Expressions[" + String::num_int64(i) + String("]");
                     if (expressions[i].get_type() != Variant::DICTIONARY) { v.error(path, "Expected an expression object."); continue; }
@@ -379,14 +380,14 @@ Dictionary CubismManifestParser::parse_manifest(const String &json, const String
                 Dictionary motions = files["Motions"];
                 Array groups = motions.keys();
                 groups.sort();
-                if (groups.size() > 64) v.error("FileReferences.Motions", "At most 64 motion groups are supported.");
+                if (groups.size() > CubismModelLimits::MAX_MOTION_GROUPS) v.error("FileReferences.Motions", "At most 64 motion groups are supported.");
                 else for (int i = 0; i < groups.size(); ++i) {
                     const String group = groups[i];
                     const String path = "FileReferences.Motions." + group;
                     if (group.is_empty()) v.error(path, "Motion group name must be nonempty.");
                     if (!v.type(motions, group, Variant::ARRAY, path)) continue;
                     const Array entries = motions[group];
-                    if (entries.size() > 512) { v.error(path, "At most 512 motions per group are supported."); continue; }
+                    if (entries.size() > CubismModelLimits::MAX_MOTIONS_PER_GROUP) { v.error(path, "At most 512 motions per group are supported."); continue; }
                     for (int j = 0; j < entries.size(); ++j) {
                         const String item_path = path + String("[") + String::num_int64(j) + String("]");
                         if (entries[j].get_type() != Variant::DICTIONARY) { v.error(item_path, "Expected a motion object."); continue; }
@@ -402,11 +403,16 @@ Dictionary CubismManifestParser::parse_manifest(const String &json, const String
         if (manifest.has("Layout") && v.type(manifest, "Layout", Variant::DICTIONARY, "Layout")) {
             const Dictionary layout = manifest["Layout"];
             const Array keys = layout.keys();
+            if (keys.size() > CubismModelLimits::MAX_LAYOUT_ENTRIES) v.error("Layout", "At most 4096 layout entries are supported.");
             for (int i = 0; i < keys.size(); ++i) v.numeric(layout, keys[i], "Layout." + String(keys[i]));
         }
         for (const String field : {String("Groups"), String("HitAreas")}) {
             if (!manifest.has(field) || !v.type(manifest, field, Variant::ARRAY, field)) continue;
             const Array entries = manifest[field];
+            if (field == "HitAreas" && entries.size() > CubismModelLimits::MAX_HIT_AREAS) {
+                v.error(field, "At most 4096 hit areas are supported.");
+                continue;
+            }
             Dictionary identifiers;
             for (int i = 0; i < entries.size(); ++i) {
                 const String path = field + String("[") + String::num_int64(i) + String("]");
@@ -424,6 +430,12 @@ Dictionary CubismManifestParser::parse_manifest(const String &json, const String
                     v.type(entry, "Target", Variant::STRING, path + String(".Target"));
                     if (v.type(entry, "Ids", Variant::ARRAY, path + String(".Ids"))) {
                         const Array ids = entry["Ids"];
+                        if (entry.get("Target", Variant()) == Variant("Parameter")
+                                && (entry.get("Name", Variant()) == Variant("EyeBlink") || entry.get("Name", Variant()) == Variant("LipSync"))
+                                && ids.size() > CubismModelLimits::MAX_PARAMETER_IDS) {
+                            v.error(path + String(".Ids"), "At most 4096 parameter IDs are supported.");
+                            continue;
+                        }
                         for (int j = 0; j < ids.size(); ++j) {
                             if (ids[j].get_type() != Variant::STRING || String(ids[j]).is_empty()) {
                                 v.error(path + String(".Ids[") + String::num_int64(j) + String("]"), "Expected a nonempty ID string.");

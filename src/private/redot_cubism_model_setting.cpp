@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 #include "redot_cubism_model_setting.hpp"
 #include <cubism_descriptors.hpp>
+#include <cubism_model_limits.hpp>
 #include <Id/CubismIdManager.hpp>
 #include <cmath>
 #include <limits>
 
 namespace {
 bool text_valid(const String &value, bool empty = false) {
-    if ((!empty && value.is_empty()) || value.length() > 4096) return false;
+    if ((!empty && value.is_empty()) || value.length() > CubismModelLimits::MAX_STRING) return false;
     for (int i = 0; i < value.length(); ++i) if (value[i] < 32 || value[i] == 127) return false;
     return true;
 }
@@ -46,7 +47,7 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
     display_info = utf8(resource->get_display_info_path());
     const PackedStringArray texture_paths = resource->get_texture_paths();
     const auto texture_resources = resource->get_textures();
-    if (texture_paths.size() > 64 || texture_paths.size() != texture_resources.size()) return;
+    if (texture_paths.size() > CubismModelLimits::MAX_TEXTURES || texture_paths.size() != texture_resources.size()) return;
     for (int i = 0; i < texture_paths.size(); ++i) {
         const Ref<Texture2D> texture = texture_resources[i];
         if (!path_valid(texture_paths[i], ".png") || texture.is_null()) return;
@@ -59,7 +60,7 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
     }
     if (!texture_paths.is_empty()) texture_directory = utf8(texture_paths[0].get_base_dir());
     const Array expression_resources = resource->get_expressions();
-    if (expression_resources.size() > 512) return;
+    if (expression_resources.size() > CubismModelLimits::MAX_EXPRESSIONS) return;
     for (int i = 0; i < expression_resources.size(); ++i) {
         const Ref<CubismExpressionDescriptor> descriptor = expression_resources[i];
         if (descriptor.is_null() || !text_valid(descriptor->get_id()) || !path_valid(descriptor->get_source_path(), ".exp3.json")) return;
@@ -67,7 +68,7 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
     }
     const Dictionary motion_groups = resource->get_motion_groups();
     const Array names = motion_groups.keys();
-    if (names.size() > 64) return;
+    if (names.size() > CubismModelLimits::MAX_MOTION_GROUPS) return;
     for (int i = 0; i < names.size(); ++i) {
         if ((names[i].get_type() != Variant::STRING && names[i].get_type() != Variant::STRING_NAME)
             || !text_valid(names[i]) || motion_groups[names[i]].get_type() != Variant::ARRAY) return;
@@ -75,7 +76,7 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
         Group entry;
         entry.name = utf8(name);
         const Array motions = motion_groups[names[i]];
-        if (motions.size() > 512) return;
+        if (motions.size() > CubismModelLimits::MAX_MOTIONS_PER_GROUP) return;
         for (int j = 0; j < motions.size(); ++j) {
             const Ref<CubismMotionDescriptor> descriptor = motions[j];
             if (descriptor.is_null() || descriptor->get_group() != name || descriptor->get_index() != j
@@ -89,7 +90,7 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
     }
     auto *ids = Csm::CubismFramework::GetIdManager();
     const auto areas = resource->get_hit_areas();
-    if (areas.size() > 4096) return;
+    if (areas.size() > CubismModelLimits::MAX_HIT_AREAS) return;
     for (int i = 0; i < areas.size(); ++i) {
         const Dictionary area = areas[i];
         if (area.get("Id", Variant()).get_type() != Variant::STRING || area.get("Name", Variant()).get_type() != Variant::STRING
@@ -98,7 +99,7 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
     }
     for (int kind = 0; kind < 2; ++kind) {
         const PackedStringArray parameters = kind == 0 ? resource->get_eye_blink_parameter_ids() : resource->get_lip_sync_parameter_ids();
-        if (parameters.size() > 4096) return;
+        if (parameters.size() > CubismModelLimits::MAX_PARAMETER_IDS) return;
         auto &target = kind == 0 ? eye_blink : lip_sync;
         for (int i = 0; i < parameters.size(); ++i) {
             if (!text_valid(parameters[i])) return;
@@ -107,7 +108,7 @@ RedotCubismModelSetting::RedotCubismModelSetting(const Ref<CubismModelResource> 
     }
     const Dictionary values = resource->get_layout();
     const Array keys = values.keys();
-    if (keys.size() > 4096) return;
+    if (keys.size() > CubismModelLimits::MAX_LAYOUT_ENTRIES) return;
     for (int i = 0; i < keys.size(); ++i) {
         const Variant value = values[keys[i]];
         if (keys[i].get_type() != Variant::STRING || !text_valid(keys[i])

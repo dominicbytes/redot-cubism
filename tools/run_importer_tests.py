@@ -114,6 +114,11 @@ def main():
                 lambda match: match[0].replace("ERROR: Cubism import failed:", "EXPECTED_IMPORT_LIMIT_FAILURE:").replace(
                     f"ERROR: Error importing '{model}'.", "EXPECTED_ENGINE_IMPORT_LIMIT_FAILURE"),
                 log, flags=re.DOTALL)
+        if name == "metadata-limit":
+            diagnostics = re.sub(
+                r"EXPECTED_METADATA_LIMIT_FAILURE_BEGIN.*?EXPECTED_METADATA_LIMIT_FAILURE_END",
+                lambda match: match[0].replace("ERROR: Cubism import failed:", "EXPECTED_METADATA_IMPORT_FAILURE:"),
+                log, flags=re.DOTALL)
         if name == "texture-policy":
             diagnostics = re.sub(
                 r"EXPECTED_TEXTURE_FAILURE_BEGIN.*?EXPECTED_TEXTURE_FAILURE_END",
@@ -163,6 +168,7 @@ def main():
     for phase, script, marker in (
             ("export-graph", "export_graph_checks.gd", "CUBISM_EXPORT_GRAPH_PASS"),
             ("export-validator", "export_validator_checks.gd", "CUBISM_EXPORT_VALIDATOR_PASS"),
+            ("metadata-limit", "metadata_limit_checks.gd", "CUBISM_METADATA_LIMIT_PASS"),
             ("model-inspector", "model_inspector_checks.gd", "CUBISM_MODEL_INSPECTOR_PASS"),
             ("import-options", "import_options_checks.gd", "CUBISM_IMPORT_OPTIONS_PASS"),
             ("import-options-restart", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS"),
