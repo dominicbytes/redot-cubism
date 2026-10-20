@@ -14,6 +14,16 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def editor_diagnostics(output, headless):
+    if headless:
+        # Scene saving asks the dummy renderer for an unavailable thumbnail.
+        output = re.sub(
+            r'^ERROR: Parameter "t" is null\.\n'
+            r'   at: texture_2d_get \(servers[/\\]rendering[/\\]dummy[/\\]storage[/\\]texture_storage\.h:115\)\n',
+            'EXPECTED_HEADLESS_SCENE_PREVIEW\n', output, flags=re.MULTILINE)
+    return output
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--native-report', type=Path, required=True, help='Passing run_native_tests.py report with its prepared fixture')
@@ -68,7 +78,7 @@ def main():
         try: code = subprocess.run(command, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=180).returncode
         except subprocess.TimeoutExpired: code = 124
     output = (run / 'editor.log').read_text()
-    passed = code == 0 and 'CUBISM_EDITOR_WORKFLOW_PASS' in output and not re.search(r'ERROR:|WARNING:|SCRIPT ERROR|runtime error:|crashed', output)
+    passed = code == 0 and 'CUBISM_EDITOR_WORKFLOW_PASS' in output and not re.search(r'ERROR:|WARNING:|SCRIPT ERROR|runtime error:|crashed', editor_diagnostics(output, args.headless))
     if not args.headless: passed = passed and (run / 'editor.png').is_file()
     report = {'status': 'PASS' if passed else 'FAIL', 'engine_version': version, 'run': str(run),
               'exit_code': code, 'command': command, 'graphics': not args.headless,

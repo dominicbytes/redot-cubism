@@ -40,9 +40,14 @@ editor requirements and do not replace the remaining platform and UI checks.
 ## Compatibility and remaining acceptance
 
 Use the supported Redot 26.2/26.3 runtime selected for the passing native report.
-The headless dummy renderer can emit texture diagnostics, so headless results
-cannot qualify graphical editor behavior. Managed workflows, external input,
-UI scaling and audible output require separate acceptance. See
+Saving even an empty scene through `EditorInterface.save_scene()` requests an
+editor thumbnail. In headless mode, Redot 26.2/26.3's dummy renderer reports
+`Parameter "t" is null` at `texture_2d_get` in its texture storage header, line 115.
+This also reproduces without the addon. The headless diagnostic gate tolerates
+only that exact error and dummy-renderer callsite pair (including Windows source
+separators); every other error or warning still fails. Graphical runs tolerate
+none of these messages. Headless results cannot qualify graphical editor behavior.
+Managed workflows, external input, UI scaling and audible output require separate acceptance. See
 [current status](current-status.md) for platform compatibility limits.
 
 A Linux `sanitize=undefined` addon can use this runner with the normal editor.
