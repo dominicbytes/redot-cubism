@@ -7,7 +7,7 @@ and local permission records.
 
 | Symptom | Check and recovery |
 |---|---|
-| Cubism classes or editor menus are missing | Install the entire addon at `res://addons/gd_cubism`, including the matching platform library and descriptor, then restart. Inspect native loader errors and verify Redot 26.2 single precision. |
+| Cubism classes or editor menus are missing | Install the entire addon at `res://addons/gd_cubism`, including the matching platform library and descriptor, then restart. Inspect native loader errors and verify Redot 26.2 or 26.3 single precision and the pinned 26.2 binding API. |
 | `.model3.json` does not appear as a new import | Use Project → Tools → Import Cubism Model; fresh compound-extension discovery is a known stock 26.2 limitation. |
 | Model import or export reports stale/missing dependencies | Let texture/audio scanning finish, inspect Model Inspector diagnostics, restore contained source paths, then reimport and reload. Do not hand-edit `.import`/`.md5`. |
 | Motion/expression does not play | Use IDs from that imported model, inspect the returned Error/handle, and check pause, speed, process mode and priority. Models do not all declare the same groups. |

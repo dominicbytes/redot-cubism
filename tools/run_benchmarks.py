@@ -14,6 +14,8 @@ import statistics
 import subprocess
 import tempfile
 
+from build_inputs import supported_engine
+
 ROOT = Path(__file__).resolve().parents[1]
 SCENARIOS = ('static', 'vn', 'party', 'crowd', 'masks', 'physics', 'offscreen', 'hidden')
 METRICS = ('frame_usec', 'model_update_usec', 'renderer_update_usec', 'vertex_bytes',
@@ -87,7 +89,7 @@ def main():
     engine = Path(os.environ['REDOT_BIN']).resolve()
     version = subprocess.check_output([str(engine), '--version'], text=True, timeout=10).strip()
     pins = json.loads((ROOT / 'DEPENDENCIES.json').read_text())
-    if version != pins['redot']['version']: parser.error('Editor differs from pinned Redot')
+    if not supported_engine(version, pins): parser.error('Unsupported Redot runtime')
     output.mkdir(parents=True, exist_ok=True)
     run = Path(tempfile.mkdtemp(prefix='benchmark-', dir=output))
     project = run / 'project'

@@ -14,6 +14,8 @@ import sys
 import time
 
 
+from build_inputs import supported_engine
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests/fuzz"))
 from corpus import DEFAULT_SEED, boundary_cases, cases, encoded  # noqa: E402
@@ -286,7 +288,7 @@ def main():
         version_text = version_log.read_text(encoding="utf-8", errors="replace")
         report["editor_version"] = version_text.strip()
         report["version_process"] = version
-        if version["exit_code"] != 0 or version["violation"] or "26.2.stable.official.4f5b14aba" not in version_text:
+        if version["exit_code"] != 0 or version["violation"] or not supported_engine(version_text.strip(), json.loads((ROOT / "DEPENDENCIES.json").read_text())):
             raise RuntimeError("pinned editor version check failed")
         preflight = [
             ("editor-import", [str(editor), "--headless", "--path", str(project), "--editor", "--import",

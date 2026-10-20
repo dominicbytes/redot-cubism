@@ -11,6 +11,8 @@ import subprocess
 import tempfile
 from pck_inspection import inspect_pack
 
+from build_inputs import supported_engine
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -27,7 +29,7 @@ def main():
         parser.error('Requires a completed full-model importer export check')
     engine = os.environ['REDOT_BIN']
     version = subprocess.check_output([engine, '--version'], text=True, timeout=10).strip()
-    if version != previous['engine_version'] or version != json.loads((ROOT/'DEPENDENCIES.json').read_text())['redot']['version']:
+    if version != previous['engine_version'] or not supported_engine(version, json.loads((ROOT/'DEPENDENCIES.json').read_text())):
         parser.error('Editor version mismatch')
     if subprocess.check_output([str(args.template), '--version'], text=True, timeout=10).strip() != version:
         parser.error('Template version mismatch')

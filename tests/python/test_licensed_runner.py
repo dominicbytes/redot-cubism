@@ -44,6 +44,9 @@ class LicensedRunnerTests(unittest.TestCase):
         self.env['CUBISM_BENCHMARK_RELATIVE_THRESHOLD'] = '0.10'
         self.modules = {'SCons': types.SimpleNamespace(__version__=self.pins['toolchain']['scons']),
                         'PIL': types.SimpleNamespace(__version__='12.3.0')}
+        engine = patch.object(licensed, 'engine_version', return_value=self.pins['redot']['version'])
+        engine.start()
+        self.addCleanup(engine.stop)
         self.calls = []
 
     def _write_visual_matrix(self, matrix=None, limits_platform=None):

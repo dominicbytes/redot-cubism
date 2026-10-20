@@ -16,6 +16,8 @@ import time
 from run_desktop_tests import check_report, export_stages, sha256
 from run_benchmarks import SCENARIOS
 
+from build_inputs import engine_version
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -90,11 +92,11 @@ def main():
                 parser.error(args.suite + " requires an existing --" + name.replace("_", "-"))
             setattr(args, name, path.resolve())
         library_hash = sha256(args.library)
-        engine_version = json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]
+        selected_version = engine_version(os.environ["REDOT_BIN"], json.loads((ROOT / "DEPENDENCIES.json").read_text()))
         prepared_report = args.native_report if args.suite == "editor" else args.importer_report
         try:
-            prepared = check_report(prepared_report, library_hash, engine_version)
-            if prepared.get("library_sha256") != library_hash or prepared.get("engine_version") != engine_version:
+            prepared = check_report(prepared_report, library_hash, selected_version)
+            if prepared.get("library_sha256") != library_hash or prepared.get("engine_version") != selected_version:
                 raise ValueError("Prepared fixture must identify the selected library and pinned engine")
         except (OSError, ValueError) as error:
             parser.error(str(error))
@@ -125,7 +127,7 @@ def main():
             if not math.isfinite(args.relative_threshold) or args.relative_threshold < 0:
                 parser.error("Relative threshold must be finite and nonnegative")
         library_hash = sha256(args.library)
-        engine_version = json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]
+        selected_version = engine_version(os.environ["REDOT_BIN"], json.loads((ROOT / "DEPENDENCIES.json").read_text()))
         args.output = Path(tempfile.mkdtemp(prefix="benchmark-", dir=args.output.resolve()))
         child_reports = [args.output / "benchmark-report.json"]
         commands = [[sys.executable, "tools/run_benchmarks.py", "--project", str(args.benchmark_project),
@@ -150,7 +152,7 @@ def main():
     report = {"suite": args.suite, "status": "RUNNING", "checks": results, "release_qualified": False,
               "cubism_model_tests_selected": args.suite in ("native-smoke", "benchmark", "visual", "editor", "export")}
     if child_reports:
-        report.update(library_sha256=library_hash, engine_version=engine_version, run=str(args.output))
+        report.update(library_sha256=library_hash, engine_version=selected_version, run=str(args.output))
     destination = args.output / f"{args.suite}.json"
     destination.write_text(json.dumps(report, indent=2) + "\n")
     for index, command in enumerate(commands):
@@ -172,16 +174,16 @@ def main():
                 code = 124
                 log += "\nTest command exceeded the wall-clock limit.\n"
             if not code and child_reports:
-                child = check_report(child_reports[index], library_hash, engine_version)
+                child = check_report(child_reports[index], library_hash, selected_version)
                 if args.suite == "editor" and child.get("graphics") is not True:
                     raise ValueError("Editor suite requires a graphical run")
                 if args.suite == "benchmark":
                     if args.baseline:
                         from run_licensed_tests import validate_result
-                        validate_result(child_reports[index], "benchmark", library_hash, engine_version)
+                        validate_result(child_reports[index], "benchmark", library_hash, selected_version)
                     elif (child.get("qualification") != "MEASURED_ONLY" or
                           child.get("library_sha256") != library_hash or
-                          child.get("identity", {}).get("engine_version") != engine_version or
+                          child.get("identity", {}).get("engine_version") != selected_version or
                           set(child.get("scenarios", {})) != set(SCENARIOS)):
                         raise ValueError("Expected all eight measured scenarios with matching library and engine")
                     report["qualification"] = child["qualification"]

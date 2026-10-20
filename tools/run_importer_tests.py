@@ -11,6 +11,8 @@ import shutil
 import subprocess
 import tempfile
 
+from build_inputs import supported_engine
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -28,8 +30,8 @@ def main():
         parser.error("Dependency checks require --graphics: the headless renderer does not replace texture pixels")
     engine = os.environ["REDOT_BIN"]
     version = subprocess.check_output([engine, "--version"], text=True, timeout=10).strip()
-    if version != json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]:
-        parser.error("REDOT_BIN does not match the pinned Redot version")
+    if not supported_engine(version, json.loads((ROOT / "DEPENDENCIES.json").read_text())):
+        parser.error("REDOT_BIN is not a supported Redot runtime")
     if args.template and subprocess.check_output([str(args.template.resolve()), "--version"], text=True, timeout=10).strip() != version:
         parser.error("Template version does not match REDOT_BIN")
     args.output.mkdir(parents=True, exist_ok=True)
@@ -77,7 +79,7 @@ def main():
     checks = []
 
     def execute(name, switches, marker=None, executable=None, graphics=False, exported=False):
-        command = [str(executable or engine)]
+        command = [str(executable or engine), "--audio-driver", "Dummy"]
         if not exported:
             command += ["--path", str(project)]
         if graphics:

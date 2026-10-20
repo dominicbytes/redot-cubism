@@ -12,7 +12,7 @@ import sys
 import tempfile
 import wave
 
-from build_inputs import sha256
+from build_inputs import sha256, supported_engine
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -51,7 +51,7 @@ def main():
         parser.error("Set REDOT_BIN and supply existing library/model files")
     pins = json.loads((ROOT / "DEPENDENCIES.json").read_text())
     version = subprocess.check_output([binary, "--version"], text=True, timeout=10).strip()
-    if version != pins["redot"]["version"]:
+    if not supported_engine(version, pins):
         parser.error(f"Unexpected Redot version: {version}")
     if bool(args.sanitizer_runtime) != bool(args.sanitizer_library):
         parser.error("Supply both sanitizer runtime and library")
@@ -106,7 +106,7 @@ def main():
     checks = []
 
     def run(name, switches, marker=None, executable=None, graphics=False):
-        command = [str(executable or binary)]
+        command = [str(executable or binary), "--audio-driver", "Dummy"]
         if graphics:
             command += ["--rendering-method", args.graphics]
             if feature == "linux":
@@ -145,6 +145,8 @@ def main():
         success = run("editor-restart", ["--editor", "--import", "--quit-after", "1000"], "CUBISM_NATIVE_EDITOR_PASS")
     if success:
         success = run("empty-runtime", ["--script", "res://empty_runtime.gd", "--quit-after", "2"], "CUBISM_EMPTY_PASS")
+    if success:
+        success = run("variant-compatibility", ["--script", "res://variant_compatibility_checks.gd", "--quit-after", "2"], "CUBISM_VARIANT_COMPATIBILITY_PASS")
     if success:
         success = run("manifest-parser", ["--script", "res://manifest_checks.gd", "--quit-after", "2"], "CUBISM_MANIFEST_PASS cases=49")
     if success:

@@ -7,7 +7,9 @@ of the `demo` Redot project containing the separately obtained Mao sample at
 The sample, native libraries, Mono editor, and build outputs are not part of
 these tests. See [Linux source build](../../docs/build/linux.md#build-the-retained-c-demo)
 for Redot 26.2 Mono, .NET 8, native add-on, and `NuGet.Config` setup. Use the
-matching Redot Mono editor and a local project copy on either platform.
+matching Redot Mono editor and a local project copy on either platform. The
+retained `Redot.NET.Sdk/26.2.0` project is the managed baseline; native 26.3
+compatibility does not certify 26.3 Mono or its managed SDK.
 
 Set `PROJECT_DIR` to the private project copy and `REDOT_MONO_BIN` to that Mono
 editor. From the repository root, before editor import (POSIX shell syntax):

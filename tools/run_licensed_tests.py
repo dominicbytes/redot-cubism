@@ -18,6 +18,8 @@ from run_benchmarks import SCENARIOS
 from run_desktop_tests import check_report, sha256
 from run_visual_tests import load_fixtures, validate_limits
 
+from build_inputs import engine_version
+
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = (
     'REDOT_BIN', 'REDOT_CPP_ROOT', 'CUBISM_SDK_ROOT', 'CUBISM_MODEL', 'CUBISM_EXPRESSION',
@@ -211,12 +213,12 @@ def main(argv=None):
     env = dict(os.environ, PYTHONUTF8='1', PYTHONIOENCODING='utf-8', PYTHONUNBUFFERED='1', PYTHONDONTWRITEBYTECODE='1')
     try:
         threshold, pins, visual_matrix_hash, visual_matrix = configuration(env, target)
+        version = engine_version(env["REDOT_BIN"], pins)
     except (ImportError, KeyError, OSError, TypeError, ValueError) as error:
         report.update(status='FAIL', error=str(error), configuration_error=True)
         save()
         print(str(error), file=sys.stderr)
         return 2
-    version = pins['redot']['version']
     report.update(engine_version=version,
                   source_commit=subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                   source_dirty=bool(subprocess.check_output(['git', 'status', '--porcelain'], cwd=ROOT)),

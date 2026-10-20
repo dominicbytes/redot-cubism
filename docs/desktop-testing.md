@@ -213,3 +213,15 @@ and rerun the licensed matrix before merging. Engine and Cubism Framework/Core
 updates also require an explicit compatibility review; the automation never
 downloads or replaces the licensed SDK. Dependabot begins operating only after
 this configuration is present on the repository's default branch.
+
+## Runtime matrix
+
+The private licensed workflow selects Redot 26.2 and 26.3 separately on each
+desktop platform. Provision `REDOT_BIN_26_2`, `REDOT_BIN_26_3`,
+`CUBISM_TEMPLATE_DEBUG_26_2`, `CUBISM_TEMPLATE_RELEASE_26_2`,
+`CUBISM_TEMPLATE_DEBUG_26_3` and `CUBISM_TEMPLATE_RELEASE_26_3` on the runner.
+Each editor must match its templates exactly. `REDOT_BINDING_BIN` is set to
+the 26.2 editor for both builds; runtime reports identify the selected engine,
+while native build metadata identifies the retained 26.2 ABI and binding patch.
+The matrix is a required qualification gate, not a claim that every entry has
+already passed.

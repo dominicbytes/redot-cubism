@@ -17,6 +17,17 @@ spec.loader.exec_module(checked)
 
 
 class CheckedExportTest(unittest.TestCase):
+    def test_binding_baseline_allows_supported_runtime_but_not_future_or_dev(self):
+        baseline = '26.2.stable.official.4f5b14aba'
+        build = {'redot_version': baseline, 'supported_redot_versions': ['26.2', '26.3']}
+        checked.check_runtime_build(build, baseline)
+        checked.check_runtime_build(build, '26.3.stable.official.85e520394')
+        for version in ('26.4.stable.official.abc', '26.3.dev.custom_build.abc'):
+            with self.subTest(version=version), self.assertRaisesRegex(ValueError, 'runtime support'):
+                checked.check_runtime_build(build, version)
+        with self.assertRaisesRegex(ValueError, 'runtime support'):
+            checked.check_runtime_build({'redot_version': baseline}, '26.3.stable.official.85e520394')
+
     def test_windows_identity_probe_copies_running_editor(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

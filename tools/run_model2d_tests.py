@@ -96,6 +96,8 @@ def main():
     hit_args = ['--', '--deformation'] if args.graphics else []
 
     def execute(name, command, marker=None, cwd=project):
+        if command[0] != sys.executable and "--audio-driver" not in command:
+            command[1:1] = ["--audio-driver", "Dummy"]
         with (run / (name + '.log')).open('w') as log:
             result = subprocess.run(command, cwd=cwd, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=600)
         log = (run / (name + '.log')).read_text()

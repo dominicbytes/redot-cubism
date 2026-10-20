@@ -61,7 +61,7 @@ def main():
     (project / 'editor-workflow-fixture.json').write_text(json.dumps(inputs))
     env = dict(os.environ, UBSAN_OPTIONS='halt_on_error=1:print_stacktrace=1')
     for key in ('CONFIG', 'CACHE', 'DATA'): env['XDG_' + key + '_HOME'] = str(run / key.lower())
-    flags = ['--headless'] if args.headless else ['--rendering-method', 'gl_compatibility', '--audio-driver', 'Dummy']
+    flags = ['--headless', '--audio-driver', 'Dummy'] if args.headless else ['--rendering-method', 'gl_compatibility', '--audio-driver', 'Dummy']
     if not args.headless and os.name != 'nt': flags += ['--display-driver', 'x11']
     command = [engine, '--editor', '--path', str(project), *flags, '--quit-after', '10000']
     with (run / 'editor.log').open('w') as log:

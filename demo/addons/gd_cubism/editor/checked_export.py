@@ -93,6 +93,14 @@ def check_native_build(build, target, mode):
             raise ValueError('Exported native build ' + key + ' mismatch: expected ' + value + ', got ' + str(build.get(key)))
 
 
+def check_runtime_build(build, version):
+    supported = build.get('supported_redot_versions', [])
+    parts = version.split('.')
+    runtime = '.'.join(parts[:2])
+    if version != build['redot_version'] and (len(parts) < 3 or parts[2] != 'stable' or runtime not in supported):
+        raise ValueError('Editor does not match the native addon runtime support')
+
+
 def stage_identity_editor(editor, probe, target):
     # A Windows parent editor may still hold the original executable open.
     # Removing a hard link to it then fails even after the probe exits.
@@ -186,8 +194,9 @@ def checked_export(args):
                  '--cubism-preflight', args.preset, str(preflight_file)],
                 work / 'preflight.log', work, env, args.timeout, 'CUBISM_EXPORT_PREFLIGHT_PASS')
         preflight = json.loads(preflight_file.read_text())
-        if not preflight['ok'] or version != preflight['build']['redot_version']:
-            raise ValueError('Preflight failed or editor does not match the native addon')
+        if not preflight['ok']:
+            raise ValueError('Preflight failed')
+        check_runtime_build(preflight['build'], version)
         preset = preflight['preset']
         target = {'Linux': 'Linux', 'Windows Desktop': 'Windows'}.get(preset['platform'])
         if target != platform.system() or preset['architecture'] != 'x86_64':
@@ -216,7 +225,7 @@ def checked_export(args):
         if template_version != version:
             raise ValueError('Exported template version does not match the pinned editor')
         archive = inspect_pack(game.with_suffix('.pck'))
-        if archive['engine_version'][:2] != [26, 2]:
+        if archive['engine_version'][:2] != [int(part) for part in version.split('.')[:2]]:
             raise ValueError('Exported PCK engine version mismatch')
         for name, digest in preflight['raw_hashes'].items():
             if archive['files'].get(name.removeprefix('res://'), {}).get('sha256') != digest:

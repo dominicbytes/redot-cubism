@@ -1,6 +1,6 @@
 # Cubism for Redot
 
-An unofficial, open-source Live2D Cubism plugin for **Redot Engine LTS 26.2**, with shared
+An unofficial, open-source Live2D Cubism plugin for **Redot Engine 26.2 and 26.3**, with shared
 source for **Windows and Linux x86_64**. Based on
 [GDCubism](https://github.com/MizunagiKB/gd_cubism), with its original credits
 and license preserved. This is an independent Redot port.
@@ -11,7 +11,7 @@ cues. The legacy GDCubism API is retained.
 
 ## Get started
 
-Build the addon locally for Redot 26.2 single precision and the **GL
+Build the addon locally for Redot 26.2 or 26.3 single precision and the **GL
 Compatibility** renderer. Obtain Cubism Native SDK 5-r.5 separately, extract it
 under `.local-build/sdk/CubismSdkForNative-5-r.5`, and follow the setup guide.
 Source builds link Core statically by default. A Windows external-Core package
@@ -31,8 +31,8 @@ Each user must obtain the official SDK separately and run the included installer
 ## Compatibility and status
 
 Windows and Linux debug/release builds and scoped runtime checks have passed.
-The tested dependency set is Redot 26.2 single precision and Cubism Native SDK
-5-r.5; exact versions and hashes are in [dependencies](DEPENDENCIES.md).
+The binding ABI stays pinned to Redot 26.2 single precision; the same native
+addon supports 26.2 and 26.3 with Cubism Native SDK 5-r.5; exact versions and hashes are in [dependencies](DEPENDENCIES.md).
 
 ## License and dependencies
 

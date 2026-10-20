@@ -14,6 +14,8 @@ import re
 import subprocess
 import tempfile
 
+from build_inputs import supported_engine
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -26,8 +28,8 @@ def main():
         parser.error("Target size must be between 2 and 256")
     engine = os.environ["REDOT_BIN"]
     version = subprocess.check_output([engine, "--version"], text=True, timeout=10).strip()
-    if version != json.loads((ROOT / "DEPENDENCIES.json").read_text())["redot"]["version"]:
-        parser.error("REDOT_BIN does not match the pinned version")
+    if not supported_engine(version, json.loads((ROOT / "DEPENDENCIES.json").read_text())):
+        parser.error("REDOT_BIN is not a supported Redot runtime")
     args.output.mkdir(parents=True, exist_ok=True)
     run = Path(tempfile.mkdtemp(prefix="composition-", dir=args.output.resolve()))
     project = run / "project"

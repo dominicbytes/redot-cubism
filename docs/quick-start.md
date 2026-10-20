@@ -1,7 +1,8 @@
 # Setup and first character
 
-Use a checkout containing this guide and the pinned Redot **26.2 single-precision**
-editor. This is a development port, not a qualified release. Linux and Windows
+Use a checkout containing this guide and a Redot **26.2 or 26.3 single-precision**
+editor. Native builds retain the pinned 26.2 binding API: when `REDOT_BIN` selects
+26.3, set `REDOT_BINDING_BIN` to the pinned 26.2 editor before verification. This is a development port, not a qualified release. Linux and Windows
 x86_64 have scoped runtime evidence; see [current status](current-status.md).
 Other architectures,
 Godot binaries and later SDK versions are not covered by these instructions.

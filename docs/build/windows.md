@@ -7,7 +7,7 @@ Pillow 12.3.0. Full release qualification remains incomplete; see
 [current status](../current-status.md) for exact tested revisions and open gates.
 
 Use a VS 2022/MSVC 14.3 x64 Native Tools environment, Python with `venv`, the
-Redot 26.2 single-precision editor and matching templates, and the separately
+Redot 26.2 or 26.3 single-precision editor and matching templates, and the separately
 obtained Cubism Native SDK 5-r.5. Core libraries must come from its `143` toolset
 directory. Read [dependencies](../../DEPENDENCIES.md) and [licensing](../licensing.md).
 The recommended extracted SDK root is
@@ -25,7 +25,7 @@ obtained SDK 5-r.5, run from the package root:
 
 ```powershell
 python install_windows_external_core.py `
-  --sdk-root 'C:/path/to/CubismSdkForNative-5-r.5' `
+  --sdk-root '<SDK>' `
   --addon-dir 'addons/gd_cubism'
 ```
 
@@ -40,15 +40,17 @@ the installed Core into a public repository or another release ZIP.
 First [clone the Redot development branch](../quick-start.md#get-the-source).
 From PowerShell, run from that checkout and replace the editor path. If you
 extracted the SDK elsewhere, also replace the `CUBISM_SDK_ROOT` value.
-Start the VS 2022 x64 shell in that PowerShell process, even if newer Visual
-Studio versions are installed:
+Set `VS_DEV_SHELL` to the VS 2022 `Launch-VsDevShell.ps1`,
+`REDOT_RUNTIME_BIN` to the selected 26.2/26.3 editor and `REDOT262_BIN` to the
+pinned 26.2 editor. Start its x64 shell in that PowerShell process:
 
 ```powershell
-& 'C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/Tools/Launch-VsDevShell.ps1' -Arch amd64 -HostArch amd64
+& $env:VS_DEV_SHELL -Arch amd64 -HostArch amd64
 git submodule update --init godot-cpp
 python -m venv .local-build/tools
 & ./.local-build/tools/Scripts/python.exe -m pip install scons==4.11.1
-$env:REDOT_BIN = 'C:/tools/redot/redot.exe'
+$env:REDOT_BIN = $env:REDOT_RUNTIME_BIN
+$env:REDOT_BINDING_BIN = $env:REDOT262_BIN
 $env:CUBISM_SDK_ROOT = (Resolve-Path './.local-build/sdk/CubismSdkForNative-5-r.5').Path
 $env:REDOT_CPP_ROOT = (Resolve-Path './godot-cpp').Path
 $env:PYTHONUTF8 = '1'
@@ -64,6 +66,10 @@ The `windows_core_link=dynamic` option is mandatory for any public binary
 package. Omitting it retains the compatible local-source default and statically
 links Core; do not publish those outputs. Run the installer only in a private
 test copy: its copied `Live2DCubismCore.dll` must not enter the public package.
+The build copies the pinned bindings into `CUBISM_BUILD_DIR/redot-cpp` and
+applies the forward-compatible Variant cleanup bound there. MSVC uses
+`/d1trimfile` for each owned source root and `/PDBALTPATH:%_PDB%` so local source
+and PDB locations do not enter the DLL. Scan built artifacts before distribution.
 The build creates a v143-selecting copy of redot-cpp's Windows tool under
 `CUBISM_BUILD_DIR/tools` (default `.local-build/native/tools`). Confirm the SCons
 output says `MSVC_VERSION = 14.3`; the pinned redot-cpp checkout stays clean.

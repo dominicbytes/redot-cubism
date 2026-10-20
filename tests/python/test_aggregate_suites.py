@@ -29,6 +29,9 @@ class AggregateSuiteTests(unittest.TestCase):
         self.good = {'status': 'PASS', 'library_sha256': run_tests.sha256(self.library),
                      'engine_version': json.loads((run_tests.ROOT / 'DEPENDENCIES.json').read_text())['redot']['version'],
                      'checks': [{'status': 'PASS'}], 'graphics': True}
+        engine = patch.object(run_tests, 'engine_version', return_value=self.good['engine_version'])
+        engine.start()
+        self.addCleanup(engine.stop)
         self.prepared = self.root / 'prepared.json'
         self.prepared.write_text(json.dumps(self.good))
 

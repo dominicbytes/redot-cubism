@@ -1,6 +1,6 @@
 # Linux x86_64 source build
 
-Use Redot 26.2 single precision, the pinned Redot bindings and Cubism Native SDK
+Use Redot 26.2 or 26.3 single precision, the pinned Redot bindings and Cubism Native SDK
 5-r.5. The SDK is obtained separately after accepting its agreements. Linux
 debug/release builds and real model/export tests have passed; a final release
 still requires the full qualification gates in [desktop testing](../desktop-testing.md).
@@ -48,7 +48,10 @@ The complete environment setup and sequential debug/release commands are in
 Run them from the source checkout. Install the pinned SCons version in a
 project-local virtual environment, initialize the `godot-cpp` submodule, set
 `REDOT_BIN`, `CUBISM_SDK_ROOT` and `REDOT_CPP_ROOT`, then generate the API using
-`tools/verify_dependencies.py`. Require its `PASS` before building.
+`tools/verify_dependencies.py`. If `REDOT_BIN` selects 26.3, also set
+`REDOT_BINDING_BIN` to the pinned 26.2 editor; the generated binding API remains
+26.2. Require its `PASS` before building. Linux 26.3 execution has not been
+verified by the Windows compatibility checks.
 
 Pass that generated API as `custom_api_file` and use
 `build_profile=tools/native_build_profile.json` for both variants. Build them
@@ -66,7 +69,9 @@ build; sanitizer success does not replace graphical testing.
 
 Use the official **Redot 26.2 Mono** editor and a .NET 8 SDK. The demo project
 targets `Redot.NET.Sdk/26.2.0` and `net8.0`; `demo/project.godot` sets its
-assembly name to `demo` so Redot loads the resulting `demo.dll`.
+assembly name to `demo` so Redot loads the resulting `demo.dll`. This managed
+SDK pin is retained independently of native 26.3 support. A 26.3 Mono build needs
+its matching managed SDK and templates; it is not certified by native tests.
 
 After building the native addon above, unpack the matching official Mono editor
 and set `REDOT_MONO_ROOT` to the directory containing `GodotSharp`. Restore from

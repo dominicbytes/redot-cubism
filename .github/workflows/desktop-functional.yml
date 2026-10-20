@@ -33,6 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [Linux, Windows]
+        engine: ['26.2', '26.3']
     runs-on: [self-hosted, cubism-licensed, '${{ matrix.platform }}']
     timeout-minutes: 180
     concurrency:
@@ -44,12 +45,23 @@ jobs:
           ref: ${{ inputs.reviewed_sha }}
           persist-credentials: false
       - name: Build and qualify both variants
+        env:
+          REDOT_RUNTIME_SERIES: ${{ matrix.engine }}
         shell: python
         run: |
           import os, pathlib, subprocess, sys
           work = os.environ.get('CUBISM_WORK_ROOT')
           if not work:
               raise SystemExit('Missing private runner environment variable: CUBISM_WORK_ROOT')
-          output = pathlib.Path(work).resolve() / os.environ['GITHUB_RUN_ID'] / os.environ['GITHUB_RUN_ATTEMPT']
+          series = os.environ['REDOT_RUNTIME_SERIES']
+          suffix = series.replace('.', '_')
+          # Provision runtime-specific editors and matching templates privately.
+          for key in ('REDOT_BIN', 'CUBISM_TEMPLATE_DEBUG', 'CUBISM_TEMPLATE_RELEASE'):
+              selected = os.environ.get(key + '_' + suffix)
+              if not selected:
+                  raise SystemExit('Missing private runtime input: ' + key + '_' + suffix)
+              os.environ[key] = selected
+          os.environ['REDOT_BINDING_BIN'] = os.environ['REDOT_BIN_26_2']
+          output = pathlib.Path(work).resolve() / os.environ['GITHUB_RUN_ID'] / os.environ['GITHUB_RUN_ATTEMPT'] / series
           subprocess.run([sys.executable, 'tools/run_tests.py', '--suite', 'licensed-desktop',
                           '--output', str(output)], check=True)

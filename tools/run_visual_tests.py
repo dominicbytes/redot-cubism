@@ -12,7 +12,7 @@ import shutil
 import subprocess
 import tempfile
 
-from build_inputs import sha256
+from build_inputs import sha256, supported_engine
 from run_sdk_motion_tests import compare_states
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -126,8 +126,8 @@ def main():
     pins = json.loads((ROOT / 'DEPENDENCIES.json').read_text())
     engine = Path(os.environ['REDOT_BIN']).resolve()
     version = subprocess.check_output([str(engine), '--version'], text=True, timeout=10).strip()
-    if version != pins['redot']['version']:
-        parser.error('Editor differs from pinned Redot')
+    if not supported_engine(version, pins):
+        parser.error('Unsupported Redot runtime')
     try:
         fixtures = load_fixtures(args.fixtures.resolve(), pins)
         limits = json.loads(args.limits.read_text()) if args.limits else None
