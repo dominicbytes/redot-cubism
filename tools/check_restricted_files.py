@@ -26,6 +26,25 @@ def git(*args):
     return subprocess.check_output(["git", *args])
 
 
+def gzip_metadata(data):
+    if not data.startswith(b"\x1f\x8b") or len(data) < 10:
+        return b""
+    flags, offset, fields = data[3], 10, []
+    if flags & 4:
+        size = int.from_bytes(data[offset:offset + 2], "little")
+        offset += 2
+        fields.append(data[offset:offset + size])
+        offset += size
+    for flag in (8, 16):
+        if flags & flag:
+            end = data.find(b"\0", offset)
+            if end < 0:
+                raise ValueError("Invalid gzip metadata")
+            fields.append(data[offset:end])
+            offset = end + 1
+    return b"\0".join(fields)
+
+
 def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False):
     """Return problems; approvals allow only one exact native file/hash pair."""
     approved = approved or {}
@@ -36,8 +55,15 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
     if len(data) > MAX_BYTES:
         return [f"{name}: audit size limit exceeded"]
     native = suffix in NATIVE or ".so." in lower or any(p.endswith(".framework") for p in parts) or data.startswith((b"\x7fELF", b"MZ", b"!<arch>\n", b"\xcf\xfa\xed\xfe", b"\xfe\xed\xfa\xcf"))
-    problems = [f"{name}: {problem}" for problem in
-                inspect_local_paths(data, native=native) + inspect_attribution(data, native=native)]
+    def publication(payload):
+        return [f"{name}: {problem}" for problem in
+                inspect_local_paths(payload, native=native) + inspect_attribution(payload, native=native)]
+    stream = io.BytesIO(data)
+    is_zip = zipfile.is_zipfile(stream)
+    is_tar = not is_zip and (lower.endswith((".tar", ".tar.gz", ".tgz", ".tar.xz", ".tar.bz2"))
+                            or tarfile.is_tarfile(stream))
+    # Compressed bytes are opaque; audit decoded members and container metadata.
+    problems = [] if is_zip or is_tar else publication(data)
     if inspect_local_paths(name.encode("utf-8")) or inspect_attribution(name.encode("utf-8")):
         return ["Archive or tracked name violates publication policy"]
     if public:
@@ -83,10 +109,17 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
         problems.extend(inspect_bytes(child, read(), approved, depth + 1, budget, public))
 
     try:
-        stream = io.BytesIO(data)
-        if zipfile.is_zipfile(stream):
+        stream.seek(0)
+        if is_zip:
             with zipfile.ZipFile(stream) as archive:
+                problems.extend(publication(archive.comment))
+                first_header = min((entry.header_offset for entry in archive.infolist()),
+                                   default=archive.start_dir)
+                problems.extend(publication(data[:first_header]))
+                end_record = data.rfind(b"PK\x05\x06")
+                problems.extend(publication(data[end_record + 22 + len(archive.comment):]))
                 for entry in archive.infolist():
+                    problems.extend(publication(b"\0".join((entry.comment, entry.extra))))
                     if not entry.is_dir():
                         member(entry.filename, entry.file_size,
                                lambda e=entry: archive.read(e),
@@ -95,11 +128,15 @@ def inspect_bytes(name, data, approved=None, depth=0, budget=None, public=False)
                         break
         elif lower.endswith((".zip", ".xlsx", ".jar", ".aar")):
             problems.append(f"{name}: invalid ZIP archive")
-        elif (lower.endswith((".tar", ".tar.gz", ".tgz", ".tar.xz", ".tar.bz2"))
-              or tarfile.is_tarfile(stream)):
+        elif is_tar:
+            problems.extend(publication(gzip_metadata(data)))
             stream.seek(0)
             with tarfile.open(fileobj=stream, mode="r:*") as archive:
                 for entry in archive:
+                    fields = [entry.name, entry.linkname, entry.uname, entry.gname,
+                              *archive.pax_headers.keys(), *archive.pax_headers.values(),
+                              *entry.pax_headers.keys(), *entry.pax_headers.values()]
+                    problems.extend(publication("\0".join(fields).encode("utf-8", "surrogateescape")))
                     if not entry.isdir():
                         member(entry.name, entry.size,
                                lambda e=entry: archive.extractfile(e).read(),

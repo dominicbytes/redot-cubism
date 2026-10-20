@@ -1,9 +1,13 @@
 # SPDX-License-Identifier: MIT
+import gzip
 import hashlib
 import io
 import json
 from pathlib import Path
+import random
+import string
 import subprocess
+import tarfile
 import sys
 import tempfile
 import unittest
@@ -71,6 +75,54 @@ class PublicationBytesTest(unittest.TestCase):
             native = b"MZfixture" + data
             name = "addon.dll"
             self.assertFalse(inspect_bytes(name, native, {name: hashlib.sha256(native).hexdigest()}))
+
+    def test_compressed_unicode_noise_does_not_reject_clean_members(self):
+        data = ''.join(random.Random(185).choices(string.ascii_letters, k=8192)).encode()
+        stream = io.BytesIO()
+        info = zipfile.ZipInfo("note.txt", date_time=(2000, 1, 1, 0, 0, 0))
+        info.compress_type = zipfile.ZIP_DEFLATED
+        with zipfile.ZipFile(stream, "w") as archive:
+            archive.writestr(info, data)
+        # This neutral member compresses to path-like Unicode bytes.
+        self.assertTrue(inspect_local_paths(stream.getvalue()))
+        self.assertFalse(inspect_bytes("bundle.zip", stream.getvalue()))
+
+    def test_container_metadata_still_obeys_publication_policy(self):
+        payloads = (local_paths()[0], "Author: Co" + "dex")
+        for payload in payloads:
+            for encoding in ("utf-8", "utf-16le", "utf-16be"):
+                value = payload.encode(encoding)
+                for field in ("comment", "entry-comment", "extra", "prefix", "suffix"):
+                    with self.subTest(encoding=encoding, field=field):
+                        stream = io.BytesIO()
+                        info = zipfile.ZipInfo("note.txt")
+                        if field == "entry-comment":
+                            info.comment = value
+                        if field == "extra":
+                            info.extra = b"\xff\xff" + len(value).to_bytes(2, "little") + value
+                        with zipfile.ZipFile(stream, "w", zipfile.ZIP_DEFLATED) as archive:
+                            archive.writestr(info, b"neutral")
+                            if field == "comment":
+                                archive.comment = value
+                        data = stream.getvalue()
+                        if field == "prefix":
+                            data = value + data
+                        if field == "suffix":
+                            data += value
+                        self.assertTrue(inspect_bytes("bundle.zip", data))
+            stream = io.BytesIO()
+            with tarfile.open(fileobj=stream, mode="w") as archive:
+                info = tarfile.TarInfo("note.txt")
+                info.pax_headers = {"comment": payload}
+                archive.addfile(info)
+            self.assertTrue(inspect_bytes("bundle.tar.gz", gzip.compress(stream.getvalue())))
+            stream = io.BytesIO()
+            with tarfile.open(fileobj=stream, mode="w") as archive:
+                archive.addfile(tarfile.TarInfo("note.txt"))
+            data = bytearray(gzip.compress(stream.getvalue()))
+            data[3] |= 8
+            data[10:10] = payload.encode() + b"\0"
+            self.assertTrue(inspect_bytes("bundle.tar.gz", bytes(data)))
 
     def test_quoted_formatting_escapes_are_not_drive_paths(self):
         for quote in ("'", '"'):
