@@ -49,13 +49,11 @@ new private paths must be replaced with relative paths or placeholders. Structur
 contributor identities, contributor trailers and automated generation credits are
 also rejected in published payloads.
 
-Commit authors, committers and messages are checked after the ancestor recorded
-as `metadata_base` in `tools/publication-policy.json`. The default baseline is the
-last revision before these gates were introduced. Earlier history has 28 known
-nonconforming author identities and one contributor trailer, so the default checks
-new metadata without rewriting that history. File contents are still checked
+Commit authors, committers and messages are checked for every commit reachable
+from the audited revision. `metadata_base` in `tools/publication-policy.json` is
+empty, which selects this complete audit. File contents are also checked
 throughout the full reachable history. All history and packaging commands accept
-`--metadata-base FULL_ANCESTOR_SHA` to override the baseline, or `--metadata-base=`
-to audit all commit metadata, which intentionally rejects the existing history.
+`--metadata-base FULL_ANCESTOR_SHA` to audit only metadata after a reviewed
+ancestor, or `--metadata-base=` to audit all commit metadata explicitly.
 The default policy is read from the audited commit, so uncommitted policy edits
 do not change the result. A baseline must resolve to an ancestor of that commit.
