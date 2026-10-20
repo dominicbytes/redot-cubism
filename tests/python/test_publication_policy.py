@@ -62,6 +62,14 @@ class PublicationBytesTest(unittest.TestCase):
                             archive.writestr("inner.zip", inner.getvalue())
                         self.assertTrue(inspect_bytes("bundle.zip", outer.getvalue()))
 
+    def test_quoted_formatting_escapes_are_not_drive_paths(self):
+        for quote in ("'", '"'):
+            formatting = quote + "\\t" + ":" + "\\t" + quote
+            for encoding in ("utf-8", "utf-16le", "utf-16be"):
+                self.assertFalse(inspect_local_paths(formatting.encode(encoding)))
+                self.assertTrue(inspect_local_paths((quote + "t:" + "\\t" + quote).encode(encoding)))
+        self.assertTrue(inspect_local_paths(("T:" + "/" + "t").encode()))
+
     def test_reviewed_examples_urls_and_relative_paths(self):
         for text in ("C:/file", "C:/path/to/sdk/Core", "C:\\path\\to\\sdk\\Core",
                      "https://example.invalid/project/docs", "res://addons/gd_cubism/bin",

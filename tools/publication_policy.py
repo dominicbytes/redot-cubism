@@ -47,6 +47,12 @@ def inspect_local_paths(data, native=False):
                 # Mixed native bytes can decode to a letter before a wide path.
                 pattern = re.compile(pattern.pattern.replace("(?<![A-Za-z0-9_])", ""), pattern.flags)
             for match in pattern.finditer(text):
+                # Recognize quoted tab/colon/tab escapes in source formatting tests.
+                quoted = text[max(0, match.start() - 2):match.start()]
+                if (match.group(1) == "t:" + "\\t" and quoted.endswith("\\")
+                        and (quoted[:1] in ("'", '"')
+                             or text[match.end():match.end() + 1] in ("'", '"'))):
+                    continue
                 value = re.sub(r"[\\/]+", "/", match.group(1)).lower().strip().rstrip(".,;")
                 if value in GENERIC_PATHS or value.startswith("c:/path/to/"):
                     continue
