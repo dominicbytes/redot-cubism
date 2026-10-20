@@ -25,7 +25,7 @@ hooks are no-ops because Redot owns canvas submission. `GetRenderOrders()`
 replaces `GetDrawableRenderOrders()`; with offscreen objects rejected, the
 drawable-indexed order array retains the required meaning.
 
-See [native test evidence](../gamedev/pr-02b-native-report.md) for actual coverage.
+See [native test scope](../desktop-testing.md) for actual coverage.
 The existing drawable texture, culling and multiply/screen-color queries still
 exist in the pinned headers and have not been renamed speculatively. The lifetime,
 color-override and rendering requirements remain subject to the native tests.

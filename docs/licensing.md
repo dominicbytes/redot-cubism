@@ -1,7 +1,8 @@
 # Licensing and distribution
 
-The user authorized publishing this derived source to dominicbytes/redot-cubism.
-Preserve the upstream MIT notices. Live2D's Framework, proprietary Core, models,
+The derived source is published in
+[dominicbytes/redot-cubism](https://github.com/dominicbytes/redot-cubism). Preserve
+the upstream MIT notices. Live2D's Framework, proprietary Core, models,
 screenshots, and application publication have separate terms. Do not infer a
 binary-publication exemption from the source license.
 
@@ -11,8 +12,10 @@ ignored `.private-fixtures` directory. Record fixture origin/permission privatel
 
 Public jobs run without Core or model fixtures. A full addon library can contain
 statically linked Core code even without a separate Core library. Binary release
-requires the publication review in Section 4 of the canonical plan. This task's
-source-fork authorization does not establish that review.
+requires review of the applicable terms and the exact package contents. Public
+Windows/Linux external-Core previews exclude Core and SDK/model assets; their
+availability does not establish rights for a different package or application.
+See [current status](current-status.md) for distribution and qualification limits.
 
 Run `python tools/check_restricted_files.py` before committing and
 `python tools/check_restricted_files.py --history HEAD` before pushing.

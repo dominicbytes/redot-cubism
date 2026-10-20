@@ -45,6 +45,7 @@ thirdparty/CubismSdkForNative*
 # Redot port: tracked documentation and private build inputs.
 !/docs/
 !/docs/**
+docs/gamedev/
 thirdparty/cubism-sdk/
 thirdparty/cubism-core/
 .local-sdk/

@@ -67,4 +67,4 @@ python -m SCons -j4 platform=linux arch=x86_64 target=template_debug \
 ```
 
 Linux and Windows are the planned targets. Build and test results, rather than
-this list, determine support. See [implementation status](docs/gamedev/implementation-plan.md).
+this list, determine support. See [current status](docs/current-status.md).

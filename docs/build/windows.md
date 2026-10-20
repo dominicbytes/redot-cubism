@@ -4,7 +4,7 @@ Windows x86_64 debug/release builds and scoped native, graphical, editor and
 checked-export tests have passed with VS 2022 (MSVC 19.44.35221, VCTools
 14.44.35207), Python 3.14.7 and SCons 4.11.1. The image-comparison tests used
 Pillow 12.3.0. Full release qualification remains incomplete; see
-[current status](../current-status.md) for exact tested revisions and open gates.
+[current status](../current-status.md) for compatibility limits and open gates.
 
 Use a VS 2022/MSVC 14.3 x64 Native Tools environment, Python with `venv`, the
 Redot 26.2 or 26.3 single-precision editor and matching templates, and the separately
