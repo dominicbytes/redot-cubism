@@ -45,7 +45,7 @@ import libraries or model assets.
 
 ## Notes
 
-I vibe coded this port in GPT 6 Astra. Use at your own risk. Actual programmers are welcome to submit PR's and feedback.
+I vibe coded this port in GPT 6 Astra and Claude Opus 5.5. Use at your own risk. Actual programmers are welcome to submit PR's and feedback.
 
 ## About Dominic Bytes
 
