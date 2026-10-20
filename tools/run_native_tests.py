@@ -173,6 +173,8 @@ def main():
     if success:
         success = run("legacy-target-point", ["--script", "res://legacy_target_point_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_TARGET_POINT_PASS")
     if success:
+        success = run("legacy-eye-blink", ["--script", "res://legacy_eye_blink_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_EYE_BLINK_PASS")
+    if success:
         success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
     if success:
         success = run("sdk-json", ["--script", "res://sdk_json_checks.gd", "--quit-after", "600"], "CUBISM_SDK_JSON_PASS variants=5")
