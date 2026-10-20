@@ -21,12 +21,12 @@ jobs:
           import os, re
           if not re.fullmatch('[0-9a-f]{40}', os.environ['REVIEWED_SHA']):
               raise SystemExit('Supply the full reviewed commit SHA.')
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.reviewed_sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.14'
       - run: python -m pip install scons==4.11.1
@@ -50,7 +50,7 @@ jobs:
                           '--ref', os.environ['REVIEWED_SHA'], '--output', str(output)], check=True)
           subprocess.run([sys.executable, 'tools/check_release_archive.py', str(output)], check=True)
       - name: Retain source archive and dependency/hash manifest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: source-${{ inputs.reviewed_sha }}
           path: |

@@ -40,7 +40,7 @@ jobs:
       group: cubism-licensed-${{ matrix.platform }}
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.reviewed_sha }}
           persist-credentials: false
