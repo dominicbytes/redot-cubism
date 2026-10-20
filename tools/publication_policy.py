@@ -12,7 +12,7 @@ GENERIC_PATHS = {
     "c:" + "/program files (x86)/microsoft visual studio/2022/buildtools/common7/tools/launch-vsdevshell.ps1",
 }
 PATH_PATTERNS = (
-    re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]:[\\/]+[A-Za-z0-9_.$%~-][^\x00-\x1f\x7f-\U0010ffff\"'<>|`;{}\[\]]*)(?=$|[\x00-\x20\"'<>|`;{}\[\]])"),
+    re.compile(r"(?<![A-Za-z0-9_])([A-Za-z]:[\\/]+[^\x00-\x20\x7f\"'<>|`;{}\[\]][^\x00-\x1f\x7f\"'<>|`;{}\[\]]*)(?=$|[\x00-\x20\"'<>|`;{}\[\]])"),
     re.compile(r"((?:/ho" r"me/|/?Users[\\/])[A-Za-z0-9_.-]+(?:[\\/][^\s\x00-\x1f\"'<>|`;,(){}\[\]]*)?)", re.I),
     re.compile(r"(?<![\\])(\\\\[A-Za-z0-9][A-Za-z0-9_.-]*\\(?!\\)[^\s\x00-\x1f\"'<>|`;,(){}\[\]]+)"),
     re.compile(r"(/m[n]t/[a-z]/[^\s\x00-\x1f\"'<>|`;,(){}\[\]]+)", re.I),

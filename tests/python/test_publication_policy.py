@@ -39,6 +39,29 @@ class PublicationBytesTest(unittest.TestCase):
                     self.assertTrue(inspect_local_paths(data))
                     self.assertTrue(inspect_bytes("docs/note.txt", data))
 
+    def test_unicode_and_punctuation_drive_paths_in_all_payloads(self):
+        paths = ("Q:" + "/" + "example/caf\u00e9/file.pdb",
+                 "Q:" + "\\" + "@example\\file.cpp",
+                 "Q:" + "/" + "\u00e9xample/file.pdb")
+        for path in paths:
+            for encoding in ("utf-8", "utf-16le", "utf-16be"):
+                for prefix in (b"", b"!"):
+                    with self.subTest(encoding=encoding, prefix=prefix, path_kind=path[3:4]):
+                        data = prefix + path.encode(encoding)
+                        self.assertTrue(inspect_bytes("docs/note.txt", data))
+                        native = b"MZfixture" + data
+                        name = "addon.dll"
+                        approved = {name: hashlib.sha256(native).hexdigest()}
+                        self.assertTrue(any("identifying local path" in problem
+                                            for problem in inspect_bytes(name, native, approved)))
+                        inner = io.BytesIO()
+                        with zipfile.ZipFile(inner, "w", zipfile.ZIP_DEFLATED) as archive:
+                            archive.writestr("note.txt", data)
+                        outer = io.BytesIO()
+                        with zipfile.ZipFile(outer, "w", zipfile.ZIP_DEFLATED) as archive:
+                            archive.writestr("inner.zip", inner.getvalue())
+                        self.assertTrue(inspect_bytes("bundle.zip", outer.getvalue()))
+
     def test_reviewed_examples_urls_and_relative_paths(self):
         for text in ("C:/file", "C:/path/to/sdk/Core", "C:\\path\\to\\sdk\\Core",
                      "https://example.invalid/project/docs", "res://addons/gd_cubism/bin",

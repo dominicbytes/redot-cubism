@@ -89,7 +89,7 @@ class ExternalCoreInstallTest(unittest.TestCase):
         for platform, module in (("windows", windows), ("linux", linux)):
             with self.subTest(platform=platform):
                 line = module.DEPENDENCY_LINE
-                formatted = line.replace(' = ', '\t=\t').replace(': ', '\t:\t')
+                formatted = line.replace(' = ', '\t=\t').replace(': ', '\t' + ':' + '\t')
                 text = '[dependencies]\n' + formatted + '\n'
                 self.assertEqual(module.descriptor_with_dependency(text), text)
                 for changed in (line.replace('Cubism', 'Cub ism'),
