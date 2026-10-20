@@ -4,6 +4,7 @@
 #include "cubism_model_importer.hpp"
 #include "cubism_manifest_parser.hpp"
 #include "cubism_descriptors.hpp"
+#include "cubism_texture_import.hpp"
 #include "private/redot_cubism_model_setting.hpp"
 #include <godot_cpp/classes/class_db_singleton.hpp>
 #include <godot_cpp/classes/file_access.hpp>
@@ -95,6 +96,9 @@ Dictionary CubismExportValidator::validate_model(const Ref<CubismModelResource> 
         error("model", "Stored source references differ from the current manifest. Reimport before export.");
     }
     const auto textures = model->get_textures();
+    const PackedStringArray texture_sources = current->get_texture_paths();
+    const Dictionary source_hashes = current->get_dependency_fingerprints();
+    const String texture_policy = cubism_texture_policy(model->get_premultiplied_alpha());
     for (int i = 0; i < textures.size(); ++i) {
         const Ref<PortableCompressedTexture2D> texture = textures[i];
         const String path = texture.is_valid() ? texture->get_path() : String();
@@ -103,6 +107,11 @@ Dictionary CubismExportValidator::validate_model(const Ref<CubismModelResource> 
                 || hash.length() != 64 || CubismManifestParser::validate_project_file(path)["status"] != String("file")) {
             error("textures[" + String::num_int64(i) + String("]"), "Expected a contained, imported Cubism texture resource.");
             continue;
+        }
+        if (i >= texture_sources.size()
+                || texture->get_meta("cubism_source_sha256", Variant()) != source_hashes.get(texture_sources[i], Variant())
+                || texture->get_meta("cubism_texture_policy", Variant()) != Variant(texture_policy)) {
+            error("textures[" + String::num_int64(i) + String("]"), "Generated texture provenance differs from its source slot or conversion policy. Reimport before export.");
         }
         const Ref<FileAccess> input = FileAccess::open(path, FileAccess::READ);
         if (input.is_null() || input->get_length() > 512ULL * 1024 * 1024 || FileAccess::get_sha256(path) != hash) {

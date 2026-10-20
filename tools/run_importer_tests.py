@@ -9,6 +9,8 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import struct
+import zlib
 import tempfile
 
 from build_inputs import supported_engine
@@ -72,6 +74,13 @@ def main():
     (project / "fixture.json").write_text(json.dumps({"model": model}))
     (project / "hero.json").write_text("{}")
     (project / "not_model3.json.backup").write_text("{}")
+    # A distinct atlas exercises source-slot provenance independently of reordering.
+    def png_chunk(kind, payload):
+        return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload))
+
+    (project / "export-validator-wrong.png").write_bytes(
+        b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+        + png_chunk(b"IDAT", zlib.compress(b"\0\xff\0\xff\xff")) + png_chunk(b"IEND", b""))
     # Install editor-only script after scanning, so runtime projects never parse it.
     env = dict(os.environ)
     for key in ("CONFIG", "DATA", "CACHE"):
