@@ -242,14 +242,15 @@ def install_files(addon, source, expected, filename, update_descriptor):
                             directory.remove(name)
                         else:
                             directory.replace(backup, name)
-                    except OSError as rollback_error:
+                    except BaseException as rollback_error:
                         if backup:
                             temporary.remove((directory, backup))
                         recovery = (directory.path / backup).relative_to(addon).as_posix() if backup else name
                         failures.append((recovery, rollback_error))
                 if failures:
                     def diagnostic(error):
-                        return type(error).__name__ + " (error " + str(getattr(error, "winerror", None) or error.errno) + ")"
+                        code = getattr(error, "winerror", None) or getattr(error, "errno", None)
+                        return type(error).__name__ + (" (error " + str(code) + ")" if code is not None else "")
                     detail = "; ".join(name + ": " + diagnostic(error) for name, error in failures)
                     error = OSError("Installation failed: " + diagnostic(install_error) +
                                     "; rollback incomplete; retain recovery backups beside outputs: " + detail)

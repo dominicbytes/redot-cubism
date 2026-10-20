@@ -280,6 +280,25 @@ class ExternalCoreInstallTest(unittest.TestCase):
                 kernel.CloseHandle(handle)
             self.descriptor.chmod(0o644)
 
+    def test_rollback_validation_failure_keeps_recovery_backup(self):
+        destination = self.destinations["windows"]
+        destination.write_bytes(b"previous Core")
+        real_replace = transaction.OutputDirectory.replace
+        def replace(directory, source, target):
+            if target == self.descriptor.name:
+                os.link(destination, self.root / "competing-hard-link")
+                raise OSError("injected descriptor replacement failure")
+            return real_replace(directory, source, target)
+        with mock.patch.object(transaction.OutputDirectory, "replace", replace):
+            with self.assertRaisesRegex(OSError, "rollback incomplete") as caught:
+                self.install("windows")
+        self.assertIsInstance(caught.exception.rollback_errors[0][1], ValueError)
+        backups = list(self.addon.rglob(".core-install-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_bytes(), b"previous Core")
+        self.assertEqual(self.descriptor.read_bytes(), self.original)
+        self.assertNotIn(str(self.root), str(caught.exception))
+
     def test_descriptor_prepare_and_replace_failures_roll_back(self):
         real_stage = transaction.OutputDirectory.stage
         real_replace = transaction.OutputDirectory.replace
