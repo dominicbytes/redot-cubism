@@ -5,10 +5,10 @@ or redistribute the Cubism SDK, Core, models or native libraries, and its result
 does not qualify a release. Finish the required platform, private-CI, performance
 and publication checks on the exact sanitized candidate before publishing it.
 
-Use a full 40-character commit SHA from the sanitized source history. The local
-implementation branch contains the private workbook in its history and is
-intentionally rejected, even if the workbook is deleted from its tip. See
-[publication status](gamedev/publication-status.md) for the existing public anchor.
+Use a full 40-character commit SHA from the public source history. The history
+check rejects restricted content even if it has been deleted from the selected
+tip. See [current status](current-status.md) for public previews and qualification
+limits.
 
 ```sh
 python tools/check_public_history.py --ref FULL_SANITIZED_COMMIT_SHA

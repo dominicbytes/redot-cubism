@@ -14,8 +14,8 @@ provides IDs/groups, priorities, independent speed/loop state, fades and retaine
 handles with deferred events and terminal signals. The character/audio controller
 coordinates cues, recorded voice, lip sync and stable checkpoints; see the
 [VN/RPG examples and dialogue integration](dialogue-integration.md).
-Advanced rendering policies and full platform qualification remain required
-work in the canonical plan. Debug addon builds also expose
+See [current status](current-status.md) for rendering and platform qualification
+limits. Debug addon builds also expose
 [runtime diagnostic statistics](debug-statistics.md) for resource ownership and
 CPU/upload work.
 

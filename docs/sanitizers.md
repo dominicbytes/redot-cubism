@@ -60,9 +60,9 @@ marker. This verifies fatal sanitizer behavior, not Cubism runtime correctness.
 
 ## Pinned Framework hash correction
 
-The first combined run stopped during Framework initialization in
-`csmString::CalcHashcode`: its signed `hash * 31` overflowed. The build now
-replaces only that function in a generated private copy of `csmString.cpp`,
+The pinned Framework's `csmString::CalcHashcode` uses signed `hash * 31`
+arithmetic that can overflow. The build replaces only that function in a
+generated private copy of `csmString.cpp`,
 using `src/private/cubism_string_hash.hpp`. Unsigned modulo-2^32 arithmetic
 preserves the reverse polynomial, native-char signedness, and the reserved
 `-1`/empty-string behavior. Conversion back to a signed result is defined even

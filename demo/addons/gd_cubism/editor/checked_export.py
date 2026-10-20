@@ -107,6 +107,10 @@ def check_runtime_build(build, version):
 
 
 def stage_identity_editor(editor, probe, target):
+    if target == 'Windows' and editor.name.lower().endswith('.console.exe'):
+        editor = editor.with_name(editor.name[:-len('.console.exe')] + '.exe')
+        if not editor.is_file():
+            raise ValueError('Windows console wrapper requires its paired editor executable; select the .exe without .console')
     # A Windows parent editor may still hold the original executable open.
     # Removing a hard link to it then fails even after the probe exits.
     if target != 'Windows':

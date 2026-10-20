@@ -36,12 +36,9 @@ builds remain mapped until process exit to keep their C++ runtime state valid.
 If it is absent, Redot reports `libLive2DCubismCore.so` while loading the
 extension. Re-run the installer after replacing or rebuilding the addon folder.
 
-A fresh build at `234bb2920eee0f2bd247f5954f8ef96ce6cf2f9a` used
-GCC/G++ 12.2.0, GNU ld 2.40, Python 3.14.7 and SCons 4.11.1. Both variants
-passed strict headless load/identity and bounded editor-import checks. This is
-a separate environment from the historical GCC 16.2.1/ld 2.47 record in
-`DEPENDENCIES.json`; its smoke checks do not repeat the earlier full graphical
-qualification. See [current status](../current-status.md) for the evidence boundaries.
+Build/load smoke checks do not establish graphical or complete release
+qualification. See [current status](../current-status.md) for compatibility
+limits and [desktop testing](../desktop-testing.md) for the required checks.
 
 The complete environment setup and sequential debug/release commands are in
 [Setup and first character](../quick-start.md#build-the-native-addon-on-linux).

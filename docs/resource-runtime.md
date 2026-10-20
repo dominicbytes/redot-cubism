@@ -5,10 +5,10 @@ legacy-compatible scene. This bridges the importer to the existing renderer and
 motion/expression APIs. The preferred [`CubismModel2D` API](preferred-runtime.md)
 is available for new scenes; this page documents the legacy bridge. Assigning
 `assets` selects legacy loading and clears `model`; assigning `model` clears `assets`.
-Tree exit unloads native
-state, and reentry reloads the selected source. Explicit reassignment reloads the
-model. Requests made during native loading are deferred through the existing
-lifecycle guards.
+Standalone legacy nodes retain native state across tree exit and reentry.
+Explicit unload, reassignment and deletion release that state; reassignment
+loads the selected model again. Requests made during native loading are deferred
+through the existing lifecycle guards.
 Prepared legacy `assets` paths also use imported data while preserving their
 original public property semantics. See [legacy compatibility](legacy-compatibility.md)
 for preparation and scene-saving requirements.

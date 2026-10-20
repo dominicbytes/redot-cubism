@@ -17,11 +17,8 @@ cd redot-cubism
 git submodule update --init godot-cpp
 ```
 
-The checkout includes the Linux parity repairs and Windows follow-up. Tests
-are attributed to exact source revisions in [current status](current-status.md)
-and the [Windows validation snapshot](windows-validation-2026-09-18.md),
-including the managed-export shutdown warning. Obtain the SDK separately as
-described below.
+See [current status](current-status.md) for supported workflows and remaining
+qualification limits. Obtain the SDK separately as described below.
 
 ## Provide the Cubism SDK
 

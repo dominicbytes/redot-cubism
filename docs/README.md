@@ -8,9 +8,9 @@ complete release qualification remains open. SDK/model assets are supplied separ
 
 Start with [setup and first character](quick-start.md). Use the
 [dependency pins and build requirements](../DEPENDENCIES.md) for the native build.
-The tested baseline and remaining qualification gates are summarized in
-[current status](current-status.md); source-only commits after that baseline are
-not automatically covered by its results.
+Public preview packages, source compatibility and remaining qualification gates
+are summarized in [current status](current-status.md). Revalidate the exact
+engine/library combination before distributing a new build.
 
 | Task | Guide |
 |---|---|

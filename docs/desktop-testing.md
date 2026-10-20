@@ -33,10 +33,8 @@ mouth opening during the active talk motion. It compares them with a temporary
 same-model, physics-disabled control without lip-sync input. This checks that
 physics and voice-driven mouth changes reach the model together; it is a
 qualitative integration check, not an SDK parity or physical-audio measurement.
-On the a613 Windows debug/release libraries, the headless example passed 41
-checks per variant. Private copies with VN physics deliberately disabled each
-failed only the new hair-physics assertion. Pose and blink numeric parity remain
-covered by their separate tests, not this comparison.
+Pose and blink numeric parity remain covered by their separate tests, not this
+comparison.
 
 Each invocation creates a unique directory below `--output`. Its
 `desktop-report.json` is updated before and after each stage, so a crash cannot
@@ -115,8 +113,8 @@ explains why persistent self-hosted runners require isolation.
 
 ## Private CI setup
 
-`.github/workflows/desktop-functional.yml` is a manual workflow for a private
-mirror of reviewed source. Its first job rejects public repositories before
+`.github/workflows/desktop-functional.yml` is a manual workflow for reviewed
+source in a private repository. Its first job rejects public repositories before
 selecting a licensed runner. It has no pull-request trigger, SDK download,
 artifact upload, or public cache. Supply the full reviewed commit SHA when
 dispatching it; configure approval on the private `licensed-desktop` environment

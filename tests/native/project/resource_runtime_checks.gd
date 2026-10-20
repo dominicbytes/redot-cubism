@@ -62,10 +62,13 @@ func _run() -> void:
 		first.model = resource
 		expect(first.is_initialized(), "resource reload")
 		expect(not parameter.is_valid(), "reload invalidates old parameter handle")
+		parameter = first.get_parameters()[0]
 		root.remove_child(first)
-		expect(not first.is_initialized(), "resource unload on tree exit")
+		expect(first.is_initialized() and parameter.is_valid(), "resource state retained on tree exit")
 		root.add_child(first)
-		expect(first.is_initialized(), "resource reload on tree reentry")
+		expect(first.is_initialized() and first.get_parameters()[0] == parameter, "resource handle retained on tree reentry")
+		first.unload_model()
+		expect(not first.is_initialized() and not parameter.is_valid() and first.get_child_count() == 0, "explicit unload releases resource state")
 		first.assets = fixture.model
 		expect(first.is_initialized() and first.model == null, "switch to legacy raw loading")
 		first.model = resource

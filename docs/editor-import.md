@@ -50,8 +50,9 @@ If Redot imports that source as well, configure its categories in the Import doc
 default motion loading can still report a missing declared motion even when a
 separate `.res` intentionally omits motions. Source import settings are never
 silently overwritten to match one of potentially several derived resources.
-`motions/convert_to_redot_animation=false` is accepted; true reports that P1
-conversion is unavailable. Other unsupported or misspelled options fail explicitly.
+`motions/convert_to_redot_animation=false` is accepted; true reports that
+animation conversion is unavailable. Other unsupported or misspelled options
+fail explicitly.
 
 The native importer advertises only `model3.json`, priority 2, import order 100
 (after default texture/audio imports), format version 8, and disables threaded
@@ -76,10 +77,10 @@ naming `project_settings.cubism/import/maximum_file_count`.
 
 ## Stock discovery limitation
 
-On pinned Redot 26.2 (`4f5b14aba`), a fresh project with the native addon and Haru
-imports its textures/audio but creates no `Haru.model3.json.import`, including
-after restart. The editor's filesystem processing checks the final extension
-against `valid_extensions` before reaching its compound-suffix import check.
+Stock Redot 26.2 does not automatically discover fresh `.model3.json` files
+or create their import sidecars and UIDs, even after restart. The editor's
+filesystem processing checks the final extension against `valid_extensions`
+before reaching its compound-suffix import check.
 The UID startup scan likewise checks the final extension. No catch-all JSON
 importer or engine-owned import metadata workaround is installed.
 
@@ -91,28 +92,23 @@ python tools/run_importer_tests.py --model /path/to/Haru.model3.json \
   --template /path/to/matching-template
 ```
 
-The report records `automatic_discovery` separately
-from explicit import checks. The Cubism importer must not claim ordinary JSON
-or backup-suffix files. A separate pinned Windows check installed the complete
-`b338d9c` addon and a test-only generic JSON importer at priority `0.5`, below
-the production importer's `2.0`. In fresh debug/release projects, the production
-importer handled real Haru `.model3.json`, ordinary JSON went to the generic
-importer, and the backup suffix produced no import sidecar. Loaded resources
-had the expected types, and a positive model UID remained stable after editor
-restart (4/4 phases per variant). The stock project without a generic importer
-still does not discover the compound-suffix file or UID automatically.
+The report records `automatic_discovery` separately from explicit import checks.
+The Cubism importer must not claim ordinary JSON or backup-suffix files. The
+regression suite uses a test-only generic JSON importer at priority `0.5`, below
+the production importer's `2.0`, to exercise compound-suffix routing, resource
+types and UID persistence across editor restart. This test setup does not change
+stock discovery or install a generic JSON importer in the addon.
 
 The template check loads and animates the resource from the isolated test project; it does
 not claim full-model selective PCK export. Dialog callbacks are exercised in a headless
 editor. Rendered dialog validation with the new mask-quality selector, the full
 interactive workflow, and other platform checks remain pending.
 
-This action is the plan's provisional fallback. Its saved resources now participate
+Use this explicit action for fresh model imports. Its saved resources participate
 in [dependency tracking](dependency-tracking.md). The editor refreshes them after
 source changes; **Project → Tools → Validate Cubism Models** requests a scan.
 Assign the result to `CubismModel2D.model` for the [preferred runtime](preferred-runtime.md),
 or to `GDCubismUserModel.model` for [legacy-compatible playback](resource-runtime.md). The
-[checked export workflow](export-validation.md) has Linux integration coverage
-and scoped Windows checks on the earlier full-suite source and later installed
-addon snapshot; see [current status](current-status.md) for exact source
-identities and remaining release gates.
+[checked export workflow](export-validation.md) validates the selected preset
+and packaged runtime. See [current status](current-status.md) for supported
+workflows and remaining qualification limits.

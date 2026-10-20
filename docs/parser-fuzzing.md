@@ -1,6 +1,6 @@
 # Bounded parser fuzz gate
 
-This is the SDK-free input-robustness gate from plan §20.10. It calls the
+This SDK-free input-robustness gate calls the
 production `CubismManifestParser` manifest, motion and expression methods,
 including their lexical path normalization and dependency deduplication. Import
 options go through `CubismModelFactory.build_with_options` with a guaranteed
@@ -67,9 +67,9 @@ seconds, and the campaign 35 minutes. Windows fuzz and preflight children use
 a queried 2 GiB aggregate JobObject memory limit and kill-on-close; the
 worker's ready gate prevents parser calls until Job assignment succeeds.
 Linux uses a 2 GiB per-worker `RLIMIT_AS` (not an aggregate process-tree
-memory cap) and a process group for cleanup; that path still needs its own VM
-run. Both report observed peak working set/RSS, and Windows also reports peak
-Job memory. The result-file size is polled, so it can briefly overshoot its
+memory cap) and a process group for cleanup; that path requires separate Linux
+qualification. Both report observed peak working set/RSS, and Windows also
+reports peak Job memory. The result-file size is polled, so it can briefly overshoot its
 limit before the child is stopped. No 4 MiB-scale random campaign or
 proprietary Core fuzzing is claimed.
 

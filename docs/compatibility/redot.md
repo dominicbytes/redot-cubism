@@ -19,7 +19,6 @@ The addon-used rendering, viewport, image, import/export, resource-loader and
 audio class signatures are unchanged. Bindings are staged in a private build
 copy with a bounds check in `Variant::clear`; unknown engine types delegate
 destruction to the engine instead of indexing the older cleanup table.
-No 26.3 redot-cpp branch or tag was available during verification.
 
 26.3 Windows headless checks exercise the same debug/release DLLs as 26.2.
 Official 26.3 can crash during headless editor import/shutdown even without the
@@ -33,35 +32,19 @@ are not certified by the current evidence. Do not substitute their API dumps or
 assume newer Godot APIs exist in this engine. The project remains `project.godot`
 and the retained binding submodule folder remains `godot-cpp`.
 
-Linux and Windows x86_64 have passing debug/release builds and scoped runtime
-and export evidence using GL Compatibility. The newer Linux build/load smoke,
-earlier full Linux suites, integrated Windows stages and earlier Windows visual
-acceptance belong to distinct revisions; [current status](../current-status.md)
-records those boundaries. Neither source publication nor loading completes the
-release gates. See [desktop testing](../desktop-testing.md) and the
-[SDK matrix](cubism_sdk_matrix.md).
+Linux and Windows x86_64 have scoped debug/release runtime and export coverage
+using GL Compatibility. This does not qualify every engine, platform and renderer
+combination or complete the release gates. See [current status](../current-status.md)
+for supported workflows and remaining qualification limits,
+[desktop testing](../desktop-testing.md) for the required checks, and the
+[SDK matrix](cubism_sdk_matrix.md) for SDK compatibility.
 
 ## Forward+ status
 
-A separate Linux test on 2026-09-14 used stock Redot 26.2, Vulkan 1.4.343,
-and the `Virtio-GPU Venus (NVIDIA GeForce RTX 4080 SUPER)` adapter. The debug
-plugin rendered the first SDK-reference transform fixture, but the process
-segfaulted during shutdown. The visual runner correctly rejected that capture;
-the remaining fixtures and release variant were not qualified.
-
-The shutdown failure also reproduces without Cubism: a project containing only
-a `SubViewport` and `ColorRect`, waiting for five rendered frames, reading back
-the image, freeing the viewport and quitting exits with SIGSEGV under Forward+.
-The same control exits
-normally under GL Compatibility. Repeating the Forward+ control on the VM's
-native filesystem eliminates shared-folder shader-cache errors but retains the
-crash. A debugger catches a worker thread executing an unresolved address during
-shutdown; the exact engine/driver cause is not established.
-
-Use GL Compatibility for this tested environment. This result does not establish
-Forward+ behavior on other GPUs or Windows, and a rendered frame alone is not a
-passing lifecycle or visual-parity test. Keep Forward+ results and reviewed
-visual policies separate from GL Compatibility.
+Forward+ remains unqualified. Use **GL Compatibility** for the tested renderer
+path. A rendered frame alone does not establish passing lifecycle behavior or
+visual parity. Qualify each renderer and target platform separately, with its
+own reviewed visual limits and clean shutdown checks.
 
 ## Import and export limitations
 
