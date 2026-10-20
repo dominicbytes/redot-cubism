@@ -161,6 +161,8 @@ Paths refer to that runner's private filesystem.
 The Linux runner also requires `CUBISM_SANITIZER_RUNTIME`, pointing to the
 matched ASan Redot test engine described in [sanitizer testing](sanitizers.md).
 It must be provisioned before dispatch; Windows does not use this Linux-only gate.
+The runner service must be GitHub Actions runner 2.327.1 or newer, because the
+checkout action runs on Node 24.
 Install the pinned Python/SCons toolchain and compiler first. Windows currently
 requires VS 2022/MSVC 14.3; other toolsets fail the Core-library selection check.
 The runner needs an interactive graphics session for real editor/render tests.
