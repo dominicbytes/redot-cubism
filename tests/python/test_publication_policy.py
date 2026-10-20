@@ -77,14 +77,19 @@ class PublicationBytesTest(unittest.TestCase):
             self.assertFalse(inspect_bytes(name, native, {name: hashlib.sha256(native).hexdigest()}))
 
     def test_compressed_unicode_noise_does_not_reject_clean_members(self):
-        data = ''.join(random.Random(185).choices(string.ascii_letters, k=8192)).encode()
-        stream = io.BytesIO()
-        info = zipfile.ZipInfo("note.txt", date_time=(2000, 1, 1, 0, 0, 0))
-        info.compress_type = zipfile.ZIP_DEFLATED
-        with zipfile.ZipFile(stream, "w") as archive:
-            archive.writestr(info, data)
-        # This neutral member compresses to path-like Unicode bytes.
-        self.assertTrue(inspect_local_paths(stream.getvalue()))
+        # Compressed bytes depend on the zlib build, so search for a neutral
+        # member whose compressed form contains path-like Unicode bytes.
+        for seed in range(4096):
+            data = ''.join(random.Random(seed).choices(string.ascii_letters, k=8192)).encode()
+            stream = io.BytesIO()
+            info = zipfile.ZipInfo("note.txt", date_time=(2000, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            with zipfile.ZipFile(stream, "w") as archive:
+                archive.writestr(info, data)
+            if inspect_local_paths(stream.getvalue()):
+                break
+        else:
+            self.skipTest("no path-like compressed fixture with this zlib build")
         self.assertFalse(inspect_bytes("bundle.zip", stream.getvalue()))
 
     def test_container_metadata_still_obeys_publication_policy(self):
