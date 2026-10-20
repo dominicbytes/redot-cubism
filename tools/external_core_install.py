@@ -172,10 +172,11 @@ class OutputDirectory:
             import msvcrt
             from ctypes import wintypes
             # Rename the verified object itself; never reopen the staging pathname.
+            # Retain a UTF-16 terminator even without structure tail padding.
             target = str(self.path / destination).encode("utf-16le")
             class RenameInfo(ctypes.Structure):
                 _fields_ = [("ReplaceIfExists", wintypes.BOOL), ("RootDirectory", wintypes.HANDLE),
-                            ("FileNameLength", wintypes.DWORD), ("FileName", ctypes.c_byte * len(target))]
+                            ("FileNameLength", wintypes.DWORD), ("FileName", ctypes.c_byte * (len(target) + 2))]
             info = RenameInfo(True, None, len(target))
             ctypes.memmove(ctypes.addressof(info) + RenameInfo.FileName.offset, target, len(target))
             self.kernel.SetFileInformationByHandle.argtypes = [wintypes.HANDLE, ctypes.c_int,

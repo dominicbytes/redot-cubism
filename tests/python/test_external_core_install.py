@@ -56,6 +56,36 @@ class ExternalCoreInstallTest(unittest.TestCase):
     def assert_clean(self):
         self.assertFalse(list(self.addon.rglob(".core-install-*")))
 
+    @unittest.skipUnless(os.name == "nt", "Windows native rename buffer fixture")
+    def test_windows_rename_preserves_exact_name_at_every_alignment(self):
+        directory = transaction.OutputDirectory(self.addon)
+        self.addCleanup(directory.close)
+        import ctypes
+        native_rename = directory.kernel.SetFileInformationByHandle
+
+        def rename(handle, kind, pointer, size):
+            info = pointer._obj
+            end = type(info).FileName.offset + info.FileNameLength
+            self.assertGreaterEqual(size, end + 2)
+            self.assertEqual(bytes(info)[end:end + 2], b"\0\0")
+            return native_rename(handle, kind, pointer, size)
+
+        replacement = mock.patch.object(directory.kernel, "SetFileInformationByHandle", side_effect=rename)
+        replacement.start()
+        self.addCleanup(replacement.stop)
+        for residue in (0, 2, 4, 6):
+            name = "rename-\u6a21"
+            while len(str(self.addon / name).encode("utf-16le")) % 8 != residue:
+                name += "x"
+            with self.subTest(residue=residue):
+                destination = self.addon / name
+                destination.write_bytes(b"previous descriptor")
+                original_names = {path.name for path in self.addon.iterdir()}
+                staged = directory.stage(data=b"updated descriptor")
+                directory.replace(staged, name)
+                self.assertEqual(destination.read_bytes(), b"updated descriptor")
+                self.assertEqual({path.name for path in self.addon.iterdir()}, original_names)
+
     def test_both_install_orders_and_repetition(self):
         for order in (("windows", "linux"), ("linux", "windows")):
             with self.subTest(order=order):
