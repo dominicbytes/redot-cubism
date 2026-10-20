@@ -30,6 +30,7 @@ func array_rebuild():
     if history_size != ary_volume_history.size():
         ary_volume_history.resize(history_size)
         ary_volume_history.fill(0.0)
+        history_position = 0
 
 
 func array_avg() -> float:
@@ -56,8 +57,8 @@ func _ready() -> void:
     self.cubism_efx = $GDCubismUserModel/GDCubismEffectCustom
     # self.cubism_efx.connect("cubism_prologue", self._on_cubism_prologue)
     # self.cubism_efx.connect("cubism_epilogue", self._on_cubism_epilogue)
-    # self.cubism_efx.connect("cubism_init", self._on_cubism_init)
-    # self.cubism_efx.connect("cubism_term", self._on_cubism_term)
+    self.cubism_efx.connect("cubism_init", self._on_cubism_init)
+    self.cubism_efx.connect("cubism_term", self._on_cubism_term)
     self.cubism_efx.connect("cubism_process", self._on_cubism_process)
 
     self.cubism_model = $GDCubismUserModel
@@ -70,6 +71,8 @@ func _process(delta: float) -> void:
 
 
 func _on_cubism_init(model: GDCubismUserModel):
+    lipsync_ready = false
+    spectrum = null
     param_mouth = null
     ary_volume_history.clear()
     history_position = 0
@@ -81,16 +84,17 @@ func _on_cubism_init(model: GDCubismUserModel):
             param_mouth = param
 
     var bus_index = AudioServer.get_bus_index(audio_bus_name)
-    spectrum = AudioServer.get_bus_effect_instance(bus_index, audio_efx_index)
-
-    if spectrum == null:
-        lipsync_ready = false
-    else:
-        lipsync_ready = true
+    if bus_index < 0 or audio_efx_index < 0:
+        return
+    if audio_efx_index >= AudioServer.get_bus_effect_count(bus_index):
+        return
+    spectrum = AudioServer.get_bus_effect_instance(bus_index, audio_efx_index) as AudioEffectSpectrumAnalyzerInstance
+    lipsync_ready = spectrum != null and param_mouth != null
 
 
 func _on_cubism_term(model: GDCubismUserModel):
     lipsync_ready = false
+    spectrum = null
     param_mouth = null
     ary_volume_history.clear()
     history_position = 0
@@ -98,6 +102,8 @@ func _on_cubism_term(model: GDCubismUserModel):
 
 func _on_cubism_process(model: GDCubismUserModel, delta: float):
     if lipsync_ready == false:
+        return
+    if history_size <= 0 or not is_finite(min_db) or min_db <= 0.0:
         return
 
     array_rebuild()

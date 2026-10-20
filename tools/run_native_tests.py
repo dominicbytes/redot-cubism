@@ -88,6 +88,10 @@ def main():
         audio.writeframes(b"\x00\x00" * 80)
     copy_bytes(args.model.parent, project / "fixture")
     copy_bytes(ROOT / "demo/addons/gd_cubism/res", project / "addons/gd_cubism/res")
+    example_script = ROOT / "demo/addons/gd_cubism/example/demo_effect_custom_03.gd"
+    example_target = project / "addons/gd_cubism/example/demo_effect_custom_03.gd"
+    example_target.parent.mkdir(parents=True, exist_ok=True)
+    example_target.write_bytes(example_script.read_bytes())
     shader_hashes = {path.name: sha256(path) for path in sorted((project / "addons/gd_cubism/res/shader").glob("*.gdshader"))}
     library_path = project / "addons/gd_cubism/bin" / args.library.name
     library_path.parent.mkdir(parents=True)
@@ -174,6 +178,8 @@ def main():
         success = run("legacy-target-point", ["--script", "res://legacy_target_point_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_TARGET_POINT_PASS")
     if success:
         success = run("legacy-eye-blink", ["--script", "res://legacy_eye_blink_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_EYE_BLINK_PASS")
+    if success:
+        success = run("legacy-audio-demo", ["--script", "res://legacy_audio_demo_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_AUDIO_DEMO_PASS")
     if success:
         success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
     if success:
