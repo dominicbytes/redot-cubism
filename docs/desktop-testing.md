@@ -118,15 +118,22 @@ source in a private repository. Its first job rejects public repositories before
 selecting a licensed runner. It has no pull-request trigger, SDK download,
 artifact upload, or public cache. Supply the full reviewed commit SHA when
 dispatching it; configure approval on the private `licensed-desktop` environment
-before attaching runners. See GitHub's [workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)
+before attaching runners. Environments need a plan that supports them for
+private repositories. A private mirror without them must gate licensed jobs in
+its own reviewed workflow instead, for example with owner-only default-branch
+dispatch, an exact pinned candidate SHA, checkout verification and runners
+attached manually for a single run. Runner labels route jobs; they do not
+authorize them. See GitHub's [workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)
 for manual dispatch and environment settings.
 
 Provision one isolated runner per target with the `cubism-licensed` label and
-the standard `Linux` or `Windows` label. Each must provide these environment
-variables: `REDOT_BIN`, `REDOT_CPP_ROOT`, `CUBISM_SDK_ROOT`, `CUBISM_WORK_ROOT`,
-`CUBISM_MODEL`, `CUBISM_EXPRESSION`, `CUBISM_TEMPLATE_DEBUG`,
-`CUBISM_TEMPLATE_RELEASE`, `CUBISM_MOTION_PROJECT`, `CUBISM_MOTION_FIXTURES`, and
-`CUBISM_VISUAL_MATRIX`. Prepare the private SDK captures and reviewed
+the standard `Linux` or `Windows` label. Each must provide the runtime inputs
+listed under [Runtime matrix](#runtime-matrix) and these environment variables:
+`REDOT_CPP_ROOT`, `CUBISM_SDK_ROOT`, `CUBISM_WORK_ROOT`, `CUBISM_MODEL`,
+`CUBISM_EXPRESSION`, `CUBISM_MOTION_PROJECT`, `CUBISM_MOTION_FIXTURES`, and
+`CUBISM_VISUAL_MATRIX`. The workflow derives `REDOT_BIN`, `REDOT_BINDING_BIN`,
+`CUBISM_TEMPLATE_DEBUG`, `CUBISM_TEMPLATE_RELEASE` and
+`CUBISM_BENCHMARK_BASELINE` for each job. Prepare the private SDK captures and reviewed
 adapter-specific limits using [visual testing](visual-testing.md). The visual
 matrix is a versioned JSON file containing exactly these IDs, each with its own
 `project`, `fixtures`, and `limits` path:
@@ -167,7 +174,9 @@ Performance acceptance additionally requires these runner variables:
   by the eight workloads.
 - `CUBISM_BENCHMARK_RUNNER_ID`: the stable dedicated-machine identity used when
   recording the baseline.
-- `CUBISM_BENCHMARK_BASELINE`: the reviewed baseline report on that machine.
+- `CUBISM_BENCHMARK_BASELINE_26_2` and `CUBISM_BENCHMARK_BASELINE_26_3`: the
+  reviewed baseline report on that machine for each runtime's exact editor. The
+  workflow passes the selected runtime's report as `CUBISM_BENCHMARK_BASELINE`.
 - `CUBISM_BENCHMARK_RELATIVE_THRESHOLD`: the reviewed nonnegative fractional
   regression limit, such as `0.10` for 10%; no default is supplied.
 
@@ -185,8 +194,8 @@ platform). It then runs all eight benchmark scenarios
 with the debug library and requires the baseline comparison to pass. A failed
 comparison fails the job. The benchmark report and raw measurements are retained
 in `benchmark-debug` alongside the other private build/test artifacts under
-`CUBISM_WORK_ROOT/<run-id>/<attempt>/licensed-<platform>-...`. Retain that directory privately or use a
-private artifact store. Provisioning, environment approval, actual Windows runs,
+`CUBISM_WORK_ROOT/<run-id>/<attempt>/<engine>/licensed-<platform>-...`. Retain that directory privately or use a
+private artifact store. Provisioning, approval of licensed jobs, actual Windows runs,
 and required status propagation to the public release branch must still be
 completed; merely committing the workflow does not satisfy those release gates.
 
@@ -217,8 +226,13 @@ this configuration is present on the repository's default branch.
 The private licensed workflow selects Redot 26.2 and 26.3 separately on each
 desktop platform. Provision `REDOT_BIN_26_2`, `REDOT_BIN_26_3`,
 `CUBISM_TEMPLATE_DEBUG_26_2`, `CUBISM_TEMPLATE_RELEASE_26_2`,
-`CUBISM_TEMPLATE_DEBUG_26_3` and `CUBISM_TEMPLATE_RELEASE_26_3` on the runner.
-Each editor must match its templates exactly. `REDOT_BINDING_BIN` is set to
+`CUBISM_TEMPLATE_DEBUG_26_3`, `CUBISM_TEMPLATE_RELEASE_26_3`,
+`CUBISM_BENCHMARK_BASELINE_26_2` and `CUBISM_BENCHMARK_BASELINE_26_3` on the
+runner. Each editor must match its templates exactly, and each baseline must be
+recorded with that editor; one baseline cannot qualify both runtimes.
+Both engine jobs of a platform share one concurrency group, so they run one at
+a time on that platform's runner and stay queued rather than replacing each
+other. `REDOT_BINDING_BIN` is set to
 the 26.2 editor for both builds; runtime reports identify the selected engine,
 while native build metadata identifies the retained 26.2 ABI and binding patch.
 The matrix is a required qualification gate, not a claim that every entry has

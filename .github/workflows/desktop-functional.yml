@@ -38,6 +38,8 @@ jobs:
     timeout-minutes: 180
     concurrency:
       group: cubism-licensed-${{ matrix.platform }}
+      # Both engine jobs of a platform wait for its runner; keep every one queued.
+      queue: max
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
@@ -55,13 +57,18 @@ jobs:
               raise SystemExit('Missing private runner environment variable: CUBISM_WORK_ROOT')
           series = os.environ['REDOT_RUNTIME_SERIES']
           suffix = series.replace('.', '_')
-          # Provision runtime-specific editors and matching templates privately.
-          for key in ('REDOT_BIN', 'CUBISM_TEMPLATE_DEBUG', 'CUBISM_TEMPLATE_RELEASE'):
+          # Provision runtime-specific editors, matching templates and benchmark
+          # baselines privately; a baseline records its exact engine binary.
+          for key in ('REDOT_BIN', 'CUBISM_TEMPLATE_DEBUG', 'CUBISM_TEMPLATE_RELEASE',
+                      'CUBISM_BENCHMARK_BASELINE'):
               selected = os.environ.get(key + '_' + suffix)
               if not selected:
                   raise SystemExit('Missing private runtime input: ' + key + '_' + suffix)
               os.environ[key] = selected
-          os.environ['REDOT_BINDING_BIN'] = os.environ['REDOT_BIN_26_2']
+          binding = os.environ.get('REDOT_BIN_26_2')
+          if not binding:
+              raise SystemExit('Missing private runtime input: REDOT_BIN_26_2 (binding editor for both runtimes)')
+          os.environ['REDOT_BINDING_BIN'] = binding
           output = pathlib.Path(work).resolve() / os.environ['GITHUB_RUN_ID'] / os.environ['GITHUB_RUN_ATTEMPT'] / series
           subprocess.run([sys.executable, 'tools/run_tests.py', '--suite', 'licensed-desktop',
                           '--output', str(output)], check=True)
