@@ -106,6 +106,28 @@ func _run() -> void:
 						samples += 1
 			model.free()
 	expect(samples == 15, "all SDK interpolation samples evaluated")
+	var bad: Dictionary = JSON.parse_string(base)
+	bad.Meta.TotalSegmentCount = 0
+	# Validate original JSON before adapting Unicode escapes for the SDK.
+	var rejected := [JSON.stringify(bad), base.replace(JSON.stringify(id), '\"\\u0000\"')]
+	for index in rejected.size():
+		var motion_file := "rejected-%d.json" % index
+		write_bytes(directory.path_join(motion_file), rejected[index].to_utf8_buffer())
+		var bad_manifest := {"Version":3,"FileReferences":{"Moc":"model.moc3","Textures":textures,
+			"Motions":{"Bad":[{"File":motion_file}]}}}
+		var bad_source := directory.path_join("rejected-%d.model3.json" % index)
+		write_bytes(bad_source, JSON.stringify(bad_manifest).to_utf8_buffer())
+		for source: String in [bad_source, ProjectSettings.globalize_path(bad_source)]:
+			var model := GDCubismUserModel.new()
+			root.add_child(model)
+			var previous := Engine.print_error_messages
+			Engine.print_error_messages = false
+			model.assets = source
+			Engine.print_error_messages = previous
+			expect(not model.is_initialized() and model.get_last_error().get("code") == ERR_PARSE_ERROR,
+				"raw invalid motion %d fails with parse error" % index)
+			model.free()
+	if failures.is_empty(): print("CUBISM_MOTION_SDK_PASS samples=15 raw_rejections=4")
 	for failure in failures: printerr("CUBISM_SDK_JSON_FAIL: ", failure)
 	if failures.is_empty(): print("CUBISM_SDK_JSON_PASS variants=5")
 	quit(0 if failures.is_empty() else 1)

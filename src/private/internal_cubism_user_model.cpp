@@ -101,7 +101,7 @@ static PackedByteArray sdk_json_buffer(const String &text) {
     return String::utf8(output.data(), output.size()).to_utf8_buffer();
 }
 
-bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &buffer, bool json, bool optional_raw) {
+bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &buffer, bool json, bool optional_raw, bool motion) {
     if (optional_raw && !resource_mode && !FileAccess::file_exists(path)) {
         buffer.clear();
         return true;
@@ -109,8 +109,8 @@ bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &b
     Ref<FileAccess> file = FileAccess::open(path, FileAccess::READ);
     if (file.is_null()) return fail_load(path, "Cannot open the declared Cubism file.", ERR_FILE_CANT_OPEN);
     const uint64_t length = file->get_length();
-    if (resource_mode && (length > uint64_t(json ? 4 : 64) * 1024 * 1024 || processed_bytes + length > 512ULL * 1024 * 1024)) {
-        return fail_load(path, "Imported Cubism source exceeds the runtime input limit.");
+    if (length > uint64_t(json ? 4 : 64) * 1024 * 1024 || processed_bytes + length > 512ULL * 1024 * 1024) {
+        return fail_load(path, "Cubism source exceeds the runtime input limit.");
     }
     buffer = file->get_buffer(length);
     if (buffer.size() != int64_t(length) || file->get_length() != length) return fail_load(path, "Cubism file changed while reading.");
@@ -118,8 +118,8 @@ bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &b
         if (optional_raw && !resource_mode) return true;
         return fail_load(path, "The declared Cubism file is empty.", ERR_FILE_CORRUPT);
     }
+    processed_bytes += length;
     if (resource_mode) {
-        processed_bytes += length;
         Ref<HashingContext> hash;
         hash.instantiate();
         hash->start(HashingContext::HASH_SHA256);
@@ -131,13 +131,16 @@ bool InternalCubismUserModel::read_buffer(const String &path, PackedByteArray &b
     if (json) {
         String text;
         if (text.parse_utf8(reinterpret_cast<const char *>(buffer.ptr()), buffer.size()) != OK) return fail_load(path, "Invalid UTF-8 in Cubism JSON.", ERR_PARSE_ERROR);
-        if (resource_mode) {
-            const Dictionary validation = path.ends_with(".motion3.json") ? CubismManifestParser::parse_motion(text, "runtime", 0, path)
+        if (resource_mode || motion) {
+            // Motion validation also covers raw files with custom filenames or
+            // external locations, before adapting JSON to the SDK parser.
+            const Dictionary validation = motion ? CubismManifestParser::parse_motion(text, "runtime", 0, resource_mode ? path : String("res://runtime.motion3.json"))
+                : path.ends_with(".motion3.json") ? CubismManifestParser::parse_motion(text, "runtime", 0, path)
                 : path.ends_with(".exp3.json") ? CubismManifestParser::parse_expression(text, "runtime", path)
                 : path.ends_with(".physics3.json") ? CubismManifestParser::parse_physics(text)
                 : path.ends_with(".pose3.json") ? CubismManifestParser::parse_pose(text)
                 : path.ends_with(".userdata3.json") ? CubismManifestParser::parse_user_data(text) : Dictionary();
-            if (!bool(validation.get("ok", false))) return fail_load(path, "Imported Cubism JSON no longer passes schema validation.", ERR_PARSE_ERROR);
+            if (!bool(validation.get("ok", false))) return fail_load(path, "Cubism JSON does not pass schema validation.", ERR_PARSE_ERROR);
         }
         Ref<JSON> parser;
         parser.instantiate();
@@ -832,11 +835,11 @@ bool InternalCubismUserModel::motion_load() {
             const String motion_pathname = resolve_file(this->_model_setting->GetMotionFileName(group, im));
 
             PackedByteArray buffer;
-            if (!read_buffer(motion_pathname, buffer)) return false;
+            if (!read_buffer(motion_pathname, buffer, true, false, true)) return false;
             CubismMotion* motion = static_cast<CubismMotion*>(this->LoadMotion(
                 buffer.ptr(),
                 buffer.size(),
-                name.GetRawString()
+                name.GetRawString(), nullptr, nullptr, nullptr, nullptr, -1, true
             ));
             if (motion == nullptr) return fail_load(motion_pathname, "Cubism could not create the motion.");
 
