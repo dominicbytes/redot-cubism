@@ -11,6 +11,7 @@ static func run(host: Node, fixture: Dictionary) -> bool:
 	)
 	model.assets = fixture.model
 	if not removed.done or model.is_initialized() or model.get_child_count() != 0:
+		model.free()
 		push_error("CUBISM_LOADING_FAIL: removal during renderer creation retained partial state")
 		return false
 	model.free()
