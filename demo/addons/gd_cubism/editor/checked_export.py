@@ -62,6 +62,11 @@ def promote(stage, output, previous):
 
 
 def execute(command, log, cwd, env, timeout, marker=None):
+    if '--headless' in command:
+        if '--audio-driver' not in command:
+            command[1:1] = ['--audio-driver', 'Dummy']
+        if '--quit-after' not in command:
+            command[1:1] = ['--quit-after', '10000']
     kwargs = {'start_new_session': True} if os.name != 'nt' else {}
     with log.open('wb') as stream:
         process = subprocess.Popen(command, cwd=cwd, env=env, stdout=stream, stderr=subprocess.STDOUT, **kwargs)
