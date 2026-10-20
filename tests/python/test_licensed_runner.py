@@ -24,7 +24,7 @@ class LicensedRunnerTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.root = Path(self.directory.name)
+        self.root = Path(self.directory.name).resolve()
         self.pins = json.loads((licensed.ROOT / 'DEPENDENCIES.json').read_text())
         (self.root / 'DEPENDENCIES.json').write_text(json.dumps(self.pins))
         (self.root / 'tools').mkdir()

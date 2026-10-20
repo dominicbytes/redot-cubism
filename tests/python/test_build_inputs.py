@@ -17,7 +17,7 @@ class BuildInputsTest(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.sdk = self.root / "SDK with spaces"
         self.core = self.sdk / "Core"
         self.framework = self.sdk / "Framework"
