@@ -3,6 +3,7 @@
 """Input rejection tests use inert temporary bytes, never a Core implementation."""
 import copy
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -147,16 +148,29 @@ class BuildInputsTest(unittest.TestCase):
         cpp = self.root / "bindings"
         tool = cpp / "tools/windows.py"
         tool.parent.mkdir(parents=True)
-        original = 'before\nenv["MSVC_VERSION"] = None\nafter\n'
+        original = 'env["MSVC_VERSION"] = None\ndef capture(name):\n    tmp_stdout_name = name\n    args = []\n    args.append(f">{tmp_stdout_name}")\n    return args[0]\n'
         tool.write_text(original)
         output = self.root / "build/tools"
         self.assertEqual(windows_tool_override(cpp, output), output)
         self.assertEqual(tool.read_text(), original)
         self.assertEqual((output / "windows.py").read_text(),
-                         original.replace('env["MSVC_VERSION"] = None', 'env["MSVC_VERSION"] = "14.3"'))
+                         original.replace('env["MSVC_VERSION"] = None', 'env["MSVC_VERSION"] = "14.3"')
+                         .replace('args.append(f">{tmp_stdout_name}")', '''args.append(f'>"{tmp_stdout_name}"')'''))
+        namespace = {"env": {}}
+        exec((output / "windows.py").read_text(), namespace)
+        redirect = namespace["capture"]("capture with spaces.log")
+        command = 'echo compiler-output ' + redirect
+        command = "cmd.exe /d /c " + command if os.name == "nt" else ["sh", "-c", command]
+        result = subprocess.run(command, cwd=self.root, capture_output=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / "capture with spaces.log").read_text().strip(), "compiler-output")
         tool.write_text('changed pinned tool')
         with self.assertRaisesRegex(ValueError, 'expected MSVC selection'):
             windows_tool_override(cpp, output)
+        for capture in ('args.append(">" + tmp_stdout_name)', 'args.append(f">{tmp_stdout_name}")\n' * 2):
+            tool.write_text('env["MSVC_VERSION"] = None\n' + capture)
+            with self.assertRaisesRegex(ValueError, 'expected compiler capture'):
+                windows_tool_override(cpp, output)
 
 
 if __name__ == "__main__":

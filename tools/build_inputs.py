@@ -99,7 +99,12 @@ def windows_tool_override(cpp, output, source_roots=()):
     original = 'env["MSVC_VERSION"] = None'
     if source.count(original) != 1:
         raise ValueError("Pinned redot-cpp Windows tool no longer has the expected MSVC selection")
+    capture = 'args.append(f">{tmp_stdout_name}")'
+    if source.count(capture) != 1:
+        raise ValueError("Pinned redot-cpp Windows tool no longer has the expected compiler capture")
     selected = source.replace(original, 'env["MSVC_VERSION"] = "14.3"')
+    # The compiler capture is parsed by cmd, including when TEMP has spaces.
+    selected = selected.replace(capture, "args.append(f'>\"{tmp_stdout_name}\"')")
     if source_roots:
         # This tool configures both bindings and addon objects. Strip each owned
         # source root from __FILE__, and retain only the PDB basename in the DLL.
