@@ -621,7 +621,7 @@ void GDCubismUserModel::update_motion_handles() {
 void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
 
     if (native_busy || disposing || !is_initialized()) return;
-    if (!std::isfinite(delta) || speed_scale == 0.0f) return;
+    if (!std::isfinite(delta)) return;
     if (delta < 0.0) {
         #ifdef DEBUG_ENABLED
         WARN_PRINT("Negative Cubism delta ignored.");
@@ -631,7 +631,7 @@ void GDCubismUserModel::_update(double delta, bool uncapped_manual_step) {
     const double scaled_delta = delta * this->speed_scale;
     auto *preferred = Object::cast_to<CubismModel2D>(get_parent());
     const bool preferred_runtime = preferred != nullptr && preferred->runtime == this;
-    if (preferred_runtime && delta == 0.0) return;
+    if (preferred_runtime && (delta == 0.0 || speed_scale == 0.0f)) return;
     const bool uncapped = uncapped_manual_step || !preferred_runtime;
     if (uncapped && (!std::isfinite(scaled_delta) || scaled_delta > std::numeric_limits<Csm::csmFloat32>::max())) return;
     const double step = uncapped ? scaled_delta : MIN(scaled_delta, 0.1);

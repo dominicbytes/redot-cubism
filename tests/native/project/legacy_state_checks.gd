@@ -64,6 +64,23 @@ func _run() -> void:
 		expect(not before.is_empty() and vertices(model) != before, "zero delta updates deformed geometry")
 	expect(is_equal_approx(float(model.get(parameter.id)), parameter.value), "zero delta applies parameter write to Core")
 	expect(is_equal_approx(float(model.get(part.id)), 0.37), "zero delta applies part write to Core")
+	model.speed_scale = 0.0
+	for delta: float in [0.0, 0.01]:
+		steps.clear()
+		before = vertices(model)
+		var requested_parameter := lerpf(parameter.minimum_value, parameter.maximum_value, 0.25 if delta == 0.0 else 0.75)
+		var requested_part := 0.23 if delta == 0.0 else 0.49
+		parameter.value = requested_parameter
+		part.value = requested_part
+		model.advance(delta)
+		expect(steps == [0.0], "zero speed invokes custom effects with zero scaled delta: " + str(delta))
+		if DisplayServer.get_name() != "headless":
+			expect(not before.is_empty() and vertices(model) != before, "zero speed updates deformed geometry: " + str(delta))
+		expect(is_equal_approx(float(model.get(parameter.id)), requested_parameter), "zero speed applies pending parameter write: " + str(delta))
+		expect(is_equal_approx(float(model.get(part.id)), requested_part), "zero speed applies pending part write: " + str(delta))
+	model.speed_scale = 1.0
+	part.value = 0.37
+	model.advance(0)
 	# Keep a pending finite write while rejecting invalid writes. This also
 	# checks that rejection preserves the dirty flag until the zero step.
 	for value: float in [NAN, INF, -INF, 1e300, -1e300]:
