@@ -182,9 +182,13 @@ private:
     ModelState model_state = UNLOADED;
     Dictionary last_error;
     uint64_t generation = 0;
+    uint64_t evaluation_owner_id = 0;
+    uint64_t evaluation_owner_generation = 0;
+    bool evaluation_cancelled() const;
     bool native_busy = false;
     bool disposing = false;
     bool destroying = false;
+    std::vector<uint64_t> detached_children;
     bool pending_load = false;
     bool pending_unload = false;
     GDCubismMotionQueueEntryHandle::FinishReason pending_clear_reason = GDCubismMotionQueueEntryHandle::UNLOADED;

@@ -18,6 +18,9 @@ class CubismLipSyncProfile : public Resource {
     double release = 0.08;
     double minimum = 0.0;
     double maximum = 0.8;
+    double restored_minimum = 0.0;
+    double restored_maximum = 0.8;
+    bool restoring_range = false;
     double mouth_form_value = 0.0;
     PackedStringArray parameter_ids;
     StringName mouth_form_parameter;
@@ -25,6 +28,9 @@ class CubismLipSyncProfile : public Resource {
     Error set_number(double &field, double value, double low, double high);
 protected:
     static void _bind_methods();
+    bool _set(const StringName &name, const Variant &value);
+    bool _get(const StringName &name, Variant &value) const;
+    void _get_property_list(List<PropertyInfo> *properties) const;
 public:
     Error set_gain(double value);
     double get_gain() const { return gain; }

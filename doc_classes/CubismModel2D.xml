@@ -5,6 +5,7 @@
 		Owns one internal model runtime and its renderer. Assign an imported [CubismModelResource] to [member model]. The internal runtime is not saved as a scene child.
 		Provides lifecycle, processing, queued parameter control, native motion/expression playback, opt-in autoplay, seeded blink, native breath and smoothed look targeting. Use [CubismCharacterController] to coordinate recorded voice and motion cues. Rendering properties select direct or fallback composition and control mask quality.
 		Parameter writes apply once on the next update in the selected [enum ParameterLayer], defaulting to after physics and pose. The batch is captured before evaluation; callback writes wait for the next step. Getters return evaluated values. Unload, reload, and tree exit discard pending writes. Use [method Node.queue_free] for deletion from signal callbacks.
+		Internal child references are resolved by instance ID. Removing CubismRuntime leaves this model disposed; load/play operations return ERR_UNCONFIGURED. Removing the debug overlay is safe; changing a debug flag recreates it. Deletion during an effect callback aborts the remaining evaluation stages and releases the busy native allocation after the callback unwinds.
 	</description>
 	<methods>
 		<method name="get_parameter_value" qualifiers="const"><return type="float" /><param index="0" name="id" type="StringName" /><description>Return the last evaluated parameter value, or zero for an unavailable parameter. Queued writes do not change this value immediately.</description></method>

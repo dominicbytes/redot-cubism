@@ -12,8 +12,10 @@ class CubismCharacterController : public Node {
     friend class CubismModel2D;
     uint64_t target_id = 0;
     uint64_t generation = 0;
-    AudioStreamPlayer *voice = nullptr;
-    CubismLipSync *lip = nullptr;
+    uint64_t voice_id = 0;
+    uint64_t lip_id = 0;
+    AudioStreamPlayer *get_voice() const;
+    CubismLipSync *get_lip() const;
     Ref<CubismSpeechHandle> speech;
     Ref<CubismMotionHandle> motion;
     Ref<CubismMotionHandle> idle;
