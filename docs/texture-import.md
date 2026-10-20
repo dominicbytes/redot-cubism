@@ -1,6 +1,6 @@
 # Cubism texture imports
 
-Importer format 8 provisions separate `PortableCompressedTexture2D` resources
+Importer format 9 provisions separate `PortableCompressedTexture2D` resources
 from the validated source PNGs. It generates the full mipmap chain and uses
 lossless compression. Decoded source colors, including RGB in transparent pixels,
 are retained by default; alpha-border fixing is not applied. Existing
@@ -23,7 +23,11 @@ at most one byte differently from the pinned SDK sample's texture loader.
 
 The original PNG paths remain in model metadata and dependency fingerprints.
 The model's `textures` array contains real external Resource references to
-`res://cubism_generated/textures/<sha256>.res`. The hash covers the complete
+`res://cubism_generated/textures/<sha256>.res`. Each generated texture records its source PNG SHA-256 and conversion policy,
+including lossless encoder settings and alpha encoding. Export validation checks
+that provenance against the declared source at each texture slot, rejecting
+reordered atlases and textures derived from another source. Reimport older models
+to populate this provenance. The hash covers the complete
 serialized texture, with a fixed internal resource ID for deterministic output.
 Identical results share a resource across models and repeat imports. Redot's
 lossless PNG/WebP encoding choice may affect the stored bytes and filename, but

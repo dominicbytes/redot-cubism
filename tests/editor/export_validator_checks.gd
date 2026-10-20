@@ -46,6 +46,30 @@ func _run() -> void:
 		var key: String = change.keys()[0]
 		copy.set(key, change[key])
 		reject(copy, "reject changed " + key)
+	expect(model.textures.size() >= 2, "two-atlas fixture supplied")
+	if model.textures.size() >= 2:
+		var swapped := model.duplicate() as CubismModelResource
+		var atlases := model.textures.duplicate()
+		atlases[0] = model.textures[1]
+		atlases[1] = model.textures[0]
+		swapped.textures = atlases
+		reject(swapped, "reordered valid generated atlases")
+	var wrong_source := model.source_model_path.get_base_dir().path_join("export-wrong-source.model3.json")
+	var wrong_manifest: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(model.source_model_path))
+	wrong_manifest.FileReferences.Textures[0] = "../export-validator-wrong.png"
+	var wrong_file := FileAccess.open(wrong_source, FileAccess.WRITE)
+	wrong_file.store_string(JSON.stringify(wrong_manifest))
+	wrong_file.close()
+	expect(CubismModelImporter.import_model(wrong_source, "res://export-wrong-source.res") == OK, "import different texture source")
+	var other := load("res://export-wrong-source.res") as CubismModelResource
+	expect(CubismExportValidator.validate_model(other).ok, "different source valid in its own slot")
+	var wrong := model.duplicate() as CubismModelResource
+	var wrong_atlases := model.textures.duplicate()
+	wrong_atlases[0] = other.textures[0]
+	wrong.textures = wrong_atlases
+	reject(wrong, "valid generated texture derived from wrong source")
+	DirAccess.remove_absolute("res://export-wrong-source.res")
+	DirAccess.remove_absolute(wrong_source)
 	var groups := model.motion_groups.duplicate(true)
 	var group: String = groups.keys()[0]
 	var motion := groups[group][0].duplicate() as CubismMotionDescriptor

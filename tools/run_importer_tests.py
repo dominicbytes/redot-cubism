@@ -9,6 +9,8 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import struct
+import zlib
 import tempfile
 
 from build_inputs import supported_engine
@@ -72,6 +74,13 @@ def main():
     (project / "fixture.json").write_text(json.dumps({"model": model}))
     (project / "hero.json").write_text("{}")
     (project / "not_model3.json.backup").write_text("{}")
+    # A distinct atlas exercises source-slot provenance independently of reordering.
+    def png_chunk(kind, payload):
+        return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload))
+
+    (project / "export-validator-wrong.png").write_bytes(
+        b"\x89PNG\r\n\x1a\n" + png_chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0))
+        + png_chunk(b"IDAT", zlib.compress(b"\0\xff\0\xff\xff")) + png_chunk(b"IEND", b""))
     # Install editor-only script after scanning, so runtime projects never parse it.
     env = dict(os.environ)
     for key in ("CONFIG", "DATA", "CACHE"):
@@ -104,6 +113,11 @@ def main():
                 r"EXPECTED_IMPORT_LIMIT_FAILURE_BEGIN.*?EXPECTED_IMPORT_LIMIT_FAILURE_END",
                 lambda match: match[0].replace("ERROR: Cubism import failed:", "EXPECTED_IMPORT_LIMIT_FAILURE:").replace(
                     f"ERROR: Error importing '{model}'.", "EXPECTED_ENGINE_IMPORT_LIMIT_FAILURE"),
+                log, flags=re.DOTALL)
+        if name == "metadata-limit":
+            diagnostics = re.sub(
+                r"EXPECTED_METADATA_LIMIT_FAILURE_BEGIN.*?EXPECTED_METADATA_LIMIT_FAILURE_END",
+                lambda match: match[0].replace("ERROR: Cubism import failed:", "EXPECTED_METADATA_IMPORT_FAILURE:"),
                 log, flags=re.DOTALL)
         if name == "texture-policy":
             diagnostics = re.sub(
@@ -154,6 +168,7 @@ def main():
     for phase, script, marker in (
             ("export-graph", "export_graph_checks.gd", "CUBISM_EXPORT_GRAPH_PASS"),
             ("export-validator", "export_validator_checks.gd", "CUBISM_EXPORT_VALIDATOR_PASS"),
+            ("metadata-limit", "metadata_limit_checks.gd", "CUBISM_METADATA_LIMIT_PASS"),
             ("model-inspector", "model_inspector_checks.gd", "CUBISM_MODEL_INSPECTOR_PASS"),
             ("import-options", "import_options_checks.gd", "CUBISM_IMPORT_OPTIONS_PASS"),
             ("import-options-restart", "import_options_restart_checks.gd", "CUBISM_IMPORT_OPTIONS_RESTART_PASS"),

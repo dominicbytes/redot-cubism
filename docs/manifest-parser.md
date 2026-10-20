@@ -27,8 +27,11 @@ decoding. Known references require their lowercase Cubism JSON/MOC suffix,
 
 Fixed limits are 4 MiB of UTF-8 JSON, 4096 characters per string and resolved
 path, 32 levels of nesting, 65536 tree nodes, 4096 file references, 64 textures,
-64 motion groups, 512 motions per group and 512 expressions. Diagnostic output
-is bounded even when a manifest contains many invalid references.
+64 motion groups, 512 motions per group and 512 expressions. Model metadata is
+limited to 4096 hit areas, 4096 layout entries and 4096 IDs in each Parameter
+EyeBlink/LipSync group. The parser and runtime adapter share these limits, so
+unsupported counts fail import with a field diagnostic before a resource is saved.
+Diagnostic output is bounded even when a manifest contains many invalid references.
 
 Applying physical containment and existence checks, missing optional file
 policy, referenced JSON schemas, MOC consistency/version/texture indices,
