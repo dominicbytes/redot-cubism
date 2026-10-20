@@ -68,6 +68,7 @@ private:
     double requested_look_weight = 1.0;
     bool requested_look_active = false;
     bool controller_state_available(uint64_t owner) const;
+    Error preflight_idle(const StringName &id) const;
     void start_autoplay(uint64_t expected_generation);
     uint64_t generation = 0;
     uint64_t controller_clock_id = 0;

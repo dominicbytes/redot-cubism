@@ -529,6 +529,12 @@ void CubismModel2D::expression_changed(const StringName &id, uint64_t expected_g
     if (generation == expected_generation && is_ready() && !is_queued_for_deletion()) emit_signal("expression_changed", id);
 }
 
+Error CubismModel2D::preflight_idle(const StringName &id) const {
+    if (!is_ready()) return ERR_UNCONFIGURED;
+    if (runtime->is_native_busy()) return ERR_BUSY;
+    return runtime->get_animator()->preflight(*runtime->internal_model, id, true);
+}
+
 bool CubismModel2D::controller_state_available(uint64_t owner) const {
     return !runtime->is_native_busy() && (controller_clock_id == 0 || controller_clock_id == owner);
 }

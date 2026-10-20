@@ -95,6 +95,10 @@ Error CubismCharacterController::restore_state(const Dictionary &input) {
     if (!target->controller_state_available(get_instance_id())) return ERR_BUSY;
     const Error validation = validate_state(input, target);
     if (validation != OK) return validation;
+    if (bool(input["idle_active"])) {
+        const Error idle_error = target->preflight_idle(String(input["idle_motion"]));
+        if (idle_error != OK) return idle_error;
+    }
     // Scene callbacks may mutate the caller's dictionary. Copy only after its
     // bounded, primitive-only schema has been validated.
     const Dictionary state = input.duplicate(true);

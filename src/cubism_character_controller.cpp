@@ -2,6 +2,9 @@
 #include "cubism_character_controller.hpp"
 #include "cubism_audio_clock.hpp"
 #include <godot_cpp/classes/audio_server.hpp>
+#include <godot_cpp/classes/audio_stream_wav.hpp>
+#include <godot_cpp/classes/audio_stream_ogg_vorbis.hpp>
+#include <godot_cpp/classes/audio_stream_mp3.hpp>
 #include <godot_cpp/variant/callable_method_pointer.hpp>
 #include <algorithm>
 #include <cmath>
@@ -177,6 +180,13 @@ Ref<CubismSpeechHandle> CubismCharacterController::begin(const Ref<AudioStream> 
     if (target->is_queued_for_deletion() || !target->is_visible_in_tree() || transition == HIDING) return reject(ERR_UNAVAILABLE);
     if (motion_id != StringName() && !target->get_motion_ids().has(String(motion_id))) return reject(ERR_DOES_NOT_EXIST);
     if (expression_id != StringName() && !target->get_expression_ids().has(String(expression_id))) return reject(ERR_DOES_NOT_EXIST);
+    if (stream.is_valid()) {
+        const Ref<AudioStreamWAV> wav = stream;
+        const Ref<AudioStreamOggVorbis> ogg = stream;
+        const Ref<AudioStreamMP3> mp3 = stream;
+        if (wav.is_valid() ? wav->get_loop_mode() != AudioStreamWAV::LOOP_DISABLED :
+                (ogg.is_valid() ? ogg->has_loop() : (mp3.is_valid() ? mp3->has_loop() : true))) return reject(ERR_INVALID_PARAMETER);
+    }
     const double length = stream.is_valid() ? stream->get_length() : 0;
     if (stream.is_valid() && (!std::isfinite(length) || length <= 0)) return reject(ERR_INVALID_DATA);
     if (stream.is_valid() && !manual_audio_clock && AudioServer::get_singleton()->get_bus_index(voice_bus) < 0) return reject(ERR_DOES_NOT_EXIST);
@@ -265,7 +275,8 @@ Error CubismCharacterController::start_idle() {
     if (!target || !is_inside_tree() || !target->is_inside_tree() || !target->is_ready()) return ERR_UNCONFIGURED;
     if (target->is_queued_for_deletion() || !target->is_visible_in_tree() || transition == HIDING) return ERR_UNAVAILABLE;
     if (idle_motion == StringName()) return ERR_UNCONFIGURED;
-    if (!target->get_motion_ids().has(String(idle_motion))) return ERR_DOES_NOT_EXIST;
+    const Error validation = target->preflight_idle(idle_motion);
+    if (validation != OK) return validation;
     const Error error = target->claim_controller_clock(get_instance_id());
     if (error != OK) return error;
     const Ref<CubismMotionHandle> candidate = target->play_motion(idle_motion, CubismMotionPriority::IDLE, true, 1);
@@ -286,7 +297,8 @@ Error CubismCharacterController::return_to_idle() {
     if (is_idle() && idle->get_motion_id() == idle_motion) return OK;
     auto *target = get_target_model();
     if (!target || !target->is_ready() || idle_motion == StringName()) return ERR_UNCONFIGURED;
-    if (!target->get_motion_ids().has(String(idle_motion))) return ERR_DOES_NOT_EXIST;
+    const Error validation = target->preflight_idle(idle_motion);
+    if (validation != OK) return validation;
     if (!target->is_visible_in_tree() || transition == HIDING) return ERR_UNAVAILABLE;
     terminate(CubismSpeechHandle::STOPPED);
     return start_idle();

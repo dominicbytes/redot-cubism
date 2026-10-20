@@ -67,29 +67,45 @@ void CubismAnimator::fade(Playback &playback, double seconds, CubismMotionHandle
     playback.handle->finish(reason);
 }
 
+Error CubismAnimator::prepare(InternalCubismUserModel &model, const StringName &id, bool loop, Playback &playback) const {
+    const Motion *selected = nullptr;
+    for (const auto &motion : catalog) if (motion.id == id) { selected = &motion; break; }
+    if (!selected) return ERR_DOES_NOT_EXIST;
+    if (!selected->valid) return ERR_INVALID_DATA;
+    playback.motion = model.create_motion(String(selected->group), selected->index, loop, playback.period);
+    if (!playback.motion || (loop && (!std::isfinite(playback.period) || playback.period <= 0))) return ERR_INVALID_DATA;
+    for (const auto &event : selected->events) {
+        if (event.time > playback.motion->GetLoopDuration()) return ERR_INVALID_DATA;
+    }
+    playback.events = selected->events;
+    playback.parameters = model.get_motion_parameter_ids(selected->group, selected->index);
+    return OK;
+}
+
+Error CubismAnimator::preflight(InternalCubismUserModel &model, const StringName &id, bool loop) const {
+    if (playbacks.size() >= 256) return ERR_BUSY;
+    Playback prepared;
+    return prepare(model, id, loop, prepared);
+}
+
 Ref<CubismMotionHandle> CubismAnimator::play(InternalCubismUserModel &model, const StringName &id, int priority, bool loop, double speed) {
-    if (!std::isfinite(speed) || speed <= 0 || speed > 256 || priority < 0 || priority > 3) return CubismMotionHandle::rejected(id, ERR_INVALID_PARAMETER);
     const Motion *selected = nullptr;
     for (const auto &motion : catalog) if (motion.id == id) { selected = &motion; break; }
     if (!selected) return CubismMotionHandle::rejected(id, ERR_DOES_NOT_EXIST);
     if (!selected->valid) return CubismMotionHandle::rejected(id, ERR_INVALID_DATA);
+    if (!std::isfinite(speed) || speed <= 0 || speed > 256 || priority < 0 || priority > 3) return CubismMotionHandle::rejected(id, ERR_INVALID_PARAMETER);
     int current_priority = 0;
     for (const auto &playback : playbacks) if (!playback->handle->is_finished()) current_priority = playback->priority;
     if (priority != CubismMotionPriority::FORCE && priority <= current_priority) return CubismMotionHandle::rejected(id, ERR_BUSY);
     if (playbacks.size() >= 256) return CubismMotionHandle::rejected(id, ERR_BUSY);
     auto playback = std::make_unique<Playback>();
-    playback->motion = model.create_motion(String(selected->group), selected->index, loop, playback->period);
-    if (!playback->motion || (loop && (!std::isfinite(playback->period) || playback->period <= 0))) return CubismMotionHandle::rejected(id, ERR_INVALID_DATA);
-    for (const auto &event : selected->events) {
-        if (event.time > playback->motion->GetLoopDuration()) return CubismMotionHandle::rejected(id, ERR_INVALID_DATA);
-    }
+    const Error error = prepare(model, id, loop, *playback);
+    if (error != OK) return CubismMotionHandle::rejected(id, error);
     playback->handle = CubismMotionHandle::rejected(id, OK);
     playback->handle->state = CubismMotionHandle::PLAYING;
     playback->handle->reason = CubismMotionHandle::NONE;
     playback->speed = speed;
     playback->priority = priority;
-    playback->events = selected->events;
-    playback->parameters = model.get_motion_parameter_ids(selected->group, selected->index);
     playback->motion->SetupMotionQueueEntry(&playback->entry, 0.0f);
     for (const auto &old : playbacks) fade(*old, -1.0, CubismMotionHandle::INTERRUPTED);
     const Ref<CubismMotionHandle> handle = playback->handle;
