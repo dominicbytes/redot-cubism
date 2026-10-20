@@ -59,6 +59,15 @@ class WindowsExternalCoreInstallerTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "PE"):
             imported_dlls(b"not a binary")
 
+    def test_truncated_optional_headers_raise_value_error(self):
+        for size in (0, 1, 2, 95, 111, 127, 240):
+            data = bytearray(pe_with_import())
+            data[0x94:0x96] = size.to_bytes(2, "little")
+            for end in (0x98, 0x98 + max(0, size - 1)):
+                with self.subTest(optional_size=size, end=end):
+                    with self.assertRaises(ValueError):
+                        imported_dlls(data[:end])
+
     def test_installs_verified_core_and_export_mapping(self):
         destination = install(self.repo, self.sdk, self.addon)
         self.assertEqual(destination.read_bytes(), self.source.read_bytes())
