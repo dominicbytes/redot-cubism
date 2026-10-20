@@ -115,6 +115,7 @@ def main():
             command += ["--headless"]
         if executable is None:
             command += ["--path", str(project)]
+        command += ["--audio-driver", "Dummy"]
         command += switches
         try:
             result = subprocess.run(command, cwd=run_root, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=300 if name.endswith("-asan") else 60)
@@ -165,6 +166,8 @@ def main():
         success = run("metadata-parser", ["--script", "res://metadata_parser_checks.gd", "--quit-after", "2"], "CUBISM_METADATA_PARSER_PASS")
     if success:
         success = run("model-factory", ["--script", "res://model_factory_checks.gd", "--quit-after", "2"], "CUBISM_MODEL_FACTORY_PASS")
+    if success:
+        success = run("legacy-hit-area", ["--script", "res://legacy_hit_area_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_HIT_AREA_PASS")
     if success:
         success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
     if success:
