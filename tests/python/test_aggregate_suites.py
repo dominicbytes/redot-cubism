@@ -19,7 +19,7 @@ class AggregateSuiteTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
-        self.root = Path(self.directory.name)
+        self.root = Path(self.directory.name).resolve()
         (self.root / 'project.godot').touch()
         self.library = self.root / 'library.so'
         self.library.write_bytes(b'fixture library')

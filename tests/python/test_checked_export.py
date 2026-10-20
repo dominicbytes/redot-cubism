@@ -43,7 +43,7 @@ class CheckedExportTest(unittest.TestCase):
             pass
 
         with tempfile.TemporaryDirectory() as directory:
-            project = Path(directory) / 'project'
+            project = Path(directory).resolve() / 'project'
             project.mkdir()
             (project / 'project.godot').write_text('[application]\n')
             (project / 'export_presets.cfg').write_text('[preset.0]\n')
@@ -89,7 +89,8 @@ class CheckedExportTest(unittest.TestCase):
             self.assertEqual(snapshot_parent_ignored, [True, True])
             self.assertFalse(child_projects[0].exists())
             self.assertTrue((args.work / '.gdignore').is_file())
-            self.assertEqual(json.loads((args.work / 'source-project.json').read_text())['source'], str(project))
+            source = Path(json.loads((args.work / 'source-project.json').read_text())['source'])
+            self.assertEqual(source.resolve(), project.resolve())
             self.assertFalse((output.parent / '.output.cubism-export.lock').exists())
             self.assertEqual((output / 'old.txt').read_text(), 'previous build')
 
@@ -363,7 +364,7 @@ class CheckedExportTest(unittest.TestCase):
 
     def test_changed_or_external_input_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             (root / 'model.json').write_text('{}')
             digest = checked.sha256(root / 'model.json')
             checked.check_sources(root, {'res://model.json': digest})
