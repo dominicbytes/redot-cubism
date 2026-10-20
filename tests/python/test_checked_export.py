@@ -38,6 +38,27 @@ class CheckedExportTest(unittest.TestCase):
             self.assertEqual(probe.read_bytes(), editor.read_bytes())
             probe.unlink()
 
+    def test_windows_identity_probe_resolves_console_wrapper(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wrapper = root / 'redot.windows.editor.x86_64.llvm.console.exe'
+            editor = root / 'redot.windows.editor.x86_64.llvm.exe'
+            probe = root / 'probe.exe'
+            wrapper.write_bytes(b'console wrapper')
+            editor.write_bytes(b'paired editor')
+            checked.stage_identity_editor(wrapper, probe, 'Windows')
+            self.assertEqual(probe.read_bytes(), editor.read_bytes())
+            self.assertNotEqual(probe.read_bytes(), wrapper.read_bytes())
+
+    def test_windows_identity_probe_rejects_unpaired_console_wrapper(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            wrapper, probe = root / 'editor.console.exe', root / 'probe.exe'
+            wrapper.write_bytes(b'console wrapper')
+            with self.assertRaisesRegex(ValueError, 'paired editor executable'):
+                checked.stage_identity_editor(wrapper, probe, 'Windows')
+            self.assertFalse(probe.exists())
+
     def test_engine_children_use_private_project_when_output_is_inside_source(self):
         class StopAfterExport(Exception):
             pass
