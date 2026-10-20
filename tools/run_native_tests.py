@@ -124,6 +124,8 @@ def main():
             output, code = str(exc), 124
         (run_root / f"{name}.log").write_text(output)
         diagnostic_output = output
+        if name.endswith("legacy-target-point"):
+            diagnostic_output = diagnostic_output.replace("WARNING: Undefined parameter name: MissingLegacyTarget", "EXPECTED_UNDEFINED_TARGET_WARNING", 2)
         if "deltas" in name:
             # This deliberate negative input has one documented debug diagnostic.
             diagnostic_output = diagnostic_output.replace("WARNING: Negative Cubism delta ignored.", "EXPECTED_NEGATIVE_DELTA_WARNING", 1)
@@ -168,6 +170,8 @@ def main():
         success = run("model-factory", ["--script", "res://model_factory_checks.gd", "--quit-after", "2"], "CUBISM_MODEL_FACTORY_PASS")
     if success:
         success = run("legacy-hit-area", ["--script", "res://legacy_hit_area_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_HIT_AREA_PASS")
+    if success:
+        success = run("legacy-target-point", ["--script", "res://legacy_target_point_checks.gd", "--quit-after", "600"], "CUBISM_LEGACY_TARGET_POINT_PASS")
     if success:
         success = run("resource-runtime", ["--script", "res://resource_runtime_checks.gd", "--quit-after", "600"], "CUBISM_RESOURCE_RUNTIME_PASS")
     if success:
