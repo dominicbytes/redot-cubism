@@ -462,6 +462,7 @@ void InternalCubismUserModel::update_node() {
     #endif // GD_CUBISM_USE_RENDERER_2D
 
     renderer->IsPremultipliedAlpha(resource_premultiplied_alpha);
+    renderer->SetModelColor(1.0f, 1.0f, 1.0f, this->_model->GetModelOpacity());
     renderer->DrawModel();
     renderer->update(this->_renderer_resource, this->_owner_viewport->mask_viewport_size);
 }
