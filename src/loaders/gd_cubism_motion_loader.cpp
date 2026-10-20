@@ -93,6 +93,13 @@ Variant GDCubismMotionLoader::_load(const String& p_path, const String& p_origin
                 real_t p3_v = segments[s_idx + 6];
 
                 const bool restricted = meta.get("AreBeziersRestricted", false);
+                // Animation clamps handle X to the endpoint's side. Unrestricted
+                // SDK root selection outside this interval can be discontinuous,
+                // which continuous sampled keys cannot preserve within tolerance.
+                ERR_FAIL_COND_V_MSG(!restricted && (p1_t < p0_t || p1_t > p3_t || p2_t < p0_t || p2_t > p3_t),
+                    Error::ERR_PARSE_ERROR,
+                    "Cannot convert unrestricted Bezier for parameter '" + property + "' at segment offset " + String::num_int64(s_idx) +
+                    ": control times outside the segment interval cannot be preserved by Animation. Use native Cubism motion playback.");
                 Vector2 out_t = Vector2(restricted ? (p3_t - p0_t) / 3.0f : p1_t - p0_t, p1_v - p0_v);
                 Vector2 in_t = Vector2(restricted ? (p0_t - p3_t) / 3.0f : p2_t - p3_t, p2_v - p3_v);
 

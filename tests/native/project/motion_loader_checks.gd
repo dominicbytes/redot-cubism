@@ -78,6 +78,25 @@ func _initialize() -> void:
 		for time: float in [0.1, 0.25, 0.5, 0.75, 0.9]:
 			expect(absf(animation.bezier_track_interpolate(0, time) - expected_bezier(time, restricted)) < 0.002,
 				"cubic sample %.2f restricted=%s" % [time, restricted])
+	# SDK 5-r.5 interior references, also checked against actual playback in
+	# sdk_json_checks.gd. The unrestricted curve has discontinuous root selection and
+	# cannot be represented by this continuous Animation track.
+	var outside := [0, 0, 1, -0.5, 0.8, 1.5, 0.2, 1, 1]
+	expect(CubismManifestParser.parse_motion(JSON.stringify(motion(outside)), "Curve", 0, "res://outside.motion3.json").ok,
+		"outside-control curve remains valid for native SDK playback")
+	expect(load_text(JSON.stringify(motion(outside)), true) == null,
+		"reject unrestricted out-of-interval controls instead of clamping")
+	animation = load_text(JSON.stringify(motion(outside, true)))
+	expect(animation != null, "restricted out-of-interval controls load")
+	if animation != null:
+		var times := [0.1, 0.25, 0.5, 0.75, 0.9]
+		var sdk_values := [0.2008, 0.38125, 0.5, 0.61875, 0.7992]
+		for index in times.size():
+			expect(absf(animation.bezier_track_interpolate(0, times[index]) - sdk_values[index]) < 0.002,
+				"restricted outside-control SDK sample %.2f" % times[index])
+	for controls: Array in [[-0.5, 0.7], [0.1, 1.5], [1.5, 0.7], [0.1, -0.5]]:
+		expect(load_text(JSON.stringify(motion([0, 0, 1, controls[0], 0.8, controls[1], 0.2, 1, 1])), true) == null,
+			"reject either unrestricted control outside either endpoint")
 	for failure in failures: printerr("CUBISM_MOTION_LOADER_FAIL: ", failure)
 	print("CUBISM_MOTION_LOADER_CHECKS cases=", checks, " failures=", failures.size())
 	if failures.is_empty(): print("CUBISM_MOTION_LOADER_PASS")

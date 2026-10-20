@@ -72,22 +72,34 @@ func _run() -> void:
 		model.free()
 	# Compare the converted Animation with real Framework playback, including
 	# both cubic evaluation modes. Reuse the private, lawfully supplied model.
-	var curves := [[0, 0, 0, 1, 1], [0, 0, 1, 0.1, 0.8, 0.7, 0.2, 1, 1]]
+	var curves := [[0, 0, 0, 1, 1], [0, 0, 1, 0.1, 0.8, 0.7, 0.2, 1, 1],
+		[0, 0, 1, -0.5, 0.8, 1.5, 0.2, 1, 1]]
 	var samples := 0
-	for curve_index in 3:
+	for curve_index in 5:
 		var value: Dictionary = JSON.parse_string(base)
-		value.Curves[0].Segments = curves[0 if curve_index == 0 else 1]
+		value.Curves[0].Segments = curves[0 if curve_index == 0 else 1 if curve_index < 3 else 2]
 		value.Meta.TotalPointCount = 2 if curve_index == 0 else 4
-		value.Meta.AreBeziersRestricted = curve_index == 2
+		value.Meta.AreBeziersRestricted = curve_index == 2 or curve_index == 4
 		var path := directory.path_join("curve-%d.motion3.json" % curve_index)
 		write_bytes(path, JSON.stringify(value).to_utf8_buffer())
+		var previous := Engine.print_error_messages
+		if curve_index == 3: Engine.print_error_messages = false
 		var animation := ResourceLoader.load(path, "Animation", ResourceLoader.CACHE_MODE_IGNORE) as Animation
-		expect(animation != null, "Animation loads for SDK comparison")
+		Engine.print_error_messages = previous
+		expect((animation == null) == (curve_index == 3), "only unrestricted outside-control Animation is rejected")
 		var manifest := {"Version":3,"FileReferences":{"Moc":"model.moc3","Textures":textures,
 			"Motions":{"Curve":[{"File":path.get_file(),"FadeInTime":0,"FadeOutTime":0}]}}}
 		var source := directory.path_join("curve-%d.model3.json" % curve_index)
 		write_bytes(source, JSON.stringify(manifest).to_utf8_buffer())
-		for time: float in [0.1, 0.25, 0.5, 0.75, 0.9]:
+		var times := [0.1, 0.25, 0.5, 0.75, 0.9]
+		var reference := [0.2008, 0.38125, 0.5, 0.61875, 0.7992]
+		if curve_index == 3:
+			# Cardano root selection jumps near both boundaries. No finite
+			# density of continuous sampled keys gives a uniform 0.002 bound.
+			times = [0.01, 0.02, 0.1, 0.25, 0.5, 0.75, 0.9, 0.98, 0.99]
+			reference = [0, 0.3839517, 0.4213537, 0.4614707, 0.5, 0.5385293, 0.5786463, 0.6160486, 1]
+		for index in times.size():
+			var time: float = times[index]
 			var model := GDCubismUserModel.new()
 			model.playback_process_mode = GDCubismUserModel.MANUAL
 			model.physics_evaluate = false
@@ -95,17 +107,21 @@ func _run() -> void:
 			root.add_child(model)
 			model.assets = source
 			expect(model.is_initialized(), "SDK comparison model loads")
-			if model.is_initialized() and animation != null:
+			if model.is_initialized():
 				expect(model.start_motion("Curve", 0, GDCubismUserModel.PRIORITY_FORCE).get_error() == OK, "comparison motion starts")
 				model.advance(0.000001) # Establish the SDK queue start time.
 				model.advance(time)
 				for parameter: GDCubismParameter in model.get_parameters():
 					if parameter.id == id:
-						expect(absf(parameter.value - animation.bezier_track_interpolate(0, time)) < 0.002,
-							"Animation matches SDK curve=%d time=%.2f" % [curve_index, time])
+						if animation != null:
+							expect(absf(parameter.value - animation.bezier_track_interpolate(0, time)) < 0.002,
+								"Animation matches SDK curve=%d time=%.2f" % [curve_index, time])
+						if curve_index >= 3:
+							expect(absf(parameter.value - reference[index]) < 0.00001,
+								"outside-control SDK reference curve=%d time=%.2f" % [curve_index, time])
 						samples += 1
 			model.free()
-	expect(samples == 15, "all SDK interpolation samples evaluated")
+	expect(samples == 29, "all original and outside-control SDK samples evaluated")
 	var bad: Dictionary = JSON.parse_string(base)
 	bad.Meta.TotalSegmentCount = 0
 	# Validate original JSON before adapting Unicode escapes for the SDK.
@@ -127,7 +143,7 @@ func _run() -> void:
 			expect(not model.is_initialized() and model.get_last_error().get("code") == ERR_PARSE_ERROR,
 				"raw invalid motion %d fails with parse error" % index)
 			model.free()
-	if failures.is_empty(): print("CUBISM_MOTION_SDK_PASS samples=15 raw_rejections=4")
+	if failures.is_empty(): print("CUBISM_MOTION_SDK_PASS samples=29 raw_rejections=4")
 	for failure in failures: printerr("CUBISM_SDK_JSON_FAIL: ", failure)
 	if failures.is_empty(): print("CUBISM_SDK_JSON_PASS variants=5")
 	quit(0 if failures.is_empty() else 1)
