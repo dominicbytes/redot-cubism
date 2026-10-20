@@ -165,6 +165,8 @@ def main():
     if success:
         success = run("motion-parser", ["--script", "res://motion_parser_checks.gd", "--quit-after", "2"], "CUBISM_MOTION_PARSER_PASS")
     if success:
+        success = run("motion-loader", ["--script", "res://motion_loader_checks.gd", "--quit-after", "2"], "CUBISM_MOTION_LOADER_PASS")
+    if success:
         success = run("pose-parser", ["--script", "res://pose_parser_checks.gd", "--quit-after", "2"], "CUBISM_POSE_PARSER_PASS")
     if success:
         success = run("physics-parser", ["--script", "res://physics_parser_checks.gd", "--quit-after", "2"], "CUBISM_PHYSICS_PARSER_PASS")
@@ -297,6 +299,8 @@ def main():
             success = run("exported-expression-parser", ["--script", "res://expression_parser_checks.gd", "--quit-after", "2"], "CUBISM_EXPRESSION_PARSER_PASS", game)
         if success:
             success = run("exported-motion-parser", ["--script", "res://motion_parser_checks.gd", "--quit-after", "2"], "CUBISM_MOTION_PARSER_PASS", game)
+        if success:
+            success = run("exported-motion-loader", ["--script", "res://motion_loader_checks.gd", "--quit-after", "2"], "CUBISM_MOTION_LOADER_PASS", game)
         if success:
             success = run("exported-pose-parser", ["--script", "res://pose_parser_checks.gd", "--quit-after", "2"], "CUBISM_POSE_PARSER_PASS", game)
         if success:

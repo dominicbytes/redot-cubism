@@ -1,15 +1,26 @@
 // SPDX-License-Identifier: MIT
 #include <loaders/gd_cubism_motion_loader.hpp>
 
-#include <godot_cpp/classes/json.hpp>
+#include <cubism_manifest_parser.hpp>
+#include <cubism_descriptors.hpp>
 #include <godot_cpp/classes/file_access.hpp>
-#include <godot_cpp/variant/utility_functions.hpp>
+#include <cmath>
 
 Variant GDCubismMotionLoader::_load(const String& p_path, const String& p_original_path, bool p_use_sub_threads, int32_t p_cache_mode) const {
-    String buffer = FileAccess::get_file_as_string(p_path);
-    ERR_FAIL_COND_V(buffer.is_empty(), Error::FAILED);
-
-    Dictionary motion = JSON::parse_string(buffer);
+    const Ref<FileAccess> file = FileAccess::open(p_path, FileAccess::READ);
+    if (file.is_null()) return Error::ERR_FILE_CANT_OPEN;
+    const uint64_t length = file->get_length();
+    if (length == 0 || length > 4ULL * 1024 * 1024) return Error::ERR_FILE_CORRUPT;
+    const PackedByteArray bytes = file->get_buffer(length);
+    if (uint64_t(bytes.size()) != length || file->get_length() != length) return Error::ERR_FILE_CORRUPT;
+    String buffer;
+    if (buffer.parse_utf8(reinterpret_cast<const char *>(bytes.ptr()), bytes.size()) != OK) return Error::ERR_PARSE_ERROR;
+    // Source identity is not used by Animation conversion; allow virtual and
+    // external paths while sharing the production schema/segment validation.
+    const Dictionary validation = CubismManifestParser::parse_motion(buffer, "Animation", 0, "res://animation.motion3.json");
+    if (!bool(validation.get("ok", false))) return Error::ERR_PARSE_ERROR;
+    const Ref<CubismMotionDescriptor> descriptor = validation["motion"];
+    Dictionary motion = descriptor->get_metadata();
     Dictionary meta = motion["Meta"];
 
     Ref<Animation> anim;
@@ -20,8 +31,10 @@ Variant GDCubismMotionLoader::_load(const String& p_path, const String& p_origin
         loop
         ? Animation::LOOP_LINEAR
         : Animation::LOOP_NONE);
-    double fps = meta.get("FPS", 60.0);
-    anim->set_step(1.0 / fps);
+    const double fps = meta["Fps"];
+    const double step = 1.0 / fps;
+    if (!std::isfinite(step) || !std::isfinite(real_t(step)) || real_t(step) <= 0) return Error::ERR_PARSE_ERROR;
+    anim->set_step(step);
 
     // parse motion curves
     Array curves = motion["Curves"];
@@ -36,8 +49,6 @@ Variant GDCubismMotionLoader::_load(const String& p_path, const String& p_origin
         String property = curve["Id"];
         Array segments = curve["Segments"];
 
-        ERR_FAIL_COND_V_MSG(segments.size() < 2, Error::FAILED, "Invalid Segment, must have at least one point");
-
         int32_t track = anim->add_track(Animation::TYPE_BEZIER);
         anim->track_set_path(track, NodePath(".:" + property));
         anim->track_set_interpolation_loop_wrap(track, true);
@@ -50,8 +61,6 @@ Variant GDCubismMotionLoader::_load(const String& p_path, const String& p_origin
         for (uint32_t s_idx = 2, last_key = anim->track_get_key_count(track) - 1; s_idx < segments.size();) {
 
             int32_t type = segments[s_idx];
-            ERR_FAIL_COND_V_MSG(type < 0 || type > 3, Error::FAILED, "Invalid Motion Segment Type");
-
             real_t p0_t = segments[s_idx - 2];
             real_t p0_v = segments[s_idx - 1];
 
@@ -61,10 +70,8 @@ Variant GDCubismMotionLoader::_load(const String& p_path, const String& p_origin
                 real_t p1_v = segments[s_idx + 2];
 
                 // tangents
-                Vector2 out_t = Vector2(p1_t - p0_t, p1_v - p0_v);
-                Vector2 in_t = out_t * Vector2(-1, 1);
-
-                UtilityFunctions::print(out_t, in_t);
+                Vector2 out_t = Vector2(p1_t - p0_t, p1_v - p0_v) / 3.0f;
+                Vector2 in_t = -out_t;
 
                 anim->bezier_track_set_key_out_handle(track, last_key, out_t);
 
@@ -85,9 +92,16 @@ Variant GDCubismMotionLoader::_load(const String& p_path, const String& p_origin
                 real_t p3_t = segments[s_idx + 5];
                 real_t p3_v = segments[s_idx + 6];
 
-                real_t tangent_len = Math::absf(p0_t - p3_t) * 0.33333f;
-                Vector2 out_t = Vector2(tangent_len, p1_v - p0_v);
-                Vector2 in_t = Vector2(-tangent_len, p3_v - p2_v);
+                const bool restricted = meta.get("AreBeziersRestricted", false);
+                // Animation clamps handle X to the endpoint's side. Unrestricted
+                // SDK root selection outside this interval can be discontinuous,
+                // which continuous sampled keys cannot preserve within tolerance.
+                ERR_FAIL_COND_V_MSG(!restricted && (p1_t < p0_t || p1_t > p3_t || p2_t < p0_t || p2_t > p3_t),
+                    Error::ERR_PARSE_ERROR,
+                    "Cannot convert unrestricted Bezier for parameter '" + property + "' at segment offset " + String::num_int64(s_idx) +
+                    ": control times outside the segment interval cannot be preserved by Animation. Use native Cubism motion playback.");
+                Vector2 out_t = Vector2(restricted ? (p3_t - p0_t) / 3.0f : p1_t - p0_t, p1_v - p0_v);
+                Vector2 in_t = Vector2(restricted ? (p0_t - p3_t) / 3.0f : p2_t - p3_t, p2_v - p3_v);
 
                 anim->bezier_track_set_key_out_handle(track, last_key, out_t);
 
