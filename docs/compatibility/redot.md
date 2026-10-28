@@ -3,7 +3,7 @@
 Native runtime targets are **Redot 26.2 and 26.3 single precision**. Both use
 one binary built against the **26.2 binding ABI**, pinned to
 `4f5b14abade2239104847d03d8f9056e4467cfcd` and redot-cpp
-`598ec78e86b2c240a023f6de13daba70f7de8610`. The 26.3 reference is
+`9e7161bd7a3572a36ffa93109e73169861e9f834`. The 26.3 reference is
 `85e5203945af15755dd2f66cb6fdf7545fd88c0b`. Keep editor/export templates matched
 to each other; they need not match the addon's binding baseline.
 
