@@ -8,8 +8,8 @@
     "api_sha256": "177e7796166929b2193c9cce2fd32f59601a0147d0d1e7fe904b94e8f69f6577"
   },
   "redot_cpp": {
-    "url": "https://github.com/Redot-Engine/redot-cpp.git",
-    "commit": "598ec78e86b2c240a023f6de13daba70f7de8610"
+    "url": "https://github.com/dominicbytes/redot-cpp.git",
+    "commit": "9e7161bd7a3572a36ffa93109e73169861e9f834"
   },
   "gd_cubism": {
     "url": "https://github.com/MizunagiKB/gd_cubism.git",
